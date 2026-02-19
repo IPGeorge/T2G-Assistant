@@ -1,0 +1,119 @@
+C:\Program Files\Unity\Hub\Editor\6000.0.50f1\Editor\Unity.exe
+C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
+
+create a new game project shooter under C:\UnityGames
+initialize the game project shooter under C:\UnityGames
+open the game project shooter under the path C:\UnityGames
+
+
+create project C:\UnityGames\jet   or    create project C:\UnityGames jet
+init project C:\UnityGames jet     or    initialize project C:\UnityGames\jet
+open project C:\UnityGames jet     or    open project C:\UnityGames\jet
+connect
+disconnect
+create space NewWorld
+goto space NewWorld
+save space
+
+
+- DR Herman Lee email for Juan Li examination
+- Author for C++ game programming
+- Packt first payment (Received, need to confirm with Mike and Charles)
+- Order Key Lock Box (done)
+
+
+
+
+Issues
+1. Implement object operations
+2. 
+
+
+778-558-7135
+Patrica
+
+
+
+Game 1 description JSON
+{
+   ProjectInfo: 
+   Spaces: [
+         {
+             name: "space1",
+             objects: [
+                  {
+                      name: "animal"
+                  }
+             ]
+         },
+         {
+             name: "space3",
+             objects: [
+                  {
+                      name: "car"
+                  }
+             ]
+         }
+   ]
+}
+
+Game 2
+{
+   ProjectInfo: 
+   Inherit: "Game1" 
+   Spaces: [
+         {
+             name: "space2",
+             objects: [
+                  {
+                      name: "dog"
+                  }
+             ]
+         },
+         {
+             name: "space1",
+             objects: [
+                  {
+                      name: "cylinder"
+                  }
+             ]
+         } 
+   ]
+}
+
+Game 3
+{
+   ProjectInfo: 
+   Inherit: "Game1" 
+   Spaces: [
+         {
+             name: "space1",
+             objects: [
+                  {
+                      name: "pig"
+                  }
+             ]
+         },
+         {
+             name: "space3",
+             objects: [
+                  {
+                      name: "truck"
+                  }
+             ]
+         }
+   ]
+}
+
+
+
+
+https://www.youtube.com/watch?v=QJuaB2V79mU
+
+MAke smooth rotation:
+1. BP_Boss/Use Controller Rotation Yaw (Uncheck)
+2. BP_Boss/Character Movement Component/Use Controller Desired Rotation  (check)
+ 
+
+
+
