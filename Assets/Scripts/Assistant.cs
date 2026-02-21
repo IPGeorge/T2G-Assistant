@@ -24,6 +24,7 @@ namespace T2G.Assistant
         private bool _completed;
         private StringBuilder _sb = new StringBuilder();
 
+        public GameDescManager GameDescManager { get; }
 
         private void Awake()
         {

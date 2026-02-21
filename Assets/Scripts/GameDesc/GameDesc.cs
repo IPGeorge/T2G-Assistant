@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace T2G.Assistant
 {
@@ -21,6 +22,7 @@ namespace T2G.Assistant
         public List<T2G.Assistant.Object> Children = new List<Object>();
     }
 
+
     [Serializable]
     public class Component
     {
@@ -29,41 +31,70 @@ namespace T2G.Assistant
         public List<PropertyDesc> Properties = new List<PropertyDesc>();
         public string BehaviorScript;
 
-        // Runtime cache (fast lookup; rebuild when needed)
-        [NonSerialized] 
-        private Dictionary<string, PropertyDesc> _propertyMap = new Dictionary<string, PropertyDesc>();
+        // Snapshot cache (fast lookup). Not serialized.
+        [NonSerialized]
+        private Dictionary<string, PropertyDesc> _propertyMap;
 
         public bool TryGetProperty(string name, out PropertyDesc prop)
         {
+            EnsurePropertyMap();
             return _propertyMap.TryGetValue(name, out prop);
         }
 
-        public PropertyDesc GetProperty(string name)
+        public PropertyDesc GetPropertyOrNull(string name)
         {
+            EnsurePropertyMap();
             _propertyMap.TryGetValue(name, out var prop);
             return prop;
         }
 
+        /// <summary>
+        /// Call this if you modify Properties after deserialization.
+        /// </summary>
+        public void RebuildPropertyMap()
+        {
+            BuildPropertyMap();
+        }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            BuildPropertyMap();
+        }
+
+        private void EnsurePropertyMap()
+        {
+            _propertyMap ??= new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
+        }
+
         private void BuildPropertyMap()
         {
+            EnsurePropertyMap();
             _propertyMap.Clear();
-            
+
             if (Properties == null || Properties.Count == 0)
-            {
                 return;
-            }
 
             foreach (var p in Properties)
             {
                 if (p == null || string.IsNullOrWhiteSpace(p.Name))
-                {
                     continue;
-                }
+
+                // last one wins if duplicates
                 _propertyMap[p.Name] = p;
             }
         }
-
     }
+
+    public static class ComponentExtensions
+    {
+        public static void RebuildPropertyMapIfExists(this Component c)
+        {
+            if (c == null) return;
+            c.RebuildPropertyMap();
+        }
+    }
+
 
     [Serializable]
     public class PropertyDesc

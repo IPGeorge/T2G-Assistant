@@ -8,8 +8,8 @@ using UnityEngine;
 namespace T2G.Assistant
 {
     /// <summary>
-    /// Manages GameDesc snapshots (design-state), saving/loading to disk,
-    /// and provides common update operations.
+    /// Manages GameDesc design snapshots: create, save, load, list, and edit.
+    /// Snapshot is the domain model (design-state), not runtime state.
     /// </summary>
     public sealed class GameDescManager
     {
@@ -23,35 +23,32 @@ namespace T2G.Assistant
         private GameDescManager()
         {
             _saveFolder = Path.Combine(Application.persistentDataPath, "GameDescs");
-            Directory.CreateDirectory(_saveFolder);
+            if (!Directory.Exists(_saveFolder))
+            {
+                Directory.CreateDirectory(_saveFolder);
+            }
 
             _jsonSettings = new JsonSerializerSettings
             {
                 Formatting = Formatting.Indented,
-
-                // Avoid circular reference issues by NOT persisting Parent pointers.
-                // We rebuild Parent after load.
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-
-                // Keep robust reading if schema evolves.
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore, // Parent pointers not persisted
                 MissingMemberHandling = MissingMemberHandling.Ignore,
                 NullValueHandling = NullValueHandling.Include
             };
         }
 
         // -------------------------
-        // Public State
+        // Snapshot + Context
         // -------------------------
         /// <summary>
-        /// Path to the Unity project associated with the current GameDesc snapshot.
-        /// Example: C:\UnityGames\Shooter
+        /// Active design snapshot.
         /// </summary>
-        public string ProjectPath { get; private set; }
+        public GameDesc Snapshot { get; private set; }
 
         /// <summary>
-        /// Current loaded/active GameDesc snapshot.
+        /// Snapshot context (project path, last save path, timestamps).
         /// </summary>
-        public GameDesc Current { get; private set; }
+        public SnapshotContext Context { get; private set; } = new SnapshotContext();
 
         // -------------------------
         // Internal
@@ -60,49 +57,43 @@ namespace T2G.Assistant
         private readonly JsonSerializerSettings _jsonSettings;
 
         // ============================================================
-        // Creation
+        // Domain: Snapshot lifecycle
         // ============================================================
 
-        public GameDesc CreateNew(string title, string projectPath)
+        public GameDesc CreateGameDesc(string title, string projectPath)
         {
-            ProjectPath = projectPath ?? string.Empty;
-
-            Current = new GameDesc
+            Snapshot = new GameDesc
             {
                 Title = title ?? "Untitled",
                 Spaces = new List<Object>()
             };
 
-            return Current;
-        }
-
-        // ============================================================
-        // Save / Load
-        // ============================================================
-
-        /// <summary>
-        /// Saves Current to persistent data path. Returns the full file path.
-        /// If fileName is null, a timestamped name is generated.
-        /// </summary>
-        public string SaveToDisk(string fileName = null)
-        {
-            EnsureCurrent();
-
-            // Wrap both ProjectPath and GameDesc in one file (so it travels together).
-            var wrapper = new GameDescFile
+            Context = new SnapshotContext
             {
-                ProjectPath = ProjectPath,
-                GameDesc = Current
+                ProjectPath = projectPath ?? string.Empty,
+                LastFilePath = string.Empty,
+                CreatedUtc = DateTime.UtcNow,
+                LastSavedUtc = null
             };
 
-            // IMPORTANT: Parent pointers are not persisted (ReferenceLoopHandling.Ignore).
-            // We'll rebuild Parent from Children upon load.
+            return Snapshot;
+        }
+
+        public string SaveGameDesc(string fileName = null)
+        {
+            EnsureSnapshot();
+
+            var wrapper = new GameDescFile
+            {
+                Context = Context,
+                GameDesc = Snapshot
+            };
 
             string json = JsonConvert.SerializeObject(wrapper, _jsonSettings);
 
             if (string.IsNullOrWhiteSpace(fileName))
             {
-                string safeTitle = MakeSafeFileName(Current.Title);
+                string safeTitle = MakeSafeFileName(Snapshot.Title);
                 fileName = $"{safeTitle}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
             }
             else if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
@@ -113,14 +104,13 @@ namespace T2G.Assistant
             string fullPath = Path.Combine(_saveFolder, fileName);
             File.WriteAllText(fullPath, json);
 
+            Context.LastFilePath = fullPath;
+            Context.LastSavedUtc = DateTime.UtcNow;
+
             return fullPath;
         }
 
-        /// <summary>
-        /// Loads a GameDesc snapshot from a saved json file.
-        /// Updates Current and ProjectPath. Returns Current.
-        /// </summary>
-        public GameDesc LoadFromDisk(string filePath)
+        public GameDesc LoadGameDesc(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))
                 throw new ArgumentException("filePath is null/empty.");
@@ -143,22 +133,22 @@ namespace T2G.Assistant
             if (wrapper?.GameDesc == null)
                 throw new InvalidOperationException("Invalid file: GameDesc missing.");
 
-            ProjectPath = wrapper.ProjectPath ?? string.Empty;
-            Current = wrapper.GameDesc;
+            Snapshot = wrapper.GameDesc;
+
+            // Context is optional for backward compatibility with older saved files.
+            Context = wrapper.Context ?? new SnapshotContext();
+            Context.LastFilePath = filePath;
 
             // Rebuild parent pointers for hierarchy correctness.
-            RebuildParents(Current);
+            RebuildParents(Snapshot);
 
-            // Ensure child lists exist and component property maps are usable.
-            Normalize(Current);
+            // Normalize lists/caches.
+            Normalize(Snapshot);
 
-            return Current;
+            return Snapshot;
         }
 
-        /// <summary>
-        /// Returns a list of saved GameDesc json files (full paths), newest first.
-        /// </summary>
-        public List<string> ListSavedFiles()
+        public List<string> ListSavedGameDescs()
         {
             Directory.CreateDirectory(_saveFolder);
 
@@ -175,16 +165,16 @@ namespace T2G.Assistant
         }
 
         // ============================================================
-        // Space / Object updates
+        // Domain: Snapshot edits
         // ============================================================
 
         public Object AddSpace(string spaceName, string intent = null)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
             if (string.IsNullOrWhiteSpace(spaceName))
                 throw new ArgumentException("spaceName is empty.");
 
-            Current.Spaces ??= new List<Object>();
+            Snapshot.Spaces ??= new List<Object>();
 
             var space = new Object
             {
@@ -195,17 +185,13 @@ namespace T2G.Assistant
                 Children = new List<Object>()
             };
 
-            Current.Spaces.Add(space);
+            Snapshot.Spaces.Add(space);
             return space;
         }
 
-        /// <summary>
-        /// Add a new object under a given parent object (or as a root in a space if parentName is null).
-        /// Returns the created object.
-        /// </summary>
         public Object AddObject(string spaceName, string objectName, string intent = null, string parentName = null)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var space = FindSpace(spaceName)
                         ?? throw new InvalidOperationException($"Space '{spaceName}' not found.");
@@ -220,7 +206,6 @@ namespace T2G.Assistant
 
             if (string.IsNullOrWhiteSpace(parentName))
             {
-                // Attach directly under the space root
                 space.Children ??= new List<Object>();
                 newObj.Parent = space;
                 space.Children.Add(newObj);
@@ -238,21 +223,16 @@ namespace T2G.Assistant
             return newObj;
         }
 
-        /// <summary>
-        /// Remove an object by name from a given space. Removes entire subtree.
-        /// </summary>
         public bool RemoveObject(string spaceName, string objectName)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var space = FindSpace(spaceName);
             if (space == null) return false;
 
-            // Can't remove the space root itself via this method
             if (string.Equals(space.Name, objectName, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            // Find parent + remove from parent's children
             var target = FindObjectInSpace(space, objectName);
             if (target == null) return false;
 
@@ -262,13 +242,9 @@ namespace T2G.Assistant
             return parent.Children.Remove(target);
         }
 
-        // ============================================================
-        // Component updates
-        // ============================================================
-
         public Component AddComponent(string spaceName, string objectName, string componentType)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var obj = RequireObject(spaceName, objectName);
 
@@ -282,14 +258,14 @@ namespace T2G.Assistant
                 BehaviorScript = string.Empty
             };
 
-            // build property map later as needed
             obj.Components.Add(comp);
+            comp.RebuildPropertyMapIfExists();
             return comp;
         }
 
         public bool RemoveComponent(string spaceName, string objectName, string componentType)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var obj = RequireObject(spaceName, objectName);
             if (obj.Components == null) return false;
@@ -303,24 +279,14 @@ namespace T2G.Assistant
             return true;
         }
 
-        /// <summary>
-        /// Set/replace BehaviorScript on a component.
-        /// </summary>
         public void SetBehaviorScript(string spaceName, string objectName, string componentType, string behaviorScript)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var comp = RequireComponent(spaceName, objectName, componentType);
             comp.BehaviorScript = behaviorScript ?? string.Empty;
         }
 
-        // ============================================================
-        // Property updates
-        // ============================================================
-
-        /// <summary>
-        /// Add a new property or replace existing property value by name.
-        /// </summary>
         public void AddOrSetPropertyValue(
             string spaceName,
             string objectName,
@@ -329,10 +295,9 @@ namespace T2G.Assistant
             string propertyType,
             JToken value)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var comp = RequireComponent(spaceName, objectName, componentType);
-
             comp.Properties ??= new List<PropertyDesc>();
 
             int idx = comp.Properties.FindIndex(p =>
@@ -348,13 +313,9 @@ namespace T2G.Assistant
             if (idx >= 0) comp.Properties[idx] = prop;
             else comp.Properties.Add(prop);
 
-            // If you keep a cache map inside Component, rebuild it when properties change
             comp.RebuildPropertyMapIfExists();
         }
 
-        /// <summary>
-        /// Convenience overload: accepts any CLR object and converts to JToken.
-        /// </summary>
         public void AddOrSetPropertyValue(
             string spaceName,
             string objectName,
@@ -367,13 +328,9 @@ namespace T2G.Assistant
                 value == null ? JValue.CreateNull() : JToken.FromObject(value));
         }
 
-        public bool DeleteProperty(
-            string spaceName,
-            string objectName,
-            string componentType,
-            string propertyName)
+        public bool DeleteProperty(string spaceName, string objectName, string componentType, string propertyName)
         {
-            EnsureCurrent();
+            EnsureSnapshot();
 
             var comp = RequireComponent(spaceName, objectName, componentType);
             if (comp.Properties == null) return false;
@@ -389,20 +346,20 @@ namespace T2G.Assistant
         }
 
         // ============================================================
-        // Internal helpers
+        // Queries / Internal helpers
         // ============================================================
 
-        private void EnsureCurrent()
+        private void EnsureSnapshot()
         {
-            if (Current == null)
-                throw new InvalidOperationException("Current GameDesc is null. Call CreateNew(...) or LoadFromDisk(...) first.");
+            if (Snapshot == null)
+                throw new InvalidOperationException("Snapshot is null. Call CreateNewSnapshot(...) or LoadSnapshot(...) first.");
         }
 
         private Object FindSpace(string spaceName)
         {
-            if (Current?.Spaces == null) return null;
+            if (Snapshot?.Spaces == null) return null;
 
-            return Current.Spaces.Find(s =>
+            return Snapshot.Spaces.Find(s =>
                 s != null && string.Equals(s.Name, spaceName, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -438,7 +395,6 @@ namespace T2G.Assistant
             if (spaceRoot == null || string.IsNullOrWhiteSpace(objectName))
                 return null;
 
-            // Depth-first search over Children
             var stack = new Stack<Object>();
             stack.Push(spaceRoot);
 
@@ -485,14 +441,11 @@ namespace T2G.Assistant
                 if (c == null) continue;
                 c.Assets ??= new List<string>();
                 c.Properties ??= new List<PropertyDesc>();
-                // If Component has OnDeserialized / cache build, it will already run via Newtonsoft
                 c.RebuildPropertyMapIfExists();
             }
 
             foreach (var child in obj.Children)
-            {
                 NormalizeObjectRecursive(child);
-            }
         }
 
         private static void RebuildParents(GameDesc gd)
@@ -532,34 +485,26 @@ namespace T2G.Assistant
         }
 
         // ============================================================
-        // File wrapper: keep ProjectPath with the GameDesc snapshot
+        // File wrapper
         // ============================================================
 
         [Serializable]
         private class GameDescFile
         {
-            public string ProjectPath;
+            public SnapshotContext Context;
             public GameDesc GameDesc;
         }
     }
 
-    // ------------------------------------------------------------
-    // Small extension to work with your current Component code
-    // ------------------------------------------------------------
-    public static class ComponentExtensions
+    /// <summary>
+    /// Context metadata for a snapshot (separate from design graph).
+    /// </summary>
+    [Serializable]
+    public class SnapshotContext
     {
-        /// <summary>
-        /// If your Component has a property cache map, rebuild it.
-        /// If it doesn't, this is a no-op.
-        /// </summary>
-        public static void RebuildPropertyMapIfExists(this Component c)
-        {
-            // If you have RebuildPropertyMap() method, call it here.
-            // This keeps GameDescManager decoupled from your internal cache implementation.
-            // Example:
-            // c.RebuildPropertyMap();
-
-            // If you don't want to expose a public rebuild method, you can remove calls to this extension.
-        }
+        public string ProjectPath;
+        public string LastFilePath;
+        public DateTime CreatedUtc;
+        public DateTime? LastSavedUtc;
     }
 }
