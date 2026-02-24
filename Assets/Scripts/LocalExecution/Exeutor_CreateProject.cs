@@ -61,6 +61,8 @@ namespace T2G.Assistant
                 _process.WaitForExit();
                 _process.Close();
                 _process.Exited -= _eventHandler;
+
+                Assistant.Instance.CreateNewProject(_projectName, _projectPathName);
             }
             catch (Exception e)
             {

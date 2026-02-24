@@ -221,7 +221,7 @@ namespace T2G.Assistant
             float windowX = Screen.width * 0.1f;
             float buttonsY = 20f + chatWindowHeight + inputFieldHeight + 16f;
 
-            float buttonWidth = 120f;
+            float buttonWidth = 100f;
             float buttonHeight = 32f;
             float spacing = 10f;
 
@@ -255,6 +255,12 @@ namespace T2G.Assistant
                 SettingsWindow.Instance.ShowWindow();
             }
 
+            // Settings
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 5, buttonsY, buttonWidth, buttonHeight), "Persistent"))
+            {
+                string persistantPath = Application.persistentDataPath.Replace("/", "\\");
+                System.Diagnostics.Process.Start("explorer.exe",persistantPath);
+            }
         }
 
         private async void SendMessage()

@@ -60,7 +60,7 @@ namespace T2G.Assistant
         // Domain: Snapshot lifecycle
         // ============================================================
 
-        public GameDesc CreateGameDesc(string title, string projectPath)
+        public GameDesc CreateGameDesc(string title = "")
         {
             Snapshot = new GameDesc
             {
@@ -70,7 +70,6 @@ namespace T2G.Assistant
 
             Context = new SnapshotContext
             {
-                ProjectPath = projectPath ?? string.Empty,
                 LastFilePath = string.Empty,
                 CreatedUtc = DateTime.UtcNow,
                 LastSavedUtc = null
@@ -93,8 +92,7 @@ namespace T2G.Assistant
 
             if (string.IsNullOrWhiteSpace(fileName))
             {
-                string safeTitle = MakeSafeFileName(Snapshot.Title);
-                fileName = $"{safeTitle}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+                fileName = MakeSafeFileName(Snapshot.Title);
             }
             else if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
@@ -110,7 +108,7 @@ namespace T2G.Assistant
             return fullPath;
         }
 
-        public GameDesc LoadGameDesc(string filePath)
+        public bool LoadGameDesc(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))
                 throw new ArgumentException("filePath is null/empty.");
@@ -145,7 +143,7 @@ namespace T2G.Assistant
             // Normalize lists/caches.
             Normalize(Snapshot);
 
-            return Snapshot;
+            return true;
         }
 
         public List<string> ListSavedGameDescs()

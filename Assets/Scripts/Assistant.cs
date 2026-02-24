@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,7 +25,8 @@ namespace T2G.Assistant
         private bool _completed;
         private StringBuilder _sb = new StringBuilder();
 
-        public GameDescManager GameDescManager { get; }
+        public Project GameProject { get; private set; } = null;
+        public GameDescManager GameDescManager { get; } = null;
 
         private void Awake()
         {
@@ -157,7 +159,7 @@ namespace T2G.Assistant
             if (instruction.state == Instruction.eState.Local)
             {
                 var result = await LocalExecution.Instance.Execute(instruction);
-                _completed &= result.succeeded;
+                _completed = result.succeeded;
                 _sb.AppendLine(result.message);
 
                 if (result.additionalInstructions != null && result.additionalInstructions.Count > 0)
@@ -210,7 +212,58 @@ namespace T2G.Assistant
                 await ProcessInstruction(i);
             }
 
+            TranslationLogger.Append(new TranslationRecord()
+                {
+                    prompt = intent,
+                    success = _completed,
+                    instructionList = new InstructionList() { instructions = _instructions }
+                }
+            );
+
             return (_completed, _sb.ToString());
+        }
+
+        public void SaveCurrentProject()
+        {
+            if(GameProject != null)
+            {
+                GameProject.Save();
+                GameDescManager.SaveGameDesc(GameProject.ProjectName);
+            }
+        }
+
+        public void CreateNewProject(string projectName, string projectPath)
+        {
+            SaveCurrentProject();
+            GameProject = new Project() { ProjectName = projectName, ProjectPath = projectPath };
+            GameDescManager.CreateGameDesc(projectName);
+            SaveCurrentProject();
+        }
+
+        public bool OpenProject(string projectName)
+        {
+            if(string.IsNullOrEmpty(projectName))
+            {
+                return false;
+            }
+            
+            SaveCurrentProject();
+            GameProject = Project.Load(projectName);
+            if(GameProject == null || string.IsNullOrWhiteSpace(GameProject.ProjectName))
+            {
+                return false;
+            }
+            if (!GameDescManager.LoadGameDesc(GameProject.ProjectName))
+            {
+                GameDescManager.CreateGameDesc(projectName);
+            }
+            return true;
+        }
+
+        public int FindSavedProjectIndex(string projectName)
+        {
+            var prjList = Project.GetProjectList();
+            return prjList.FindIndex(item => string.Equals(item, projectName, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
