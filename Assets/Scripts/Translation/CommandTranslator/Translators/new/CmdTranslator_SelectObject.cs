@@ -1,24 +1,22 @@
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator("create_space")]
-    public class CmdTranslator_CreateSpace : CmdTranslatorBase
+    [CommandTranslator(T2G.Actions.select_object)]
+    public class CmdTranslator_SelectObject : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
             List<Instruction> instructions = new List<Instruction>();
 
             Instruction instruction = new Instruction();
-            instruction.action = GetType().GetCustomAttribute<CommandTranslatorAttribute>()?.Action;
+            instruction.action = GetActionName();
             instruction.state = Instruction.eState.Resolved;
             instruction.parameters = new List<ValuePair>();
-
-            string spaceName = Utils.GetParamFromArguments(args, "name");
-            instruction.parameters.Add(new ValuePair("spaceName", spaceName));
-
+            string objectName = Utils.GetParamFromArguments(args, "name");
+            instruction.parameters.Add(new ValuePair("objectName", objectName));
             instructions.Add(instruction);
+
             return (true, instructions);
         }
     }

@@ -41,12 +41,13 @@ namespace T2G.Assistant
             (@"^create\s+space\s+(?<name>[^\s]+)$", "create_space"),
             (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", "goto_space"),
             (@"^save space$", "save_space"),
-
-            (@"^generate\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "generate_game"),
-
-            (@"^(?:\w+\s+)?(create|add)\s+(?:a\s+|an\s+)?(?<type>[\w\s\-]+?)\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+)(?:\.)?$", "create_object"),
+            (@"^(?:\w+\s+)?(create|add|place)\s+(?:a\s+|an\s+)?(?<type>[\w\s\-]+?)\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+)(?:\.)?$", "create_object"),
             (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", "select_object"),
             (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", "delete_object"),
+
+
+            (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
+
             (@"^(?:place|put)\s+(?<objectName>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+(?:at|on)\s+(?<spawnpointNames>(?:\s*(""[^""]+""|'[^']+'|[\w\-]+)\s*,?)+)\s*(?:spawn\s+point)?(?:\.)?$", "place_at_spawnpoint"),
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(property|attribute))\s+(?<property>\w+)\s+(to|to be)\s+(?<value>(""[^""]+""|'[^']+'|[\w\.\-/]+|\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*\s*\)))(?:\s+for\s+(?<script>\w+))?\s*$", "set_value"),
             (@"^(?:\w+\s+)?set(?:\s+object)?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+(position|location)\s+(?:at\s+)?(?<position>\(?\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)?)\.?\s*$", "set_position"),

@@ -65,7 +65,7 @@ namespace T2G.Assistant
             Snapshot = new GameDesc
             {
                 Title = title ?? "Untitled",
-                Spaces = new List<Object>()
+                Spaces = new List<T2G.Assistant.Object>()
             };
 
             Context = new SnapshotContext
@@ -166,7 +166,7 @@ namespace T2G.Assistant
         // Domain: Snapshot edits
         // ============================================================
 
-        public Object AddSpace(string spaceName, string intent = null)
+        public Object AddSpace(string spaceName, string desc = null)
         {
             EnsureSnapshot();
             if (string.IsNullOrWhiteSpace(spaceName))
@@ -177,7 +177,7 @@ namespace T2G.Assistant
             var space = new Object
             {
                 Name = spaceName,
-                Intent = intent ?? "Space",
+                Desc = desc ?? "Space",
                 Components = new List<Component>(),
                 Parent = null,
                 Children = new List<Object>()
@@ -187,7 +187,7 @@ namespace T2G.Assistant
             return space;
         }
 
-        public Object AddObject(string spaceName, string objectName, string intent = null, string parentName = null)
+        public Object AddObject(string spaceName, string objectName, string desc = null, string parentName = null)
         {
             EnsureSnapshot();
 
@@ -197,7 +197,7 @@ namespace T2G.Assistant
             var newObj = new Object
             {
                 Name = objectName,
-                Intent = intent ?? string.Empty,
+                Desc = desc ?? string.Empty,
                 Components = new List<Component>(),
                 Children = new List<Object>()
             };
@@ -504,5 +504,108 @@ namespace T2G.Assistant
         public string LastFilePath;
         public DateTime CreatedUtc;
         public DateTime? LastSavedUtc;
+    }
+
+    /// <summary>
+    /// Parses a GameDesc for instructions
+    /// </summary>
+    public class GameDescParser
+    {
+        public static bool ParseForInstructions(GameDesc gameDesc, out Instruction[] instructions)
+        {
+            if(gameDesc == null)
+            {
+                instructions = null;
+                return false;
+            }
+            
+            List<Instruction> instructionList = new List<Instruction>();
+
+            foreach(var space in gameDesc.Spaces)
+            {
+                var spaceInstruction = ParseObjectForInstruction(space);
+                if (spaceInstruction != null)
+                {
+                    instructionList.Add(spaceInstruction);
+                }
+            }
+            instructions = instructionList.ToArray();
+
+            return true;
+
+        }
+
+        // -------------------------
+        //Recursively parse objects. Has overflow risk.  
+        // -------------------------
+        private static Instruction ParseObjectForInstruction(T2G.Assistant.Object gameDescObject)
+        {
+            if(gameDescObject == null)
+            {
+                return null;
+            }
+
+            Instruction instruction = new Instruction();
+            instruction.action = T2G.Actions.create_object;
+            instruction.parameters.Add(new ValuePair("Name", gameDescObject.Name));
+            instruction.desc = gameDescObject.Desc;
+
+            if(string.IsNullOrEmpty(gameDescObject.Parent.Name))
+            {
+                instruction.parameters.Add(new ValuePair("Parent", gameDescObject.Parent.Name));
+            }
+
+            List<Instruction> instructionList = new List<Instruction>();
+
+
+            foreach(var component in gameDescObject.Components)
+            {
+                if(component == null)
+                {
+                    continue;
+                }
+                var componentInstruction = ParseComponentForInstruction(component);
+                if(componentInstruction != null)
+                {
+                    instructionList.Add(componentInstruction);
+                }
+            }
+
+            foreach (var child in gameDescObject.Children)
+            {
+                if(child == null)
+                {
+                    continue;
+                }
+                var childInstruction = ParseObjectForInstruction(child);
+                if (childInstruction != null)
+                {
+                    instructionList.Add(childInstruction);
+                }
+            }
+
+            instruction.instructions = instructionList.ToArray();
+
+            return instruction;
+        }
+
+        private static Instruction ParseComponentForInstruction(T2G.Assistant.Component component)
+        {
+            if(component == null)
+            {
+                return null;
+            }
+            Instruction instruction = new Instruction();
+            instruction.action = T2G.Actions.add_component;
+
+            //TODO
+            //component.Type;
+            //component.Properties
+            //component.BehaviorScript
+            //component.Assets
+
+            
+            return instruction;
+        }
     }
 }

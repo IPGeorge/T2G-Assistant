@@ -1,6 +1,5 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using UnityEngine;
+using System.Reflection;
 
 namespace T2G.Assistant
 {
@@ -9,6 +8,11 @@ namespace T2G.Assistant
         public virtual (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
             return (false, null);
+        }
+
+        public string GetActionName()
+        {
+            return GetType().GetCustomAttribute<CommandTranslatorAttribute>()?.Action;
         }
     }
 }

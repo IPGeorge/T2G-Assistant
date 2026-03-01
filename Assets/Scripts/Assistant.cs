@@ -26,7 +26,7 @@ namespace T2G.Assistant
         private StringBuilder _sb = new StringBuilder();
 
         public Project GameProject { get; private set; } = null;
-        public GameDescManager GameDescManager { get; } = null;
+        public GameDescManager GameDescManager { get; private set; } = null;
 
         private void Awake()
         {
@@ -42,6 +42,7 @@ namespace T2G.Assistant
             //string json2 = JsonConvert.SerializeObject(gameDesc, Formatting.Indented);
 
             _chatBot = ChatBotUI.Instance;
+            GameDescManager = GameDescManager.Instance;
             Init();
         }
 

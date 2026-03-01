@@ -16,7 +16,7 @@ namespace T2G.Assistant
     public class Object
     {
         public string Name;
-        public string Intent;
+        public string Desc;
         public List<T2G.Assistant.Component> Components = new List<Component>();
         public T2G.Assistant.Object Parent;
         public List<T2G.Assistant.Object> Children = new List<Object>();
