@@ -12,7 +12,7 @@ public class Project
     public string Engine;
 
 
-    static string GetRootSirectory()
+    static string GetRootDirectory()
     {
         string directory = Path.Combine(Application.persistentDataPath, "Projects");
         if (!Directory.Exists(directory))
@@ -29,18 +29,18 @@ public class Project
             return false;
         }
 
-        string directory = GetRootSirectory();
+        string directory = GetRootDirectory();
 
         string projectPath = Path.Combine(directory, ProjectName + ".prj");
         string projectJson = JsonUtility.ToJson(this);
 
-        File.WriteAllText(projectJson, projectPath);
+        File.WriteAllText(projectPath, projectJson);
         return true;
     }
 
     static public List<string> GetProjectList()
     {
-        string directory = GetRootSirectory();
+        string directory = GetRootDirectory();
         string[] projects = Directory.GetFiles(directory, "*.prj");
         List<string> prjList = new List<string>();
         for(int i = 0; i < projects.Length; ++i)
@@ -53,7 +53,7 @@ public class Project
 
     static public Project Load(string projectName)
     {
-        string directory = GetRootSirectory();
+        string directory = GetRootDirectory();
         string projectPath = Path.Combine(directory, projectName + ".prj");
         if(File.Exists(projectPath))
         {

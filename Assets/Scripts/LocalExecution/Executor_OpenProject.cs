@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace T2G.Assistant
 {
-    [LocalExecutor("open_project")]
+    [LocalExecutor(T2G.Actions.open_project)]
     public class Executor_OpenProject : ExecutorBase
     {
         private string _projectPath;
@@ -39,7 +39,7 @@ namespace T2G.Assistant
                 }
             }
             
-            if (!Directory.Exists(_projectPathName) || !projectIsOpened)
+            if (!Directory.Exists(_projectPathName) && !projectIsOpened)
             {
                 return (false, $"Project {_projectPathName} was not found.", null);
             }

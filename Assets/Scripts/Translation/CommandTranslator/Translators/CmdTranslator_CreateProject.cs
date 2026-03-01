@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator("create_project")]
+    [CommandTranslator(T2G.Actions.create_project)]
     public class CmdTranslator_CreateProject : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)

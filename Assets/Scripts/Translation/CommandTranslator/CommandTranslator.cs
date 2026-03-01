@@ -33,17 +33,17 @@ namespace T2G.Assistant
         private (string pattern, string key)[] _RBP_Rules = 
         {
             // Pattern that handles both cases
-            (@"^create\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", "create_project"),
-            (@"^(init|initialize)\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", "init_project"),
-            (@"^open\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", "open_project"),
-            (@"^connect$", "connect"),
-            (@"^disconnect$", "disconnect"),
-            (@"^create\s+space\s+(?<name>[^\s]+)$", "create_space"),
-            (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", "goto_space"),
-            (@"^save space$", "save_space"),
-            (@"^(?:\w+\s+)?(create|add|place)\s+(?:a\s+|an\s+)?(?<type>[\w\s\-]+?)\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+)(?:\.)?$", "create_object"),
-            (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", "select_object"),
-            (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", "delete_object"),
+            (@"^create\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.create_project),
+            (@"^(init|initialize)\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.init_project),
+            (@"^open\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.open_project),
+            (@"^connect$", T2G.Actions.connect),
+            (@"^disconnect$", T2G.Actions.disconnect),
+            (@"^create\s+space\s+(?<name>[^\s]+)$", T2G.Actions.create_space),
+            (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", T2G.Actions.goto_space),
+            (@"^save space$", T2G.Actions.save_space),
+            (@"^(?:\w+\s+)?(create|add|place)\s+(?:a\s+|an\s+)?(?<type>[\w\s\-]+?)\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+)(?:\.)?$", T2G.Actions.create_object),
+            (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
+            (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
 
 
             (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),

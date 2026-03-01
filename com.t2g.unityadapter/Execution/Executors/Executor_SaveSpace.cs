@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace T2G
 {
-    [Executor("save_space")]
+    [Executor(T2G.Actions.save_space)]
     public class Executor_SaveSpace : ExecutorBase
     {
         private readonly string k_Assets = "Assets";

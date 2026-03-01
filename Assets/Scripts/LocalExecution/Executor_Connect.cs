@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
-    [LocalExecutor("connect")]
+    [LocalExecutor(T2G.Actions.connect)]
     public class Executor_Connect : ExecutorBase
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)

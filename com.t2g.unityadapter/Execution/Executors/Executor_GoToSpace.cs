@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace T2G
 {
-    [Executor("goto_space")]
+    [Executor(T2G.Actions.goto_space)]
     public class Executor_GoToSpace : ExecutorBase
     {
         private readonly string k_Assets = "Assets";

@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace T2G
 {
-    [Executor("create_space")]
+    [Executor(T2G.Actions.create_space)]
     public class Executor_CreateSpace : ExecutorBase
     {
         private readonly string k_Assets = "Assets";

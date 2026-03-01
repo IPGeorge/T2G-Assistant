@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
-    [LocalExecutor("disconnect")]
+    [LocalExecutor(T2G.Actions.disconnect)]
     public class Executor_Diconnect : ExecutorBase
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)

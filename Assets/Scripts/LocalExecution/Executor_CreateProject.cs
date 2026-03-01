@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
-    [LocalExecutor("create_project")]
+    [LocalExecutor(T2G.Actions.create_project)]
     public class Executor_CreateProject : ExecutorBase
     {
         private Process _process;

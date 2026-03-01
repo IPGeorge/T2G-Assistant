@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 
 namespace T2G.Assistant
 {
-    [LocalExecutor("init_project")]
+    [LocalExecutor(T2G.Actions.init_project)]
     public class Executor_InitProject : ExecutorBase
     {
         static readonly string k_T2G_UnityAdapter_Package = "com.t2g.unityadapter";

@@ -13,7 +13,7 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("name");
+            string objName = instruction.parameters.GetString("objectName");
 
             var gameObject = SceneManager.GetActiveScene()
                     .GetRootGameObjects()
@@ -25,7 +25,7 @@ namespace T2G
                 return (true, $"Couldn't find {objName}!", null);
             }
 
-            GameObject.Destroy(gameObject);
+            GameObject.DestroyImmediate(gameObject);
             return (true, $"{objName} was destroyed.", null);
         }
     }
