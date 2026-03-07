@@ -1,0 +1,35 @@
+        public enum EExecutionType
+        {
+            Void,
+            LocalCmd,            //executed locally
+            EditingOp,           //Send to the engine for execution
+            GameDesc             //GameDesc data into instructions to create a project
+        }
+        public enum EInstructionState
+        {
+            Empty,
+            Raw,
+            Resolved,
+            MissingResource
+        }
+        public enum EDataType
+        {
+            Empty,
+            SingleParameter,
+            MultipleParameters,
+            JsonData
+        }
+
+1. create a cylinder named Tower
+{
+  "ExecutionType": 2,
+  "State": 1,
+  "Keyword": "create_object",
+  "DataType": 3,
+  "Data":
+  {
+    "name": "Tower",
+    "type": "cylinder"
+  },
+  "ResolvedAssetPaths": ""
+}

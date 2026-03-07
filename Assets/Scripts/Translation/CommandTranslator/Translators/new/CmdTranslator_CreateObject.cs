@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -15,10 +16,14 @@ namespace T2G.Assistant
             instruction.action = GetActionName();
             instruction.state = Instruction.eState.Raw;
             instruction.parameters = new List<ValuePair>();
-            string objectName = Utils.GetParamFromArguments(args, "name");
-            string objectDesc = Utils.GetParamFromArguments(args, "desc");
-            instruction.parameters.Add(new ValuePair("objectName", objectName));
-            instruction.parameters.Add(new ValuePair("objectDesc", objectDesc));
+            string objectName = Utils.GetParamFromArguments(args, "name").Trim();
+            if(string.IsNullOrEmpty(objectName))
+            {
+                objectName = "GameObject_" + Guid.NewGuid().ToString("N");  //use 32 characters without hyphens format
+            }
+            string objectDesc = Utils.GetParamFromArguments(args, "desc").Trim();
+            instruction.parameters.Add(new ValuePair("Name", objectName));
+            instruction.parameters.Add(new ValuePair("Desc", objectDesc));
             instructions.Add(instruction);
 
             return (true, instructions);

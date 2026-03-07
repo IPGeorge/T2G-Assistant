@@ -108,8 +108,7 @@ namespace T2G
                                 response.Succeeded = false;
                                 response.Message = "No appropriate exector was found!";
                             }
-                            string responseJson = JsonConvert.SerializeObject(response);
-                            CommunicatorServer.Instance.SendMessage(CommunicatorBase.eMessageType.Response, responseJson);
+                            SendExecutionResponse(response);
                         }
                         break;
                     case CommunicatorBase.eMessageType.Message:
@@ -119,7 +118,12 @@ namespace T2G
                         break;
                 }
             }
+        }
 
+        public void SendExecutionResponse(Response response)
+        {
+            string responseJson = JsonConvert.SerializeObject(response);
+            CommunicatorServer.Instance.SendMessage(CommunicatorBase.eMessageType.Response, responseJson);
         }
     }
 }

@@ -67,16 +67,13 @@ namespace T2G
 
         public void StartServer()
         {
-            if(IsConnected)
+            if(IsActive || IsConnected)
             {
                 return;
             }
-
-            if (!IsActive)
-            {
-                Init();
-            }
-
+           
+            Init();
+            
             var endpoint = NetworkEndpoint.AnyIpv4.WithPort(Port);
             if (_networkDriver.Bind(endpoint) == 0)
             {
