@@ -57,7 +57,7 @@ namespace T2G
             return false;
         }
 
-        bool CreateObject((string name, string path) objPrefab)
+        static bool CreateObject((string name, string path) objPrefab)
         {
             string prefabPath = Path.Combine("Assets", objPrefab.path);
             GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -71,7 +71,7 @@ namespace T2G
         }
 
         [InitializeOnLoadMethod]
-        public void CreateObjectImpl()
+        static void CreateObjectImpl()
         {
             AssetImporter.LoadLists();
 
