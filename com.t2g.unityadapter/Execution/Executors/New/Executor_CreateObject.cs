@@ -18,11 +18,11 @@ namespace T2G
             string desc = instruction.parameters.GetString("Desc");
             GameObject newObj = null;
 
-            if (string.IsNullOrEmpty(desc))
+            if (string.IsNullOrEmpty(desc) || string.Compare(desc, "object", true) == 0)
             {
                 newObj = new GameObject(name);
             }
-            else if (IsPrimitive(desc, out var primitiveType))
+            else if (Utils.IsPrimitiveDesc(desc, out var primitiveType))
             {
                 newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 newObj.name = name;
@@ -40,21 +40,6 @@ namespace T2G
             }
 
             return (true, $"{name} was created.", null);
-        }
-
-        bool IsPrimitive(string desc, out PrimitiveType? primitiveType)
-        {
-            foreach (PrimitiveType enumType in Enum.GetValues(typeof(PrimitiveType)))
-            {
-                string typeName = enumType.ToString();
-                if(string.Compare(typeName, desc, true) == 0)
-                {
-                    primitiveType = enumType;
-                    return true;
-                }
-            }
-            primitiveType = null;
-            return false;
         }
 
         static bool CreateObject((string name, string path) objPrefab)

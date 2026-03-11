@@ -19,6 +19,13 @@ namespace T2G.Assistant
             string path = Utils.GetParamFromArguments(args, "path");
             string prjName = Utils.GetParamFromArguments(args, "name");
 
+            if (string.IsNullOrEmpty(path) && string.IsNullOrEmpty(prjName) &&
+                !string.IsNullOrEmpty(Assistant.Instance.Settings.DefaultUnityProject))
+            {
+                prjName = Path.GetFileName(Assistant.Instance.Settings.DefaultUnityProject);
+                path = Path.GetDirectoryName(Assistant.Instance.Settings.DefaultUnityProject);
+            }
+
             if (string.IsNullOrEmpty(path) || !Utils.IsValidPath(path))
             {
                 return (false, null);

@@ -16,8 +16,15 @@ namespace T2G.Assistant
             instruction.state = Instruction.eState.Local;
             instruction.parameters = new List<ValuePair>();
 
-            string path = Utils.GetParamFromArguments(args, "path");
-            string prjName = Utils.GetParamFromArguments(args, "name");
+            string path = Utils.GetParamFromArguments(args, "path").Trim();
+            string prjName = Utils.GetParamFromArguments(args, "name").Trim();
+
+            if (string.IsNullOrEmpty(path) && string.IsNullOrEmpty(prjName) && 
+                !string.IsNullOrEmpty(Assistant.Instance.Settings.DefaultUnityProject))
+            {
+                prjName = Path.GetFileName(Assistant.Instance.Settings.DefaultUnityProject);
+                path = Path.GetDirectoryName(Assistant.Instance.Settings.DefaultUnityProject);
+            }
 
             if (string.IsNullOrEmpty(path) || !Utils.IsValidPath(path))
             {
@@ -29,6 +36,7 @@ namespace T2G.Assistant
                 prjName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
                 path = Path.GetDirectoryName(path);
             }
+
             instruction.parameters.Add(new ValuePair("path", path));
             instruction.parameters.Add(new ValuePair("projectName", prjName));
             instructions.Add(instruction);

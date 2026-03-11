@@ -3,38 +3,43 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace T2G.Assistant
 {
     public class Resolution
     {
-        public bool Resolve(ref Instruction instruction)
+        public async Awaitable<Instruction> Resolve(Instruction instruction)
         {
-            switch(instruction.state)
+            switch (instruction.state)
             {
                 case Instruction.eState.Resolved:
-                    return true;
+                    break;
                 case Instruction.eState.Raw:
-                    var assetList = Resolver.Resolve(instruction.desc);
-                    if (assetList != null)
+                    if (T2G.Utils.IsObjectDesc(instruction.desc) ||
+                        T2G.Utils.IsPrimitiveDesc(instruction.desc, out var primitiveType))
                     {
-                        instruction.assets = new List<string>(assetList.Result);
                         instruction.state = Instruction.eState.Resolved;
-                        return true;
+                    }
+                    else
+                    {
+                        var assetList = await Resolver.Resolve(instruction.desc);
+                        if (assetList != null)
+                        {
+                            instruction.assets = new List<string>(assetList);
+                            instruction.state = Instruction.eState.Resolved;
+                        }
                     }
                     break;
                 default:
                     break;
-
             }
-            return false;
+            return instruction;
         }
     }
 
     public static class Resolver
     {
-        public static async Task<string[]> Resolve(string desc)
+        public static async Awaitable<string[]> Resolve(string desc)
         {
             var response = await AssetSearchClient.SearchAssets(desc);
             if(response.succeeded)

@@ -170,10 +170,7 @@ namespace T2G.Assistant
             }
             else
             {
-                if (instruction.state == Instruction.eState.Raw)
-                {
-                    _resolution.Resolve(ref instruction);  //The returned instruction must be either raw or resolved 
-                }
+                instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved 
 
                 if (instruction.state == Instruction.eState.Resolved)
                 {

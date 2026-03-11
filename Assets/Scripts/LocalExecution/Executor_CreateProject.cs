@@ -88,7 +88,11 @@ namespace T2G.Assistant
                 initProjectInstruction.parameters = new List<ValuePair>();
                 initProjectInstruction.parameters.Add(new ValuePair("path", _projectPath));
                 initProjectInstruction.parameters.Add(new ValuePair("projectName", _projectName));
-                additionals.Add(initProjectInstruction); 
+                additionals.Add(initProjectInstruction);
+
+                Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
+                ChatBotUI.Instance.SaveSettings();
+
                 _tcs.SetResult((true, $"Project {_projectPathName} was created!", additionals));
             }
             else

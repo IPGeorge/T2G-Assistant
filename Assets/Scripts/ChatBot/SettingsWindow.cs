@@ -296,7 +296,7 @@ namespace T2G.Assistant
 
         private void ApplyChanges()
         {
-            chatBotUI?.ApplyNewSettings(editingSettings);
+            chatBotUI?.SaveSettings(editingSettings);
         }
     }
 }

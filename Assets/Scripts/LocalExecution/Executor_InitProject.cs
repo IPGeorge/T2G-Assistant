@@ -80,7 +80,10 @@ namespace T2G.Assistant
 
                 json = JsonConvert.SerializeObject(dependencies, Formatting.Indented);
                 File.WriteAllText(manifestFilePath, json);
-                
+
+                Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
+                ChatBotUI.Instance.SaveSettings();
+
                 _tcs.SetResult((true, "Project has been initialized!", null));
             }
             else

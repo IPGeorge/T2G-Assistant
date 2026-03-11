@@ -231,36 +231,41 @@ namespace T2G.Assistant
                 ClearChat();
             }
 
-            // Save History button
-            if (GUI.Button(new Rect(windowX + buttonWidth + spacing, buttonsY, buttonWidth, buttonHeight), "Save History"))
-            {
-                SaveHistoryToFile();
-            }
-
-            // Load History button
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 2, buttonsY, buttonWidth, buttonHeight), "Load History"))
-            {
-                LoadHistoryFromFile();
-            }
-
-            // Export History button
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth, buttonHeight), "Export Text"))
-            {
-                ExportHistoryToClipboard();
-            }
-
             // Settings
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 4, buttonsY, buttonWidth, buttonHeight), "Settings"))
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 1, buttonsY, buttonWidth, buttonHeight), "Settings"))
             {
                 SettingsWindow.Instance.ShowWindow();
             }
 
             // Settings
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 5, buttonsY, buttonWidth, buttonHeight), "Persistent"))
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 2, buttonsY, buttonWidth, buttonHeight), "Persistent"))
             {
                 string persistantPath = Application.persistentDataPath.Replace("/", "\\");
                 System.Diagnostics.Process.Start("explorer.exe",persistantPath);
             }
+
+            GUI.Label(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth * 3, buttonHeight),
+                Assistant.Instance.Settings.DefaultUnityProject);
+
+            /*
+            // Save History button
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth, buttonHeight), "Save History"))
+            {
+                SaveHistoryToFile();
+            }
+
+            // Load History button
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 4, buttonsY, buttonWidth, buttonHeight), "Load History"))
+            {
+                LoadHistoryFromFile();
+            }
+
+            // Export History button
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 5, buttonsY, buttonWidth, buttonHeight), "Export Text"))
+            {
+                ExportHistoryToClipboard();
+            }
+*/
         }
 
         private async void SendMessage()
@@ -389,14 +394,13 @@ namespace T2G.Assistant
         }
 
         // Public methods for settings integration
-        public void ApplyNewSettings(Settings newSettings)
+        public void SaveSettings(Settings newSettings = null)
         {
-            if (newSettings == null)
+            if (newSettings != null)
             {
-                return;
-            }
 
-            Utils.CopySettings(newSettings, Assistant.Instance.Settings);
+                Utils.CopySettings(newSettings, Assistant.Instance.Settings);
+            }
 #if UNITY_EDITOR
             EditorUtility.SetDirty(Assistant.Instance.Settings);
             AssetDatabase.SaveAssets();

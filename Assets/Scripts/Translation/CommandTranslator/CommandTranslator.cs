@@ -34,14 +34,14 @@ namespace T2G.Assistant
         {
             // Pattern that handles both cases
             (@"^create\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.create_project),
-            (@"^(init|initialize)\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.init_project),
-            (@"^open\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.open_project),
+            (@"^(init|initialize)\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.init_project),
+            (@"^open\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.open_project),
             (@"^connect$", T2G.Actions.connect),
             (@"^disconnect$", T2G.Actions.disconnect),
             (@"^create\s+space\s+(?<name>[^\s]+)$", T2G.Actions.create_space),
             (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", T2G.Actions.goto_space),
             (@"^save space$", T2G.Actions.save_space),
-            (@"^(?:\w+\s+)?(create|add|place)\s+(?:a\s+|an\s+)?(?<type>[\w\s\-]+?)\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+)(?:\.)?$", T2G.Actions.create_object),
+            (@"^(?:\w+\s+)?(create|add|place)\s+(?:a\s+|an\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\.)?$", T2G.Actions.create_object),
             (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
 

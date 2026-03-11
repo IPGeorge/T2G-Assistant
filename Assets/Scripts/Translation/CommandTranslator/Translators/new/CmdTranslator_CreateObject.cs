@@ -21,9 +21,8 @@ namespace T2G.Assistant
             {
                 objectName = "GameObject_" + Guid.NewGuid().ToString("N");  //use 32 characters without hyphens format
             }
-            string objectDesc = Utils.GetParamFromArguments(args, "desc").Trim();
+            instruction.desc = Utils.GetParamFromArguments(args, "desc").Trim();
             instruction.parameters.Add(new ValuePair("Name", objectName));
-            instruction.parameters.Add(new ValuePair("Desc", objectDesc));
             instructions.Add(instruction);
 
             return (true, instructions);

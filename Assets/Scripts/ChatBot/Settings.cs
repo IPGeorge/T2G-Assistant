@@ -22,6 +22,7 @@ namespace T2G.Assistant
         public string UnityEditorPath;
         public string T2G_UnityPluginPath;
         public string AssetLibraryRootPath;
+        public string DefaultUnityProject;
 
         public SettingsLite CloneToSettingsLite()
         {
@@ -44,6 +45,7 @@ namespace T2G.Assistant
         public string UnityEditorPath;
         public string T2G_UnityPluginPath;
         public string AssetLibraryRootPath;
+        public string DefaultUnityProject;
 
         public void CopyFrom(Settings settings)
         {
@@ -62,6 +64,7 @@ namespace T2G.Assistant
             UnityEditorPath = settings.UnityEditorPath;
             T2G_UnityPluginPath = settings.T2G_UnityPluginPath;
             AssetLibraryRootPath = settings.AssetLibraryRootPath;
+            DefaultUnityProject = settings.DefaultUnityProject;
         }
 
         public void CopyTo(Settings settings)
@@ -75,6 +78,7 @@ namespace T2G.Assistant
             settings.UnityEditorPath = UnityEditorPath;
             settings.T2G_UnityPluginPath = T2G_UnityPluginPath;
             settings.AssetLibraryRootPath = AssetLibraryRootPath;
+            settings.DefaultUnityProject = DefaultUnityProject;
         }
     }
 }

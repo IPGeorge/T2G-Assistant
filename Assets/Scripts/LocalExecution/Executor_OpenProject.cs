@@ -58,6 +58,10 @@ namespace T2G.Assistant
             if (_connected)
             {
                 Assistant.Instance.CreateNewProject(_projectName, _projectPathName);
+
+                Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
+                ChatBotUI.Instance.SaveSettings();
+
                 return (true, $"Project is openned!", null);
             }
             else
