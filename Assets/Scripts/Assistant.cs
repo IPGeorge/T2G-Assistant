@@ -161,7 +161,11 @@ namespace T2G.Assistant
             {
                 var result = await LocalExecution.Instance.Execute(instruction);
                 _completed = result.succeeded;
-                _sb.AppendLine(result.message);
+
+                if (!string.IsNullOrWhiteSpace(result.message))
+                {
+                    _sb.AppendLine(result.message);
+                }
 
                 if (result.additionalInstructions != null && result.additionalInstructions.Count > 0)
                 {

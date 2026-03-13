@@ -15,6 +15,10 @@ namespace T2G
         public const string disconnect = "disconnect";
         #endregion Connection
 
+        #region Misc
+        public const string clear = "clear";
+        #endregion Misc
+
         #region Space
         public const string create_space = "create_space";
         public const string goto_space = "goto_space";
@@ -25,6 +29,7 @@ namespace T2G
         public const string create_object = "create_object";
         public const string select_object = "select_object";
         public const string delete_object = "delete_object";
+        public const string place_on_ground = "place_on_ground";
         public const string create_from = "create_from";
         #endregion Object
 

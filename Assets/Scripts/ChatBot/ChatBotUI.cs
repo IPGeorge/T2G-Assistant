@@ -67,7 +67,6 @@ namespace T2G.Assistant
         {
             LoadSettings();
             var settings = Assistant.Instance.Settings;
-            // Add welcome message
             AddMessage(settings.botName, $"Hello {settings.userName}! I'm {settings.botName}. How can I help you today?");
         }
 
@@ -333,7 +332,7 @@ namespace T2G.Assistant
             return botResponses[UnityEngine.Random.Range(0, botResponses.Length)];
         }
 
-        private void ClearChat()
+        public void ClearChat()
         {
             chatHistory.Clear();
             fullHistoryString = "Chat cleared at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n";

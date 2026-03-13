@@ -15,15 +15,16 @@ namespace T2G
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string name = instruction.parameters.GetString("Name");
-            string desc = instruction.parameters.GetString("Desc");
+            string desc = instruction.desc;
             GameObject newObj = null;
 
-            if (string.IsNullOrEmpty(desc) || string.Compare(desc, "object", true) == 0)
+            if (string.Compare(desc, "object", true) == 0)
             {
                 newObj = new GameObject(name);
             }
             else if (Utils.IsPrimitiveDesc(desc, out var primitiveType))
             {
+                Debug.Log($"Create primitive: {primitiveType.ToString()}");
                 newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 newObj.name = name;
             }
@@ -31,7 +32,7 @@ namespace T2G
             {
                 AssetImporter.ImportAssets(name, instruction.assets);
                 if(AssetImporter.CreateObjectsList.Count > 0 && 
-                    !CreateObject((name, AssetImporter.CreateObjectsList[0].path)))
+                    !CreateObject((name, AssetImporter.CreateObjectsList[0].path), out newObj))
                 {
                     AssetImporter.CreateObjectsList.RemoveAt(0);
                     AssetImporter.SaveLists();
@@ -39,19 +40,25 @@ namespace T2G
                 }
             }
 
+            if (newObj != null)
+            {
+                Utils.PlaceInFontOfCamera(newObj);
+            }
+
             return (true, $"{name} was created.", null);
         }
 
-        static bool CreateObject((string name, string path) objPrefab)
+        static bool CreateObject((string name, string path) objPrefab, out GameObject gameObj)
         {
             string prefabPath = Path.Combine("Assets", objPrefab.path);
             GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefabAsset != null)
             {
-                GameObject gameObj = GameObject.Instantiate<GameObject>(prefabAsset);
+                gameObj = GameObject.Instantiate<GameObject>(prefabAsset);
                 gameObj.name = objPrefab.name;
                 return true;
             }
+            gameObj = null;
             return false;
         }
 
@@ -69,8 +76,10 @@ namespace T2G
             {
                 Response response = new Response(); //Send delayed execution  response to the assistant
                 var objPrefab = AssetImporter.CreateObjectsList[0];
-                if (CreateObject(objPrefab))
+                if (CreateObject(objPrefab, out var gameObject))
                 {
+                    Utils.PlaceInFontOfCamera(gameObject);
+                    Utils.UpdateEditorViews();
                     response.Succeeded = true;
                     response.Message = $"{objPrefab.name} was created.";
                 }

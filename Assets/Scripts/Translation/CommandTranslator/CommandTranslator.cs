@@ -38,17 +38,16 @@ namespace T2G.Assistant
             (@"^open\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.open_project),
             (@"^connect$", T2G.Actions.connect),
             (@"^disconnect$", T2G.Actions.disconnect),
+            (@"^(clear|clean)(?:\s+(history|chat|chat\s+history))?$", T2G.Actions.clear),
             (@"^create\s+space\s+(?<name>[^\s]+)$", T2G.Actions.create_space),
             (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", T2G.Actions.goto_space),
             (@"^save space$", T2G.Actions.save_space),
-            (@"^(?:\w+\s+)?(create|add|place)\s+(?:a\s+|an\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\.)?$", T2G.Actions.create_object),
+            (@"^(?:\w+\s+)?(create|add)\s+(?:a\s+|an\s+)?(?:new\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\.)?$", T2G.Actions.create_object),
             (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
-
-
+            (@"^(?:\w+\s+)?(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
             (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
 
-            (@"^(?:place|put)\s+(?<objectName>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+(?:at|on)\s+(?<spawnpointNames>(?:\s*(""[^""]+""|'[^']+'|[\w\-]+)\s*,?)+)\s*(?:spawn\s+point)?(?:\.)?$", "place_at_spawnpoint"),
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(property|attribute))\s+(?<property>\w+)\s+(to|to be)\s+(?<value>(""[^""]+""|'[^']+'|[\w\.\-/]+|\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*\s*\)))(?:\s+for\s+(?<script>\w+))?\s*$", "set_value"),
             (@"^(?:\w+\s+)?set(?:\s+object)?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+(position|location)\s+(?:at\s+)?(?<position>\(?\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)?)\.?\s*$", "set_position"),
             (@"^(?:\w+\s+)?set(?:\s+object)?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+rotation\s+(?<eulerAngles>\(?\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)?)\.?\s*$", "set_rotation"),

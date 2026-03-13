@@ -425,7 +425,7 @@ CONTENT TO FIX:
                 if (string.Equals(ins.action, "unknown", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                if (!ActionCatalog.AllowedActions.Contains(ins.action))
+                if (!ActionCatalog.IsValidAction(ins.action))
                 {
                     error = $"Instruction[{i}] action '{ins.action}' is not allowed.";
                     return false;

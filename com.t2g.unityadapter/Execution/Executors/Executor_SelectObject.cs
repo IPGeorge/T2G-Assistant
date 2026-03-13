@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEditor;
-using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace T2G
@@ -25,6 +24,7 @@ namespace T2G
             }
 
             Selection.activeGameObject = gameObject;
+            Utils.UpdateEditorViews();
             return (true, $"{objName} is selected.", null);
         }
     }

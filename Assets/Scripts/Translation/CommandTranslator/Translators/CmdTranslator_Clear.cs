@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator(T2G.Actions.select_object)]
-    public class CmdTranslator_SelectObject : CmdTranslatorBase
+    [CommandTranslator(T2G.Actions.clear)]
+    public class CmdTranslator_Clear : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
@@ -11,12 +12,8 @@ namespace T2G.Assistant
 
             Instruction instruction = new Instruction();
             instruction.action = GetActionName();
-            instruction.state = Instruction.eState.Resolved;
-            instruction.parameters = new List<ValuePair>();
-            string objectName = Utils.GetParamFromArguments(args, "name");
-            instruction.parameters.Add(new ValuePair("objectName", objectName));
+            instruction.state = Instruction.eState.Local;
             instructions.Add(instruction);
-
             return (true, instructions);
         }
     }

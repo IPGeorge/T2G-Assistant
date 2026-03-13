@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace T2G.Assistant
 {
@@ -19,7 +18,7 @@ namespace T2G.Assistant
             string objectName = Utils.GetParamFromArguments(args, "name").Trim();
             if(string.IsNullOrEmpty(objectName))
             {
-                objectName = "GameObject_" + Guid.NewGuid().ToString("N");  //use 32 characters without hyphens format
+                objectName = "Obj_" + Guid.NewGuid().ToString("N");  //use 32 characters without hyphens format
             }
             instruction.desc = Utils.GetParamFromArguments(args, "desc").Trim();
             instruction.parameters.Add(new ValuePair("Name", objectName));

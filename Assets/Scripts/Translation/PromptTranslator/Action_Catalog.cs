@@ -1,42 +1,40 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace T2G.Assistant
 {
     public static class ActionCatalog
     {
-        // The action set (lowercase, stable identifiers).
-        public static readonly HashSet<string> AllowedActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        static HashSet<string> m_allowedActions = null; // The action set (lowercase, stable identifiers).
+
+        public static void InitAllowedActions()
         {
-            //Project instructions
-            "create_project",
-            "init_project",
-            "open_project",
+            m_allowedActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            FieldInfo[] fields = typeof(T2G.Actions).GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            foreach(var field in fields)
+            {
+                // Check if it's a literal (const) and of type string
+                if (field.IsLiteral && !field.IsInitOnly && field.FieldType == typeof(string))
+                {
+                    string value = field.GetValue(null) as string;
+                    if (value != null)
+                    {
+                        m_allowedActions.Add(value);
+                    }
+                }
+            }
+        }
 
-            //Connection
-            "connect",
-            "disconnect",
+        public static bool IsValidAction(string action)
+        {
+            if(m_allowedActions == null)
+            {
+                InitAllowedActions();
+            }
 
-            //space instructions
-            "create_space",
-            "goto_space",
-            "save_space",
-            
-            //Object instructions
-            "create_object",
-            "set_object_position",
-            "set_object_rotation",
-            "set_object_scale",
-            "destroy_object",
-            "select_object",
-            "set_property_value",
-            "attach_object_to",
-            "detach_object_from",
-            
-            //component instructions
-            "add_component",
-            "remove_component",
-        };
+            return m_allowedActions.Contains(action);
+        }
 
         // A compact spec to help the model choose correct params.
         public static string BuildActionSpecForSystemPrompt()
