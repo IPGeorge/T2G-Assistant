@@ -31,6 +31,8 @@ namespace T2G
         public const string delete_object = "delete_object";
         public const string place_on_ground = "place_on_ground";
         public const string create_from = "create_from";
+        public const string attach = "attach";
+        public const string dettach = "dettach";
         #endregion Object
 
         #region Component

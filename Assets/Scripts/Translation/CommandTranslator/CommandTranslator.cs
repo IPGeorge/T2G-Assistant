@@ -46,22 +46,24 @@ namespace T2G.Assistant
             (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
             (@"^(?:\w+\s+)?(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
-            (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
 
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(property|attribute))\s+(?<property>\w+)\s+(to|to be)\s+(?<value>(""[^""]+""|'[^']+'|[\w\.\-/]+|\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*\s*\)))(?:\s+for\s+(?<script>\w+))?\s*$", "set_value"),
+            (@"^(add|modify)\s+(behavior|behaviour|component)\s+(?<name>[^\s]+)\s+to\s+(?<object>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "add_behavior"),
+            (@"^remove\s+(behavior|behaviour|script)\s+(?<name>[^\s]+)\s+from\s+(?<object>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "remove_behavior"),
+            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "attach_to"),
+            (@"^detach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+from\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "detach_from"),
+
+            (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
+
             (@"^(?:\w+\s+)?set(?:\s+object)?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+(position|location)\s+(?:at\s+)?(?<position>\(?\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)?)\.?\s*$", "set_position"),
             (@"^(?:\w+\s+)?set(?:\s+object)?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+rotation\s+(?<eulerAngles>\(?\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)?)\.?\s*$", "set_rotation"),
             (@"^(?:\w+\s+)?set(?:\s+object)?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+scale\s+((to|to be)\s+)?(?<scale>\(?\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\)?)\.?\s*$", "set_scale"),
             
             (@"^spin(?:\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))?(?:\s+(?<speed>[+-]?\d+(?:\.\d+)?))?$", "spin_object"),
             (@"^add\s+script\s+(?<filepath>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\s+to\s+(?<object>""[^""]+""|'[^']+'|[\w\-\s]+))?\s*$", "add_script"),
-            (@"^(add|modify)\s+(behavior|behaviour|component)\s+(?<name>[^\s]+)\s+to\s+(?<object>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "add_behavior"),
-            (@"^remove\s+(behavior|behaviour|script)\s+(?<name>[^\s]+)\s+from\s+(?<object>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "remove_behavior"),
             (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
             (@"^font\s+(?<attrib>\w+)\s+(?<value>-?\d+(?:\.\d+)?|#[0-9a-fA-F]{3,6}|\w+)\s*$", "set_font"),
             (@"^build\s+(?<shape>circle|square|rectangle)\s+(?<structure>wall)\s+with\s+(?<element>\w+)\s*(?:named|with the name\s+)?(?<name>.+?)(?:\.)?$", "build_structure"),
-            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "attach_to"),
-            (@"^detach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+from\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "detach_from"),
             (@"^(make|create)\s+prefab\s+from\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "make_prefab")
         };
 

@@ -12,6 +12,8 @@ namespace T2G
     [Executor(Actions.create_object)]
     public class Executor_CreateObject : ExecutorBase
     {
+        static bool _skipLastResponse = false;
+
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string name = instruction.parameters.GetString("Name");
@@ -31,26 +33,21 @@ namespace T2G
             else
             {
                 AssetImporter.ImportAssets(name, instruction.assets);
-                if(AssetImporter.CreateObjectsList.Count > 0 && 
-                    !CreateObject((name, AssetImporter.CreateObjectsList[0].path), out newObj))
-                {
-                    AssetImporter.CreateObjectsList.RemoveAt(0);
-                    AssetImporter.SaveLists();
-                    return (false, $"Failed create {name}!", null);
-                }
+                _skipLastResponse = true;
+                CreateObjectImpl();
             }
 
             if (newObj != null)
             {
-                Utils.PlaceInFontOfCamera(newObj);
+                Utils.PlaceInFrontOfCamera(newObj);
             }
 
             return (true, $"{name} was created.", null);
         }
 
-        static bool CreateObject((string name, string path) objPrefab, out GameObject gameObj)
+        static bool CreateObject((string name, string targetRelPath) objPrefab, out GameObject gameObj)
         {
-            string prefabPath = Path.Combine("Assets", objPrefab.path);
+            string prefabPath = Path.Combine("Assets", objPrefab.targetRelPath);
             GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefabAsset != null)
             {
@@ -63,13 +60,13 @@ namespace T2G
         }
 
         [InitializeOnLoadMethod]
-        static void CreateObjectImpl()
+        static async void CreateObjectImpl()
         {
             AssetImporter.LoadLists();
 
-            if(AssetImporter.ImportAssetList.Count > 0)
+            while(AssetImporter.ImportAssetList.Count > 0)
             {
-                return;
+                await Task.Yield();
             }
 
             while(AssetImporter.CreateObjectsList.Count > 0)
@@ -78,17 +75,22 @@ namespace T2G
                 var objPrefab = AssetImporter.CreateObjectsList[0];
                 if (CreateObject(objPrefab, out var gameObject))
                 {
-                    Utils.PlaceInFontOfCamera(gameObject);
+                    Utils.PlaceInFrontOfCamera(gameObject);
                     Utils.UpdateEditorViews();
                     response.Succeeded = true;
                     response.Message = $"{objPrefab.name} was created.";
+                    if (!_skipLastResponse || AssetImporter.CreateObjectsList.Count > 1)
+                    {
+                        Execution.Instance.SendExecutionResponse(response);
+                    }
                 }
                 else
                 {
                     response.Succeeded = false;
                     response.Message = $"Failed to create {objPrefab.name}!";
+                    Execution.Instance.SendExecutionResponse(response);
                 }
-                Execution.Instance.SendExecutionResponse(response);
+                _skipLastResponse = false;
                 AssetImporter.CreateObjectsList.RemoveAt(0);
                 AssetImporter.SaveLists();
             }

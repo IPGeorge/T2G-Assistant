@@ -22,10 +22,12 @@ namespace T2G.Assistant
                     }
                     else
                     {
-                        var assetList = await Resolver.Resolve(instruction.desc);
-                        if (assetList != null)
+                        var assetsArray = await Resolver.Resolve(instruction.desc);
+                        if (assetsArray != null && assetsArray.Length > 0)
                         {
-                            instruction.assets = new List<string>(assetList);
+                            string[] seperator = { ",", ", " };
+                            string[] assets = assetsArray[0].Split(seperator, StringSplitOptions.None);
+                            instruction.assets = new List<string>(assets);
                             instruction.state = Instruction.eState.Resolved;
                         }
                     }
@@ -44,7 +46,7 @@ namespace T2G.Assistant
             var response = await AssetSearchClient.SearchAssets(desc);
             if(response.succeeded)
             {
-                return response.assetPaths;
+                return response.assetPaths;  
             }
             return null;
         }

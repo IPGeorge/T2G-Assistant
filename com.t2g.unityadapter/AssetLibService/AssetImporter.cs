@@ -1,6 +1,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -13,43 +14,29 @@ namespace T2G
         public static readonly string AssetsToImportListFileName = "ImportAssetList.txt";
         public static readonly string GameObjectsToCreateListFileName = "CreateGameObjectsList.txt";
 
-        static List<string> _importAssetList = new List<string>();
-        static List<(string name, string filePath)> _createObjectsList = new List<(string, string)>();
+        static List<(string sourcePath, string targetRelPath)> _importAssetList = new List<(string, string)>();
+        static List<(string name, string targetRelPath)> _createObjectsList = new List<(string, string)>();
         static GameObject _newGameObject = null;
 
-        public static List<string> ImportAssetList => _importAssetList;
-        public static List<(string name, string path)> CreateObjectsList => _createObjectsList;
+        public static List<(string sourcePath, string targetRelPath)> ImportAssetList => _importAssetList;
+        public static List<(string name, string targetRelPath)> CreateObjectsList => _createObjectsList;
 
         public static void ImportAssets(string objName, List<string> assets)
         {
-            _newGameObject = null;
-
-            int i = 0;
-            foreach(var assetPath in assets)
-            {
-                if(Path.GetExtension(assetPath).ToLower() == ".prefab")
-                {
-                    if (i == 0)
-                    {
-                        _createObjectsList.Add((objName, assetPath));
-                    }
-                    else
-                    {
-                        _createObjectsList.Add((objName + "_" + i, assetPath));
-                    }
-                }
-            }
-            _importAssetList.AddRange(assets);
+            _createObjectsList.Add((objName, assets[1]));
+            _importAssetList.Add((assets[0], assets[1]));
             SaveLists();
-            ImportAssetsImpl();
+            SimImportAssetsImpl();
         }
 
         public static void SaveLists()
         {
+            string json;
             string path = Path.Combine(Application.persistentDataPath, AssetsToImportListFileName);
-            File.WriteAllLines(path, _importAssetList);
+            json = JsonConvert.SerializeObject(_importAssetList);
+            File.WriteAllText(path, json);
             path = Path.Combine(Application.persistentDataPath, GameObjectsToCreateListFileName);
-            string json = JsonConvert.SerializeObject(_createObjectsList);
+            json = JsonConvert.SerializeObject(_createObjectsList);
             File.WriteAllText(path, json);
         }
 
@@ -58,7 +45,9 @@ namespace T2G
             string path = Path.Combine(Application.persistentDataPath, AssetsToImportListFileName);
             if (File.Exists(path))
             {
-                _importAssetList = new List<string>(File.ReadAllLines(path));
+                string json = File.ReadAllText(path);
+                var tmp = JsonConvert.DeserializeObject<List<(string, string)>>(json);
+                _importAssetList = tmp ?? _importAssetList;
             }
             else
             {
@@ -68,7 +57,8 @@ namespace T2G
             if (File.Exists(path))
             {
                 string json = File.ReadAllText(path);
-                _createObjectsList = JsonConvert.DeserializeObject<List<(string, string)>>(json);
+                var tmp = JsonConvert.DeserializeObject<List<(string, string)>>(json);
+                _createObjectsList = tmp ?? _createObjectsList;
             }
             else
             {
@@ -77,25 +67,51 @@ namespace T2G
         }
 
         [InitializeOnLoadMethod]
-        static void ImportAssetsImpl()
+        static async void SimImportAssetsImpl()
         {
             LoadLists();
 
             while(_importAssetList.Count > 0)
             {
-                string assetPath = _importAssetList[0];
-                string targetPath = Path.Combine(EditorApplication.applicationContentsPath, assetPath);
-                if (!File.Exists(targetPath))  //TODO: version number to override
+                var assetPaths = _importAssetList[0];
+                var editorAssetsPath = Application.dataPath;
+                string targetPath = Path.Combine(editorAssetsPath, assetPaths.targetRelPath);
+                if (!File.Exists(targetPath) &&
+                    Execution.Instance.Settings.AssetLibraryRootPath != null)  //TODO: version number to override
                 {
-                    string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPath);
+                    string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPaths.sourcePath);
                     if (File.Exists(sourcePath))
                     {
-                        string targetDirectory = Path.GetFullPath(targetPath);
-                        if(!Directory.Exists(targetDirectory))
+                        string extension = Path.GetExtension(sourcePath);
+                        if (string.Compare(extension, ".unitypackage", true) == 0 ||
+                            extension.IndexOf("unitypackage") > 0)
                         {
-                            Directory.CreateDirectory(targetDirectory);
+                            bool isCompleted = false;
+                            AssetDatabase.importPackageCompleted += (packageName) => { isCompleted = true; };
+
+                            AssetDatabase.ImportPackage(sourcePath, false);
+
+                            int maxAttempts = 3000; // 300 seconds (3000 * 100ms)
+                            int attempts = 0;
+
+                            while (!isCompleted && attempts < maxAttempts)
+                            {
+                                await Task.Delay(100); // 100ms delay
+                                attempts++;
+                            }
+
+                            await Task.Delay(500);
+                            AssetDatabase.Refresh();
                         }
-                        File.Copy(sourcePath, targetPath, true);
+                        else
+                        {
+                            string targetDirectory = Path.GetDirectoryName(targetPath);
+                            if (!Directory.Exists(targetDirectory))
+                            {
+                                Directory.CreateDirectory(targetDirectory);
+                            }
+                            File.Copy(sourcePath, targetPath, true);
+                        }
                     }
                 }
                 _importAssetList.RemoveAt(0);

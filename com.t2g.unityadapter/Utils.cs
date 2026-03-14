@@ -26,7 +26,7 @@ namespace T2G
             return (string.Compare(desc.Trim(), "object", true) == 0);
         }
 
-        public static void PlaceInFontOfCamera(GameObject gameObject,
+        public static void PlaceInFrontOfCamera(GameObject gameObject,
             float distance = 5.0f, 
             bool alignToGround = false, float groundHeight = 0.0f)
         {

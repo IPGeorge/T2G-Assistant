@@ -20,5 +20,5 @@ MonoBehaviour:
   autoSaveInterval: 300
   UnityEditorPath: C:\Program Files\Unity\Hub\Editor\6000.0.50f1\Editor\Unity.exe
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
-  AssetLibraryRootPath: 
+  AssetLibraryRootPath: C:\MyStuffs\BU\Projects\ContentLibrary
   DefaultUnityProject: c:\mygames\shooter

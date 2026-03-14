@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
+using SimpleJSON;
 
 
 namespace T2G
@@ -15,7 +16,7 @@ namespace T2G
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds)))
             {
 
-                string tokens = "default";
+                string tokens = string.IsNullOrEmpty(desc.Trim()) ? "default" : desc;
                 string assetType = string.Empty;        //TODO: search with asset type
 
                 string url = $"http://localhost:5000/search?q={tokens}&type={assetType}";
@@ -40,12 +41,25 @@ namespace T2G
                         if (request.result == UnityWebRequest.Result.Success)
                         {
                             string[] seperator = { "',", ", " };
-                            string[] assetPaths = request.downloadHandler.text.Split(seperator, StringSplitOptions.RemoveEmptyEntries);
-
-                            if (assetPaths.Length > 0)
+                            string assetsJson = request.downloadHandler.text;
+                            JSONObject jsonObj = JSON.Parse(assetsJson).AsObject;
+                            if (jsonObj == null)
                             {
-                                return (true, assetPaths);
+                                return (false, null);
                             }
+                            JSONArray assetsArray = jsonObj["results"].AsArray;
+
+                            if (assetsArray == null || assetsArray.Count == 0)
+                            {
+                                return (false, null);
+                            }
+
+                            string[] assets = new string[assetsArray.Count];
+                            for(int i = 0; i < assetsArray.Count; ++i)
+                            {
+                                assets[i] = assetsArray[i];
+                            }
+                            return (true, assets);
                         }
                     }
                     catch(OperationCanceledException)
