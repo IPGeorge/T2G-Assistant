@@ -22,22 +22,44 @@ namespace T2G
             if (string.Compare(desc, "object", true) == 0)
             {
                 _newObj = new GameObject(name);
-                Utils.PlaceInFrontOfCamera(_newObj);
-                return (true, $"{name} was created.", null);
+            }
+            else if(string.Compare(desc, "camera", true) == 0 || 
+                desc.IndexOf("camera", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                _newObj = new GameObject(name);
+                Camera camera = _newObj.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.Skybox;
+                camera.backgroundColor = Color.black;
+                camera.fieldOfView = 60f;
+                camera.nearClipPlane = 0.1f;
+                camera.farClipPlane = 1000f;
+            }
+            else if(string.Compare(desc, "light", true) == 0 ||
+                desc.IndexOf("light", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                _newObj = new GameObject(name);
+                Light light = _newObj.AddComponent<Light>();
+                light.type = Utils.GetLightTypeFromDesc(desc);
+                light.color = Color.white;
+                light.intensity = 1.0f;
+                light.range = 10f;
             }
             else if (Utils.IsPrimitiveDesc(desc, out var primitiveType))
             {
                 _newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 _newObj.name = name;
-                Utils.PlaceInFrontOfCamera(_newObj);
-                return (true, $"{name} was created.", null);
-
             }
-            else
+            
+            if(_newObj == null)
             {
                 await AssetImporter.ImportAssets(name, instruction.assets);
                 CreateObjectImpl();
                 return (false, null, null);
+            }
+            else
+            {
+                Utils.PlaceInFrontOfCamera(_newObj);
+                return (true, $"{name} was created.", null);
             }
         }
 

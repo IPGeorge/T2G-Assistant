@@ -21,6 +21,22 @@ namespace T2G
             return false;
         }
 
+        public static LightType GetLightTypeFromDesc(string desc)
+        {
+            if(desc.IndexOf("directional", StringComparison.OrdinalIgnoreCase) >=0)
+            {
+                return LightType.Directional;
+            }
+            else if (desc.IndexOf("spot", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return LightType.Spot;
+            }
+            else 
+            {
+                return LightType.Point;
+            }
+        }
+
         public static bool IsObjectDesc(string desc)
         {
             return (string.Compare(desc.Trim(), "object", true) == 0);
