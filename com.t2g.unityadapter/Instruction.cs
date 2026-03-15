@@ -41,37 +41,15 @@ namespace T2G
     }
 
     [Serializable]
-    public class ValuePair : ISerializationCallbackReceiver
+    public class ValuePair
     {
         public string name;
-
-        [NonSerialized]
         public JToken value;
-
-        [SerializeField]
-        private string serializedValue;
 
         public ValuePair(string keyName, JToken keyValue)
         {
             name = keyName;
             value = keyValue;
-        }
-
-        public void OnAfterDeserialize()
-        {
-            try
-            {
-                value = string.IsNullOrEmpty(serializedValue) ? null : JToken.Parse(serializedValue);
-            }
-            catch
-            {
-                value = null;
-            }
-        }
-
-        public void OnBeforeSerialize()
-        {
-            serializedValue = value?.ToString();
         }
     }
 
