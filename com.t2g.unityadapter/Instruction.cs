@@ -2,11 +2,14 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace T2G
 {
 
     #region Instruction models
+
+
 
     [Serializable]
     public class Instruction
@@ -33,18 +36,42 @@ namespace T2G
         [JsonProperty("assets")] // Model may output "assets", "Assets" → accept both (case-insensitive is the default).
         public List<string> assets;
 
+        [SerializeReference]
         public Instruction[] instructions;
     }
 
     [Serializable]
-    public class ValuePair
+    public class ValuePair : ISerializationCallbackReceiver
     {
         public string name;
+
+        [NonSerialized]
         public JToken value;
+
+        [SerializeField]
+        private string serializedValue;
+
         public ValuePair(string keyName, JToken keyValue)
         {
             name = keyName;
             value = keyValue;
+        }
+
+        public void OnAfterDeserialize()
+        {
+            try
+            {
+                value = string.IsNullOrEmpty(serializedValue) ? null : JToken.Parse(serializedValue);
+            }
+            catch
+            {
+                value = null;
+            }
+        }
+
+        public void OnBeforeSerialize()
+        {
+            serializedValue = value?.ToString();
         }
     }
 

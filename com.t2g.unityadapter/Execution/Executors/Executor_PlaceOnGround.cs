@@ -23,6 +23,7 @@ namespace T2G
             }
             Utils.PlaceOnGround(gameObject);
             Utils.UpdateEditorViews();
+            await Task.Delay(100);
             return (true, $"{objName} is put down.", null);
         }
     }

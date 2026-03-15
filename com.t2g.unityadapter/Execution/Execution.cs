@@ -90,25 +90,31 @@ namespace T2G
                         {
                             string settingsJson = messageData.Message.ToString();
                             Settings = JsonConvert.DeserializeObject<SettingsLite>(settingsJson);
-                             OnDisplayText?.Invoke("Received settings: " + settingsJson);
+                            OnDisplayText?.Invoke("Received settings: " + settingsJson);
                         }
                         break;
                     case CommunicatorBase.eMessageType.Instruction:
                         {
                             Instruction instruction = JsonConvert.DeserializeObject<Instruction>(messageData.Message.ToString());
                             Response response = new Response();
-                            if(_executorMap.ContainsKey(instruction.action))
+                            bool isBusy = false;
+                            if (_executorMap.ContainsKey(instruction.action))
                             {
                                 var result = await _executorMap[instruction.action].Execute(instruction);
                                 response.Succeeded = result.succeeded;
                                 response.Message = result.message;
+                                isBusy = string.IsNullOrEmpty(result.message);
                             }
                             else
                             {
                                 response.Succeeded = false;
                                 response.Message = "No appropriate exector was found!";
                             }
-                            SendExecutionResponse(response);
+
+                            if (!isBusy)
+                            {
+                                SendExecutionResponse(response);
+                            }
                         }
                         break;
                     case CommunicatorBase.eMessageType.Message:

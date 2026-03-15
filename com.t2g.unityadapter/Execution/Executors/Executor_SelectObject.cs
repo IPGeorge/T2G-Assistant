@@ -25,6 +25,7 @@ namespace T2G
 
             Selection.activeGameObject = gameObject;
             Utils.UpdateEditorViews();
+            await Task.Delay(100);
             return (true, $"{objName} is selected.", null);
         }
     }

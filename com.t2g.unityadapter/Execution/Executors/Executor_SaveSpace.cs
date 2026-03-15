@@ -26,7 +26,7 @@ namespace T2G
             {
                 EditorSceneManager.SaveScene(activeScene);
             }
-
+            await Task.Delay(100);
             return (true, $"Space was saved!", null);
         }
     }
