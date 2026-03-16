@@ -1,5 +1,5 @@
+
 using System.IO;
-using UnityEngine;
 
 namespace T2G.Assistant
 {
@@ -58,3 +58,4 @@ namespace T2G.Assistant
 
     }
 }
+

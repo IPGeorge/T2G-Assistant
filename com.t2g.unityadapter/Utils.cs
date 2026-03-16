@@ -1,11 +1,56 @@
 using System;
-using UnityEditor;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace T2G
 {
     public class Utils
     {
+#if UNITY_EDITOR
+        public static GameObject FindObjectByName(string objName, bool onlyRootObjects = false)
+        {
+            GameObject gameObject = null;
+            //TODO: need to optimize with a performative search. 
+            if (onlyRootObjects)
+            {
+                gameObject = SceneManager.GetActiveScene()
+                    .GetRootGameObjects()
+                    .Where(obj => obj.name == objName)
+                    .FirstOrDefault();
+            }
+            else
+            {
+                GameObject[] rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+
+                foreach (GameObject root in rootObjects)
+                {
+                    if (root.name == objName)
+                    {
+                        gameObject = root;
+                        break;
+                    }
+
+                    Transform[] allChildren = root.GetComponentsInChildren<Transform>(true);
+                    foreach (Transform child in allChildren)
+                    {
+                        if (child.name == objName)
+                        {
+                            gameObject = child.gameObject;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return gameObject;
+        }
+#endif
+
         public static bool IsPrimitiveDesc(string desc, out PrimitiveType? primitiveType)
         {
             foreach (PrimitiveType enumType in Enum.GetValues(typeof(PrimitiveType)))

@@ -46,12 +46,13 @@ namespace T2G.Assistant
             (@"^(?:\w+\s+)?(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(?:\w+\s+)?(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
             (@"^(?:\w+\s+)?(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
+            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "attach_to"),
+            (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", "detach"),
+
 
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(property|attribute))\s+(?<property>\w+)\s+(to|to be)\s+(?<value>(""[^""]+""|'[^']+'|[\w\.\-/]+|\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*\s*\)))(?:\s+for\s+(?<script>\w+))?\s*$", "set_value"),
             (@"^(add|modify)\s+(behavior|behaviour|component)\s+(?<name>[^\s]+)\s+to\s+(?<object>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "add_behavior"),
             (@"^remove\s+(behavior|behaviour|script)\s+(?<name>[^\s]+)\s+from\s+(?<object>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "remove_behavior"),
-            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "attach_to"),
-            (@"^detach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+from\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "detach_from"),
 
             (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
 

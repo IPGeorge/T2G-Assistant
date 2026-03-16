@@ -8,24 +8,23 @@ using UnityEngine.SceneManagement;
 
 namespace T2G
 {
-    [Executor(Actions.delete_object)]
-    public class Executor_DeleteObject : ExecutorBase
+    [Executor(Actions.detach)]
+
+    public class Executor_Dettach : ExecutorBase
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("objectName");
+            string objName = instruction.parameters.GetString("name");
 
-            var gameObject = Utils.FindObjectByName(objName);
-
-            if (gameObject == null)
+            var obj = Utils.FindObjectByName(objName);
+            if (obj == null)
             {
-                return (true, $"Couldn't find {objName}!", null);
+                return (false, $"Couldn't find {objName}!", null);
             }
-
-            GameObject.DestroyImmediate(gameObject);
+            obj.transform.parent = null;
             Utils.UpdateEditorViews();
             await Task.Delay(100);
-            return (true, $"{objName} was destroyed.", null);
+            return (true, $"{objName} was dettached.", null);
         }
     }
 }

@@ -2,8 +2,8 @@ using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator(T2G.Actions.attach_to)]
-    public class CmdTranslator_Attach : CmdTranslatorBase
+    [CommandTranslator(T2G.Actions.detach)]
+    public class CmdTranslator_Dettach : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
@@ -12,15 +12,13 @@ namespace T2G.Assistant
             Instruction instruction = new Instruction();
             instruction.action = GetActionName();
             instruction.state = Instruction.eState.Resolved;
-            string source = Utils.GetParamFromArguments(args, "source");
-            string target = Utils.GetParamFromArguments(args, "target");
-            if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target))
+            string objName = Utils.GetParamFromArguments(args, "name");
+            if (string.IsNullOrEmpty(objName))
             {
                 return (false, null);
             }
             instruction.parameters = new List<ValuePair>();
-            instruction.parameters.Add(new ValuePair("source", source));
-            instruction.parameters.Add(new ValuePair("target", target));
+            instruction.parameters.Add(new ValuePair("name", objName));
             instructions.Add(instruction);
             return (true, instructions);
         }
