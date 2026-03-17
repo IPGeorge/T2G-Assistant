@@ -1,16 +1,34 @@
-using UnityEngine;
+using System.Collections.Generic;
+using System.IO;
 
-public class CmdTranslator_Set : MonoBehaviour
+namespace T2G.Assistant
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    [CommandTranslator(T2G.Actions.set_property)]
+    public class CmdTranslator_Set : CmdTranslatorBase
     {
-        
-    }
+        public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
+        {
+            List<Instruction> instructions = new List<Instruction>();
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+            Instruction instruction = new Instruction();
+            instruction.action = GetActionName();
+            instruction.state = Instruction.eState.Resolved;
+            instruction.parameters = new List<ValuePair>();
+
+            string objName = Utils.GetParamFromArguments(args, "objName").Trim();
+            string propertyName = Utils.GetParamFromArguments(args, "property").Trim();
+            string valueString = Utils.GetParamFromArguments(args, "value").Trim();
+
+            if(string.IsNullOrEmpty(objName) || string.IsNullOrEmpty(propertyName))
+            {
+                return (false, null);
+            }
+
+            instruction.parameters.Add(new ValuePair("objName", objName));
+            instruction.parameters.Add(new ValuePair("property", propertyName));
+            instruction.parameters.Add(new ValuePair("value", valueString));
+            instructions.Add(instruction);
+            return (true, instructions);
+        }
     }
 }
