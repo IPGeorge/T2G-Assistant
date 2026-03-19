@@ -1,16 +1,47 @@
-using UnityEngine;
+using System.Collections.Generic;
 
-public class CmdTranslator_AddComponent : MonoBehaviour
+namespace T2G.Assistant
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    [CommandTranslator(T2G.Actions.add_component)]
+    public class CmdTranslator_AddComponent : CmdTranslatorBase
     {
-        
-    }
+        public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
+        {
+            string component = Utils.GetParamFromArguments(args, "component");
+            string objName = Utils.GetParamFromArguments(args, "objName");
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+            if (string.IsNullOrEmpty(component) || string.IsNullOrEmpty(objName))
+            {
+                return (false, null);
+            }
+
+            List<Instruction> instructions = new List<Instruction>();
+            Instruction instruction = new Instruction();
+            instruction.action = GetActionName();
+            if (PathValidator.IsValidFilePath(component, true))
+            {
+                instruction.state =  Instruction.eState.Resolved;
+                instruction.desc = "file";
+            }
+            else
+            {
+                if (ComponentResolver.IsValidComponentName(component))
+                {
+                    instruction.state = Instruction.eState.Resolved;
+                    instruction.desc = "component";
+                }
+                else  //should be resolved for a script file from ContentLibrary
+                {
+                    instruction.state = Instruction.eState.Raw;
+                    instruction.desc = component;
+                }
+            }
+            instruction.parameters = new List<ValuePair>();
+            instruction.parameters.Add(new ValuePair("objName", objName));
+            instruction.parameters.Add(new ValuePair("component", component));
+            instructions.Add(instruction);
+
+            return (true, instructions);
+        }
     }
 }

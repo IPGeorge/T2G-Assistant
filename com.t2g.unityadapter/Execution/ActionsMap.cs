@@ -39,6 +39,7 @@ namespace T2G
         #region Component
         public const string add_component = "add_component";
         public const string remove_component = "remove_component";
+        public const string update_component = "update_component";
         #endregion Component
     }
 
