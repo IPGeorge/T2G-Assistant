@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Text.RegularExpressions;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -49,7 +50,30 @@ namespace T2G
 
             return gameObject;
         }
+
 #endif
+
+        /// <summary>
+        /// Checks if a script is a valid MonoBehaviour and returns the class name
+        /// </summary>
+        /// <param name="scriptContent">The script content or file path</param>
+        /// <returns>The class name if valid, null otherwise</returns>
+        public static string GetMonoBehaviourClassName(string scriptContent)
+        {
+            if (string.IsNullOrWhiteSpace(scriptContent))
+                return null;
+
+            // Check for MonoBehaviour inheritance
+            // Pattern: class ClassName : MonoBehaviour
+            Match match = Regex.Match(scriptContent, @"class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*MonoBehaviour", RegexOptions.IgnoreCase);
+
+            if (match.Success)
+            {
+                return match.Groups[1].Value; // Return the class name
+            }
+
+            return null;
+        }
 
         public static bool IsPrimitiveDesc(string desc, out PrimitiveType? primitiveType)
         {
