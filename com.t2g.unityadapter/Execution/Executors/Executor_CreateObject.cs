@@ -59,6 +59,7 @@ namespace T2G
             else
             {
                 Utils.PlaceInFrontOfCamera(_newObj);
+                Utils.UpdateEditorViews();
                 return (true, $"{name} was created.", null);
             }
         }
@@ -71,6 +72,7 @@ namespace T2G
             {
                 _newObj = GameObject.Instantiate<GameObject>(prefabAsset);
                 _newObj.name = objPrefab.name;
+                Utils.UpdateEditorViews();
                 return true;
             }
             _newObj = null;

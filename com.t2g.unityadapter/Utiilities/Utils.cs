@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
+using System.Reflection;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -189,12 +190,44 @@ namespace T2G
             return sceneView?.camera;
         }
 
+
+        static MethodInfo _repaintAllMethod = null;
         public static void UpdateEditorViews()
         {
+
+            if (_repaintAllMethod == null)
+            {
+                var viewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.View");
+                if (viewType != null)
+                {
+                    _repaintAllMethod = viewType.GetMethod("RepaintAll", BindingFlags.Static | BindingFlags.NonPublic);
+                }
+            }
+
             EditorApplication.QueuePlayerLoopUpdate();
+
             foreach (SceneView sceneView in SceneView.sceneViews)
             {
                 sceneView.Repaint();
+            }
+
+            foreach (EditorWindow window in Resources.FindObjectsOfTypeAll<EditorWindow>())
+            {
+                window.Repaint();
+            }
+
+            EditorApplication.DirtyHierarchyWindowSorting();
+
+            _repaintAllMethod?.Invoke(null, null);
+
+            //GUIUtility.ExitGUI();
+
+            foreach (SceneView sceneView in SceneView.sceneViews)
+            {
+                if (sceneView != null && sceneView.camera != null)
+                {
+                    sceneView.camera.Render();
+                }
             }
         }
     }

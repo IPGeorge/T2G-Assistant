@@ -572,6 +572,17 @@ namespace T2G
             return ComponentResolver.GetComponentType(componentName) != null;
         }
 
+        public static bool IsValidComponentName(ref string componentName)
+        {
+            var type = ComponentResolver.GetComponentType(componentName);
+            if(type != null)
+            {
+                componentName = type.Name;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// Gets the component type from a string name
         /// </summary>

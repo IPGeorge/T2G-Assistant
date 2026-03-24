@@ -29,17 +29,19 @@ namespace T2G
             if (string.Compare(instruction.desc, "component", true) == 0)
             {
                 var result = AddScriptComponent(obj, component);
+                if (result.succeeded)
+                {
+                    Utils.UpdateEditorViews();
+                }
                 return (result.succeeded, result.responseMessage, null);
             }
             else 
             {
                 string source, dest;
 
-
                 if (string.Compare(instruction.desc, "file", true) == 0)
                 {
                     source = component;
-                    
                 }
                 else
                 {
@@ -66,7 +68,10 @@ namespace T2G
                 if (componentTypeName != null)
                 {
                     var result = AddScriptComponent(obj, componentTypeName);
-                    Utils.UpdateEditorViews();
+                    if (result.succeeded)
+                    {
+                        Utils.UpdateEditorViews();
+                    }
                     await Task.Delay(100);
                     EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
                     return (result.succeeded, result.responseMessage, null);
@@ -87,6 +92,10 @@ namespace T2G
                 if (addedComponent == null)
                 {
                     return (false, $"Failed to add {componentTypeName} to {obj.name}.");
+                }
+                else
+                {
+                    return (true, $"{componentTypeName} was added to {obj.name}.");
                 }
             }
             return (false, $"{componentTypeName} was added to {obj.name}.");
