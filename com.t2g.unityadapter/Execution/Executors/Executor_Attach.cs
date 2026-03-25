@@ -31,6 +31,7 @@ namespace T2G
 
             Utils.UpdateEditorViews();
             await Task.Delay(100);
+            T2G.Utils.UpdateEditorViews();
             return (true, $"{sourceObjName} was attached to {targetObjName}.", null);
         }
     }

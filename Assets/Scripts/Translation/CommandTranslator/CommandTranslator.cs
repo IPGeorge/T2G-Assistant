@@ -51,12 +51,12 @@ namespace T2G.Assistant
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>[\w\.]+(?:\.[\w]+)*)\s+(?:to)?\s*(?<value>(?:""[^""]*"")|(?:'[^']*')|(?:[^""'\s][^""'\n]*?|\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*\s*\)))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
             (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "add_component"),
             (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "remove_component"),
+            
             (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", "update_component"),
 
             (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
        
             (@"^spin(?:\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))?(?:\s+(?<speed>[+-]?\d+(?:\.\d+)?))?$", "spin_object"),
-            (@"^add\s+script\s+(?<filepath>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\s+to\s+(?<object>""[^""]+""|'[^']+'|[\w\-\s]+))?\s*$", "add_script"),
             (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
             (@"^font\s+(?<attrib>\w+)\s+(?<value>-?\d+(?:\.\d+)?|#[0-9a-fA-F]{3,6}|\w+)\s*$", "set_font"),
             (@"^build\s+(?<shape>circle|square|rectangle)\s+(?<structure>wall)\s+with\s+(?<element>\w+)\s*(?:named|with the name\s+)?(?<name>.+?)(?:\.)?$", "build_structure"),

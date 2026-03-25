@@ -20,7 +20,7 @@ namespace T2G
             }
             obj.transform.parent = null;
             Utils.UpdateEditorViews();
-            await Task.Delay(100);
+            await Task.Yield();
             return (true, $"{objName} was dettached.", null);
         }
     }

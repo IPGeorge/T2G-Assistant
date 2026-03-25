@@ -24,7 +24,8 @@ namespace T2G
 
             GameObject.DestroyImmediate(gameObject);
             Utils.UpdateEditorViews();
-            await Task.Delay(100);
+            await Task.Yield();
+            T2G.Utils.UpdateEditorViews();
             return (true, $"{objName} was destroyed.", null);
         }
     }
