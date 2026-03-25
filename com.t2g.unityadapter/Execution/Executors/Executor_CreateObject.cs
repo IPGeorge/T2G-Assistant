@@ -23,19 +23,26 @@ namespace T2G
             {
                 _newObj = new GameObject(name);
             }
-            else if(string.Compare(desc, "camera", true) == 0 || 
-                desc.IndexOf("camera", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            else if(T2G.Utils.IsCameraDesc(desc))
             {
                 _newObj = new GameObject(name);
                 Camera camera = _newObj.AddComponent<Camera>();
-                camera.clearFlags = CameraClearFlags.Skybox;
-                camera.backgroundColor = Color.black;
-                camera.fieldOfView = 60f;
+                camera.orthographic = T2G.Utils.IsOrthographicsCameraDesc(desc);
+                if (camera.orthographic)
+                {
+                    camera.orthographicSize = 5;
+                }
+                else
+                {
+                    camera.clearFlags = CameraClearFlags.Skybox;
+                    camera.backgroundColor = Color.black;
+                    camera.fieldOfView = 60f;
+                }
                 camera.nearClipPlane = 0.1f;
                 camera.farClipPlane = 1000f;
+                _newObj.AddComponent<AudioListener>();
             }
-            else if(string.Compare(desc, "light", true) == 0 ||
-                desc.IndexOf("light", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            else if(T2G.Utils.IsLightDesc(desc))
             {
                 _newObj = new GameObject(name);
                 Light light = _newObj.AddComponent<Light>();

@@ -72,7 +72,7 @@ namespace T2G.Assistant
 
         private void OnGUI()
         {
-            if(SettingsWindow.Instance.IsWindowVisible)
+            if(SettingsWindow.Instance == null || SettingsWindow.Instance.IsWindowVisible)
             {
                 return;
             }

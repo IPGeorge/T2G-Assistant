@@ -278,10 +278,18 @@ namespace T2G
             EditorGUILayout.Toggle("Client is connected: ", _server.IsConnected);
             EditorGUI.EndDisabledGroup();
 
+            EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Clear"))
             {
                 _text = string.Empty;
             }
+
+            if (GUILayout.Button("Persistent"))
+            {
+                string persistantPath = Application.persistentDataPath.Replace("/", "\\");
+                System.Diagnostics.Process.Start("explorer.exe", persistantPath);
+            }
+            EditorGUILayout.EndHorizontal();
 
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             _text = EditorGUILayout.TextArea(_text, GUILayout.ExpandHeight(true));

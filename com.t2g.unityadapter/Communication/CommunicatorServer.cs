@@ -38,6 +38,7 @@ namespace T2G
                 if (_instance == null)
                 {
                     _instance = new CommunicatorServer();
+                    //AssemblyReloadEvents.beforeAssemblyReload += _instance.SaveSendingAndReceivingPools; //TODO: Support this later if needed.
                     _instance.Init();
 
                 }
@@ -88,7 +89,7 @@ namespace T2G
 
             EditorApplication.update += UpdateServer;
 
-            EditorCoroutineUtility.StartCoroutine(RestorePooledMessages(), this);
+            //EditorCoroutineUtility.StartCoroutine(RestorePooledMessages(), this);  //TODO: support this later if needed
         }
 
         public void StopServer()
@@ -210,14 +211,16 @@ namespace T2G
                 yield return new WaitForSeconds(0.5f);
             }
             CommunicatorServer.Instance.RestoreSendingAndReceivingPools();
-            Debug.Log("[CommunicatorServer.RestorePooledMessages] Pooled messages were succedssfully restored!");
+            Debug.Log($"[CommunicatorServer.RestorePooledMessages] Pooled messages were succedssfully restored! ({GetPooledMessageCount()},{GetPooledMessageCount(false)})");
         }
+
 
         void SaveSendingAndReceivingPools()
         {
             List<int> messageTypes = new List<int>();
             List<string> messages = new List<string>();
             BackupPoolsData data = new BackupPoolsData();
+            int cnt1, cnt2;
 
             while (PopPooledMessage(out var message))
             {
@@ -226,6 +229,7 @@ namespace T2G
             }
             data.SendingMessageTypes = messageTypes.ToArray();
             data.SendingMessages = messages.ToArray();
+            cnt1 = messages.Count;
 
             messageTypes.Clear();
             messages.Clear();
@@ -236,10 +240,12 @@ namespace T2G
             }
             data.ReceivingMessageTypes = messageTypes.ToArray();
             data.ReceivingMessages = messages.ToArray();
+            cnt2 = messages.Count;
 
             string json = EditorJsonUtility.ToJson(data);
             string path = Path.Combine(Application.persistentDataPath, BACKUP_FILE_NAME);
             File.WriteAllText(path, json);
+            Debug.Log($"[CommunicatorServer.SaveSendingAndReceivingPools] Pooled messages were succedssfully saved! ({cnt1}, {cnt2})");
         }
 
         void RestoreSendingAndReceivingPools()

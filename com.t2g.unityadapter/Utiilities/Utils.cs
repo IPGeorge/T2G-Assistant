@@ -91,6 +91,24 @@ namespace T2G
             return false;
         }
 
+        public static bool IsCameraDesc(string desc)
+        {
+            return (desc.IndexOf("camera", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+        
+        public static bool IsOrthographicsCameraDesc(string desc)
+        {
+
+            return (desc.IndexOf("parallel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               desc.IndexOf("orthographic", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               desc.IndexOf("orthogonal", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        public static bool IsLightDesc(string desc)
+        {
+            return (desc.IndexOf("light", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
         public static LightType GetLightTypeFromDesc(string desc)
         {
             if(desc.IndexOf("directional", StringComparison.OrdinalIgnoreCase) >=0)

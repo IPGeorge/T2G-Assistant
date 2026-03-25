@@ -125,7 +125,7 @@ namespace T2G.Assistant
 
         async Awaitable<(bool responded, string message)> WaitForResponse()
         {
-            int timeoutMiniSeconds = 10000;
+            int timeoutMiniSeconds = 60000;
             int waitInterval = 100;
             while(Communicator.IsReceiveBufferEmpty)
             {

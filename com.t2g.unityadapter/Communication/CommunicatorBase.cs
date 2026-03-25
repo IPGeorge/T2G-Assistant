@@ -59,6 +59,7 @@ namespace T2G
                         typeof(ReliableSequencedPipelineStage));
 
             _connection = new NativeArray<NetworkConnection>(1, Allocator.Persistent);
+
             _sendPool = new NativeArray<MessageStruct>(SEND_POOL_SIZE, Allocator.Persistent);
             _receiveBuffer = new NativeArray<MessageStruct>(RECEIVE_BUFFER_SIZE, Allocator.Persistent);
             _sendPoolHead = _sendPoolTail = _receiveBufferHead = _receiveBufferTail = 0;
@@ -107,6 +108,7 @@ namespace T2G
             {
                 _sendPoolHead = 0;
             }
+
             return true;
         }
 
@@ -153,7 +155,31 @@ namespace T2G
             return false;
         }
 
-
+        public int GetPooledMessageCount(bool sendPool = true)  //False: Receive Pool
+        {
+            if (sendPool)
+            {
+                if (_sendPoolHead >= _sendPoolTail)
+                {
+                    return (_sendPoolHead - _sendPoolTail);
+                }
+                else
+                {
+                    return (SEND_POOL_SIZE - _sendPoolTail + _sendPoolHead);
+                }
+            }
+            else
+            {
+                if (_receiveBufferHead >= _receiveBufferTail)
+                {
+                    return (_receiveBufferHead - _receiveBufferTail);
+                }
+                else
+                {
+                    return (RECEIVE_BUFFER_SIZE - _receiveBufferTail + _receiveBufferHead);
+                }
+            }
+        }
         protected bool AddReceivedMessageToBuffer(eMessageType type, string message)
         {
             if (string.IsNullOrEmpty(message))

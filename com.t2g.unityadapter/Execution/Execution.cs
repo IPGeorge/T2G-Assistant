@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace T2G
 {
@@ -126,10 +127,20 @@ namespace T2G
             }
         }
 
-        public void SendExecutionResponse(Response response)
+        public async void SendExecutionResponse(Response response)
         {
+            while(!CommunicatorServer.Instance.IsConnected)
+            {
+                await Task.Yield();
+            }
             string responseJson = JsonConvert.SerializeObject(response);
             CommunicatorServer.Instance.SendMessage(CommunicatorBase.eMessageType.Response, responseJson);
+        }
+
+        public void SendExecutionResponse(bool succeded, string responseMessage)
+        {
+            Response response = new Response(succeded, responseMessage);
+            SendExecutionResponse(response);
         }
     }
 }

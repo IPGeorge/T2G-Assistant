@@ -16,7 +16,9 @@ namespace T2G.Assistant
                     break;
                 case Instruction.eState.Raw:
                     if (T2G.Utils.IsObjectDesc(instruction.desc) ||
-                        T2G.Utils.IsPrimitiveDesc(instruction.desc, out var primitiveType))
+                        T2G.Utils.IsPrimitiveDesc(instruction.desc, out var primitiveType) ||
+                        T2G.Utils.IsCameraDesc(instruction.desc) ||
+                        T2G.Utils.IsLightDesc(instruction.desc))
                     {
                         instruction.state = Instruction.eState.Resolved;
                     }

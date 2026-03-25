@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEditor.Compilation;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -60,26 +61,41 @@ namespace T2G
                     return (false, $"Couldn't find the source file {source}.", null);
                 }
 
+                var tcs = new TaskCompletionSource<bool>();
                 dest = Path.Combine(Application.dataPath, "Scripts", Path.GetFileName(source));
                 string script = File.ReadAllText(source);
                 string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
                 EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
+                string directory = Path.GetDirectoryName(dest);
+                if(!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
                 File.Copy(component, dest, true);
+                AssetDatabase.Refresh();
+
+                void OnCompilationFinished(object param)
+                {
+                    CompilationPipeline.compilationFinished -= OnCompilationFinished;
+                    tcs.SetResult(true);
+                }
+
+                CompilationPipeline.compilationFinished += OnCompilationFinished;
+                bool completed = await tcs.Task;
                 if (componentTypeName != null)
                 {
                     var result = AddScriptComponent(obj, componentTypeName);
                     if (result.succeeded)
                     {
+                        EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
                         Utils.UpdateEditorViews();
                     }
-                    await Task.Delay(100);
-                    EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
                     return (result.succeeded, result.responseMessage, null);
                 }
                 else
                 {
                     EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
-                    return (false, "Invalid component file .", null);
+                    return (false, "Invalid component file.", null);
                 }
             }
         }
@@ -98,7 +114,10 @@ namespace T2G
                     return (true, $"{componentTypeName} was added to {obj.name}.");
                 }
             }
-            return (false, $"{componentTypeName} was added to {obj.name}.");
+            else
+            {
+                return (true, $"{componentTypeName} was already added to {obj.name}.");
+            }
         }
 
 
@@ -133,7 +152,9 @@ namespace T2G
             }
             var result = AddScriptComponent(obj, componentTypeName);
             Utils.UpdateEditorViews();
-            EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
+            response.Succeeded = result.succeeded;
+            response.Message = result.responseMessage;
+            Execution.Instance.SendExecutionResponse(response);
         }
     }
 
