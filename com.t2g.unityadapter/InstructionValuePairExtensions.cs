@@ -41,6 +41,11 @@ namespace T2G
             }
             return fallback;
         }
+
+        public static JToken GetValue(this List<ValuePair> list, string name)
+        {
+            return list.TryGet(name, out var v) ? v : null;
+        }
     }
 
 }

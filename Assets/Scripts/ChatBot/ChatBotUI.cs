@@ -1,8 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 using System;
 using Newtonsoft.Json;
 using System.IO;
+using System.Linq;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -13,8 +14,13 @@ namespace T2G.Assistant
     public class ChatBotUI : MonoBehaviour
     {
         private readonly string k_SettingsFileName = "Settings.json";
+        private readonly string k_IntentsFileName = "FrequentIntents.json";
+        private readonly int MaxInputHistory = 50;
+        private readonly int MaxFrequentIntents = 5;
+        private readonly string k_Working = "Working ...";
 
-        // Chat history storage
+        ComboBox _frequentUsedCommandsComboBox = new ComboBox();
+
         private struct ChatMessage
         {
             public string sender;
@@ -30,14 +36,22 @@ namespace T2G.Assistant
         }
 
         private List<ChatMessage> chatHistory = new List<ChatMessage>();
-        private string fullHistoryString = ""; // Complete communication history in string format
+        private string fullHistoryString = "";
         private string currentInput = "";
         private bool gotoBottom = true;
         private Vector2 scrollPosition = Vector2.zero;
         private float chatWindowHeight = 500.0f;
         private float messageLineHeight = 0.0f;
 
-        // UI Settings
+        private List<string> inputHistory = new List<string>();
+        private int inputHistoryIndex = -1;
+        private string inputHistoryBuffer = "";
+
+        private Dictionary<string, int> intentFrequency = new Dictionary<string, int>();
+        private List<string> frequentIntents = new List<string>();
+        private float comboWidth = 150f;
+        private int selectedIntentIndex = -1;
+
         [Header("Colors")]
         [SerializeField] private Color backgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
         [SerializeField] private Color inputFieldColor = new Color(0.2f, 0.2f, 0.2f, 1f);
@@ -46,7 +60,6 @@ namespace T2G.Assistant
         [SerializeField] private readonly int fontSize = 12;
         [SerializeField] private readonly float inputFieldHeight = 42f;
 
-        // Bot responses (simple example - you can expand or connect to AI)
         private string[] botResponses = {
             "Sorry, I don't understand!",
             "I am confused!",
@@ -66,6 +79,7 @@ namespace T2G.Assistant
         private void Start()
         {
             LoadSettings();
+            LoadFrequentIntents();
             var settings = Assistant.Instance.Settings;
             AddMessage(settings.botName, $"Hello {settings.userName}! I'm {settings.botName}. How can I help you today?");
         }
@@ -79,19 +93,13 @@ namespace T2G.Assistant
 
             GUI.skin.box.normal.background = Texture2D.grayTexture;
 
-            // Set GUI style
             GUI.skin.label.fontSize = fontSize;
             GUI.skin.textField.fontSize = fontSize;
             GUI.skin.button.fontSize = fontSize;
             GUI.skin.box.fontSize = fontSize;
 
-            // Main chat window area
             DrawChatWindow();
-
-            // Input area
             DrawInputArea();
-
-            // Control buttons
             DrawControlButtons();
         }
 
@@ -102,13 +110,13 @@ namespace T2G.Assistant
             float windowY = 20f;
             chatWindowHeight = Screen.height - 120.0f;
 
-            // Chat background
             GUI.backgroundColor = backgroundColor;
             GUI.Box(new Rect(windowX, windowY, windowWidth, chatWindowHeight), "");
 
-            // Chat messages area with scroll
             Rect viewport = new Rect(windowX + 10, windowY + 10, windowWidth - 30, chatWindowHeight - 20);
-            Rect contentRect = new Rect(0, 0, windowWidth - 50, chatHistory.Count * messageLineHeight);
+            
+            float totalContentHeight = CalculateTotalContentHeight(windowWidth - 50);
+            Rect contentRect = new Rect(0, 0, windowWidth - 50, totalContentHeight);
 
             scrollPosition = GUI.BeginScrollView(viewport, scrollPosition, contentRect);
 
@@ -120,13 +128,28 @@ namespace T2G.Assistant
 
             GUI.EndScrollView();
 
-            // Auto-scroll to bottom when new messages are added
             if (gotoBottom && chatHistory.Count > 0)
             {
-                contentRect.height = yPos;
-                scrollPosition.y = Mathf.Max(0, yPos - chatWindowHeight + 40);
+                scrollPosition.y = Mathf.Max(0, totalContentHeight - (chatWindowHeight - 20));
                 gotoBottom = false;
             }
+        }
+
+        private float CalculateTotalContentHeight(float width)
+        {
+            float totalHeight = 0f;
+            GUIStyle style = GUI.skin.box;
+            
+            foreach (var message in chatHistory)
+            {
+                GUIContent content = new GUIContent(message.message);
+                Vector2 size = style.CalcSize(content);
+                size.x = Mathf.Min(size.x + 20, width * 0.7f);
+                size.y = style.CalcHeight(content, size.x - 20);
+                totalHeight += 20 + size.y + 25;
+            }
+            
+            return Mathf.Max(totalHeight, chatWindowHeight - 20);
         }
 
         private void DrawMessageBubble(ChatMessage message, ref float yPos, float width)
@@ -135,24 +158,23 @@ namespace T2G.Assistant
             bool isUser = message.sender == settings.userName;
             Color messageColor = isUser ? settings.userMessageColor : settings.botMessageColor;  
 
-            // Calculate message size
-            GUIContent content = new GUIContent(message.message);
             GUIStyle style = GUI.skin.box;
+            
+            float maxBubbleWidth = width * 0.7f;
+            GUIContent content = new GUIContent(message.message);
             Vector2 size = style.CalcSize(content);
-            size.x = Mathf.Min(size.x + 20, width * 0.7f);
-            size.y = style.CalcHeight(content, size.x - 20);
+            size.x = Mathf.Min(size.x + 40, maxBubbleWidth);
+            size.y = style.CalcHeight(content, size.x - 40);
 
-            // Position (user on right, bot on left)
             float xPos = isUser ? width - size.x - 10 : 10;
 
-            // Sender label
             string senderLabel = $"{message.sender} - {message.timestamp:HH:mm:ss}";
+            Vector2 labelSize = style.CalcSize(new GUIContent(senderLabel));
+            
             Rect senderRect;
             if (isUser)
             {
-                Vector2 labelSize = style.CalcSize(new GUIContent(senderLabel));
-                float posX = width - labelSize.x - 1.0f;
-                senderRect = new Rect(posX, yPos, size.x, 20);
+                senderRect = new Rect(width - labelSize.x - 1.0f, yPos, size.x, 20);
             }
             else
             {
@@ -160,19 +182,18 @@ namespace T2G.Assistant
             }
             GUI.color = messageColor;
             GUI.Label(senderRect, senderLabel);
-            yPos += 20;
+            yPos += 22;
 
-            // Message bubble
             Rect messageRect = new Rect(xPos, yPos, size.x, size.y);
             GUI.color = messageColor;
             GUIStyle messageStyle = GUI.skin.box;
-            messageStyle.alignment = isUser ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+            messageStyle.alignment = isUser ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
+            messageStyle.wordWrap = true;
             GUI.Box(messageRect, message.message, messageStyle);
             GUI.color = Color.white;
 
-            yPos += size.y + 1;
-            messageLineHeight = 20 + size.y + 1;
-
+            yPos += size.y + 3;
+            messageLineHeight = 20 + size.y + 5;
             GUI.FocusControl("ChatInput");
         }
 
@@ -182,35 +203,102 @@ namespace T2G.Assistant
             float windowX = Screen.width * 0.1f;
             float inputY = 20f + chatWindowHeight + 10f;
 
-            // Input field background
             GUI.backgroundColor = inputFieldColor;
             GUI.Box(new Rect(windowX, inputY, windowWidth, inputFieldHeight), "");
             GUI.backgroundColor = Color.white;
 
-            // Input field
-            GUI.SetNextControlName("ChatInput");
-            Rect inputRect = new Rect(windowX + 10, inputY + 10, windowWidth - 120, inputFieldHeight - 20);
-            Event currentEvent = Event.current;
+            //Rect comboRect = new Rect(windowX + 10, inputY + 10, windowWidth - 100, inputFieldHeight - 20);
 
-            // Draw the text field
+            //if (frequentIntents.Count > 0)
+            //{
+            //    string[] intentDisplay = new string[frequentIntents.Count + 1];
+            //    intentDisplay[0] = "Recent Inputs";
+
+            //    for (int i = 0; i < frequentIntents.Count; i++)
+            //    {
+            //        string intent = frequentIntents[i];
+            //        int displayLength = Mathf.Min(intent.Length, 20);
+            //        intentDisplay[i + 1] = intent.Substring(0, displayLength) + (intent.Length > 20 ? "..." : "");
+            //    }
+
+            //    _frequentUsedCommandsComboBox.Draw(comboRect, intentDisplay, "Recents");
+
+            //    int selectedIndex = 1;
+            //    if (selectedIndex > 0)
+            //    {
+            //        currentInput = frequentIntents[selectedIndex - 1];
+            //        GUI.FocusControl("ChatInput");
+            //    }
+            //}
+
+            //GUI.SetNextControlName("ChatInput");
+
+            float textFieldX = windowX + 10;
+            float textFieldWidth = windowWidth - 130;
+            
+            Rect inputRect = new Rect(textFieldX, inputY + 10, textFieldWidth, inputFieldHeight - 20);
+            
+            GUI.SetNextControlName("ChatInput");
             currentInput = GUI.TextField(inputRect, currentInput);
 
-            // Check if this text field has focus and Enter was pressed
-            if (currentEvent.type == EventType.KeyDown && currentEvent.character == '\n'
-                 && GUI.GetNameOfFocusedControl() == "ChatInput")
+            Event currentEvent = Event.current;
+            string focusedControl = GUI.GetNameOfFocusedControl();
+            if (focusedControl == "ChatInput")
             {
-                SendMessage();
-                currentEvent.Use();  // Clear the event so it doesn't affect other GUI elements
-                return;
+                if (currentEvent.type == EventType.KeyDown & currentEvent.character == '\n')
+                {
+                    SendMessage();
+                    currentEvent.Use();
+                    return;
+                }
+                else if (currentEvent.isKey && currentEvent.keyCode == KeyCode.UpArrow)
+                {
+                    NavigateInputHistory(-1);
+                    currentEvent.Use();
+                }
+                else if (currentEvent.isKey && currentEvent.keyCode == KeyCode.DownArrow)
+                {
+                    NavigateInputHistory(1);
+                    currentEvent.Use();
+                }
             }
 
-            // Send button
             if (GUI.Button(new Rect(windowX + windowWidth - 100, inputY + 8, 90, inputFieldHeight - 16), "Send") ||
                 (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return &&
                  GUI.GetNameOfFocusedControl() == "ChatInput"))
             {
                 SendMessage();
                 GUI.FocusControl("ChatInput");
+            }
+        }
+
+        private void NavigateInputHistory(int direction)
+        {
+            if (inputHistory.Count == 0) return;
+
+            if (inputHistoryIndex == -1)
+            {
+                inputHistoryBuffer = currentInput;
+                inputHistoryIndex = inputHistory.Count - 1;
+            }
+            else
+            {
+                inputHistoryIndex += direction;
+            }
+
+            if (inputHistoryIndex < 0)
+            {
+                inputHistoryIndex = -1;
+                currentInput = inputHistoryBuffer;
+            }
+            else if (inputHistoryIndex >= inputHistory.Count)
+            {
+                inputHistoryIndex = -1;
+                currentInput = inputHistoryBuffer;
+            }
+            else
+            {
+                currentInput = inputHistory[inputHistoryIndex];
             }
         }
 
@@ -224,47 +312,24 @@ namespace T2G.Assistant
             float buttonHeight = 32f;
             float spacing = 10f;
 
-            // Clear Chat button
             if (GUI.Button(new Rect(windowX, buttonsY, buttonWidth, buttonHeight), "Clear Chat"))
             {
                 ClearChat();
             }
 
-            // Settings
             if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 1, buttonsY, buttonWidth, buttonHeight), "Settings"))
             {
                 SettingsWindow.Instance.ShowWindow();
             }
 
-            // Settings
             if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 2, buttonsY, buttonWidth, buttonHeight), "Persistent"))
             {
                 string persistantPath = Application.persistentDataPath.Replace("/", "\\");
-                System.Diagnostics.Process.Start("explorer.exe",persistantPath);
+                System.Diagnostics.Process.Start("explorer.exe", persistantPath);
             }
 
             GUI.Label(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth * 3, buttonHeight),
                 Assistant.Instance.Settings.DefaultUnityProject);
-
-            /*
-            // Save History button
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth, buttonHeight), "Save History"))
-            {
-                SaveHistoryToFile();
-            }
-
-            // Load History button
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 4, buttonsY, buttonWidth, buttonHeight), "Load History"))
-            {
-                LoadHistoryFromFile();
-            }
-
-            // Export History button
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 5, buttonsY, buttonWidth, buttonHeight), "Export Text"))
-            {
-                ExportHistoryToClipboard();
-            }
-*/
         }
 
         private async void SendMessage()
@@ -274,61 +339,83 @@ namespace T2G.Assistant
                 return;
             }
 
-            // Add and display user message 
             AddMessage(Assistant.Instance.Settings.userName, currentInput);
 
-            AddMessage(Assistant.Instance.Settings.botName, "Working ...");     
+            AddToInputHistory(currentInput);
+            UpdateIntentFrequency(currentInput);
+
+            AddMessage(Assistant.Instance.Settings.botName, k_Working);     
+            //var result = Assistant.Instance.ProcessEnteredIntent(currentInput).GetAwaiter().GetResult();
             var result = await Assistant.Instance.ProcessEnteredIntent(currentInput);
+            Debug.Log($"[ChatBotUI] ProcessEnteredIntent result: succeeded={result.succeeded}, response='{result.response}'");
             if (result.succeeded)
             {
-                ModifyLastMessage(Assistant.Instance.Settings.botName, result.response);
+                AddMessage(Assistant.Instance.Settings.botName, result.response);
             }
             else
             {
                 string response = result.response ?? GenerateBotResponse();
-                ModifyLastMessage(Assistant.Instance.Settings.botName, response);
+                AddMessage(Assistant.Instance.Settings.botName, response);
             }
 
-            // Clear input field
             currentInput = "";
+            inputHistoryIndex = -1;
+            inputHistoryBuffer = "";
             GUI.FocusControl("ChatInput");
         }
 
-        private System.Collections.IEnumerator DelayedResponse(string response, float delay)
+        private void AddToInputHistory(string input)
         {
-            yield return new WaitForSeconds(delay);
-            AddMessage(Assistant.Instance.Settings.botName, response);
+            if (inputHistory.Count == 0 || inputHistory[inputHistory.Count - 1] != input)
+            {
+                inputHistory.Add(input);
+                if (inputHistory.Count > MaxInputHistory)
+                {
+                    inputHistory.RemoveAt(0);
+                }
+            }
+        }
+
+        private void UpdateIntentFrequency(string intent)
+        {
+            string normalizedIntent = intent.Trim().ToLower();
+            if (intentFrequency.ContainsKey(normalizedIntent))
+            {
+                intentFrequency[normalizedIntent]++;
+            }
+            else
+            {
+                intentFrequency[normalizedIntent] = 1;
+            }
+
+            frequentIntents = intentFrequency
+                .OrderByDescending(x => x.Value)
+                .Take(MaxFrequentIntents)
+                .Select(x => x.Key)
+                .ToList();
+
+            SaveFrequentIntents();
         }
 
         private void AddMessage(string sender, string message)
         {
+            int cnt = chatHistory.Count;
+            if (cnt > 0 && string.Compare(chatHistory[cnt - 1].message, k_Working, true) == 0)
+            {
+                chatHistory.RemoveAt(cnt - 1);
+            }
+
             ChatMessage newMessage = new ChatMessage(sender, message);
             chatHistory.Add(newMessage);
+
             gotoBottom = true;
 
-            // Update full history string
             fullHistoryString += $"[{newMessage.timestamp:yyyy-MM-dd HH:mm:ss}] {sender}: {message}\n";
-
-            Debug.Log($"Added message: {sender}: {message}");
-
             OnInput?.Invoke(message);
-        }
-
-        private void ModifyLastMessage(string sender, string message)
-        {
-            int cnt = chatHistory.Count;
-            if (cnt <= 0 ||
-                string.Compare(chatHistory[cnt - 1].sender, sender) != 0)
-            {
-                return;
-            }
-            chatHistory.RemoveAt(cnt - 1);
-            chatHistory.Add(new ChatMessage(sender, message));
         }
 
         private string GenerateBotResponse()
         {
-            // Default: Random response from predefined list
             return botResponses[UnityEngine.Random.Range(0, botResponses.Length)];
         }
 
@@ -339,65 +426,47 @@ namespace T2G.Assistant
             AddMessage(Assistant.Instance.Settings.botName, "Chat history has been cleared.");
         }
 
-        private void SaveHistoryToFile()
+        private void SaveFrequentIntents()
         {
-            var settings = Assistant.Instance.Settings;
-            string filename = $"ChatHistory_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            string filepath = System.IO.Path.Combine(Application.persistentDataPath, filename);
-
             try
             {
-                System.IO.File.WriteAllText(filepath, fullHistoryString);
-                AddMessage(settings.botName, $"Chat history saved to: {filepath}");
-                Debug.Log($"History saved to: {filepath}");
+                string path = Path.Combine(Application.persistentDataPath, k_IntentsFileName);
+                string json = JsonConvert.SerializeObject(intentFrequency);
+                File.WriteAllText(path, json);
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
-                AddMessage(settings.botName, $"Error saving history: {e.Message}");
-                Debug.LogError($"Save error: {e.Message}");
+                Debug.LogError($"Failed to save frequent intents: {e.Message}");
             }
         }
 
-        private void LoadHistoryFromFile()
+        private void LoadFrequentIntents()
         {
-            // This would require file browser implementation
-            // For simplicity, we'll just show a message
-            AddMessage(Assistant.Instance.Settings.botName, 
-                "To implement file loading, you would need to add a file browser. For now, history is stored in memory.");
+            try
+            {
+                string path = Path.Combine(Application.persistentDataPath, k_IntentsFileName);
+                if (File.Exists(path))
+                {
+                    string json = File.ReadAllText(path);
+                    intentFrequency = JsonConvert.DeserializeObject<Dictionary<string, int>>(json) ?? new Dictionary<string, int>();
+                    frequentIntents = intentFrequency
+                        .OrderByDescending(x => x.Value)
+                        .Take(MaxFrequentIntents)
+                        .Select(x => x.Key)
+                        .ToList();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Failed to load frequent intents: {e.Message}");
+                intentFrequency = new Dictionary<string, int>();
+            }
         }
 
-        private void ExportHistoryToClipboard()
-        {
-            GUIUtility.systemCopyBuffer = fullHistoryString;
-            AddMessage(Assistant.Instance.Settings.botName, "Chat history copied to clipboard!");
-        }
-
-        // Public method to get the complete history
-        public string GetFullHistory()
-        {
-            return fullHistoryString;
-        }
-
-        // Public method to get message count
-        public int GetMessageCount()
-        {
-            return chatHistory.Count;
-        }
-
-        // Example of how to programmatically add a message
-        public void TestSendMessage(string message, string response)
-        {
-            var settings = Assistant.Instance.Settings;
-            AddMessage(settings.userName, message);
-            AddMessage(settings.botName, response);
-        }
-
-        // Public methods for settings integration
         public void SaveSettings(Settings newSettings = null)
         {
             if (newSettings != null)
             {
-
                 Utils.CopySettings(newSettings, Assistant.Instance.Settings);
             }
 #if UNITY_EDITOR
@@ -423,5 +492,84 @@ namespace T2G.Assistant
             }
         }
 
+        public void TestSendMessage(string message, string response)
+        {
+            var settings = Assistant.Instance.Settings;
+            AddMessage(settings.userName, message);
+            AddMessage(settings.botName, response);
+        }
     }
+
+    public class ComboBox
+    {
+        private bool isExpanded = false;
+        private int selectedIndex = -1;
+        private string selectedText = "";
+        private Rect dropdownRect;
+
+        public string SelectedText => selectedText;
+        public int SelectedIndex => selectedIndex;
+
+        public bool Draw(Rect rect, string[] items, string defaultText = "Select...")
+        {
+            bool changed = false;
+
+            // Draw the combo box button
+            string buttonText = selectedIndex >= 0 ? items[selectedIndex] : defaultText;
+            if (GUI.Button(rect, buttonText + (isExpanded ? " ▲" : " ▼"), GUI.skin.box))
+            {
+                isExpanded = !isExpanded;
+                if (isExpanded)
+                {
+                    dropdownRect = new Rect(rect.x, rect.y + rect.height, rect.width,
+                                           Mathf.Min(200, items.Length * 25));
+                }
+            }
+
+            // Draw dropdown if expanded
+            if (isExpanded && items.Length > 0)
+            {
+                GUI.Box(dropdownRect, "");
+
+                for (int i = 0; i < items.Length; i++)
+                {
+                    Rect itemRect = new Rect(dropdownRect.x + 2, dropdownRect.y + 2 + (i * 25),
+                                             dropdownRect.width - 4, 25);
+
+                    if (itemRect.Contains(Event.current.mousePosition))
+                    {
+                        GUI.backgroundColor = new Color(0.3f, 0.5f, 0.7f);
+                    }
+
+                    if (GUI.Button(itemRect, items[i], GUI.skin.label))
+                    {
+                        selectedIndex = i;
+                        selectedText = items[i];
+                        isExpanded = false;
+                        changed = true;
+                    }
+
+                    GUI.backgroundColor = Color.white;
+                }
+
+                // Close when clicking outside
+                if (Event.current.type == EventType.MouseDown &&
+                    !rect.Contains(Event.current.mousePosition) &&
+                    !dropdownRect.Contains(Event.current.mousePosition))
+                {
+                    isExpanded = false;
+                }
+            }
+
+            return changed;
+        }
+
+        public void Reset()
+        {
+            selectedIndex = -1;
+            selectedText = "";
+            isExpanded = false;
+        }
+    }
+
 }

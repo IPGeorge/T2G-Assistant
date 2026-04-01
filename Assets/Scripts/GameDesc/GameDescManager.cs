@@ -55,16 +55,226 @@ namespace T2G.Assistant
         // -------------------------
         private readonly string _saveFolder;
         private readonly JsonSerializerSettings _jsonSettings;
+        public string CurrentSpaceName { get; private set; }
+        public string CurrentProjectName 
+        { 
+            get
+            {
+                return Snapshot.ProjectName;
+            }
+        }
+
+        // ============================================================
+        // Project lifecycle
+        // ============================================================
+
+        public void CreateGameDescProject(string projectName)
+        {
+            if (string.IsNullOrWhiteSpace(projectName))
+                throw new ArgumentException("projectName is empty.");
+
+            CurrentSpaceName = null;
+            CreateGameDesc(projectName);
+            SaveGameDesc(projectName);
+        }
+
+        public void OpenGameDescProject(string projectName)
+        {
+            if (string.IsNullOrWhiteSpace(projectName))
+                throw new ArgumentException("projectName is empty.");
+
+            string filePath = Path.Combine(_saveFolder, projectName + ".json");
+
+            if (File.Exists(filePath))
+            {
+                LoadGameDesc(filePath);
+                if (Snapshot.Spaces != null && Snapshot.Spaces.Count > 0)
+                {
+                    CurrentSpaceName = Snapshot.Spaces[0].Name;
+                }
+            }
+            else
+            {
+                CreateGameDesc(projectName);
+                SaveGameDesc(projectName);
+            }
+        }
+
+        public void SetCurrentSpace(string spaceName)
+        {
+            CurrentSpaceName = spaceName;
+        }
+
+        public void RecordInstruction(T2G.Instruction instruction, T2G.Response response)
+        {
+            if (instruction == null || Snapshot == null)
+                return;
+
+            Snapshot.InstructionHistory ??= new List<InstructionRecord>();
+
+            var record = new InstructionRecord
+            {
+                InstructionJson = JsonConvert.SerializeObject(instruction, _jsonSettings),
+                ExecutedUtc = DateTime.UtcNow,
+                Succeeded = response?.Succeeded ?? false
+            };
+
+            Snapshot.InstructionHistory.Add(record);
+
+            if (response?.Succeeded == true)
+            {
+                UpdateFromInstruction(instruction);
+            }
+
+            SaveGameDesc();
+        }
+
+        private void UpdateFromInstruction(T2G.Instruction instruction)
+        {
+            if (instruction == null || string.IsNullOrWhiteSpace(instruction.action))
+                return;
+
+            string action = instruction.action;
+
+            if (action == T2G.Actions.create_space)
+            {
+                string spaceName = instruction.parameters.GetString("spaceName");
+                if (!string.IsNullOrWhiteSpace(spaceName))
+                {
+                    AddSpace(spaceName, instruction.desc);
+                    CurrentSpaceName = spaceName;
+                }
+            }
+            else if (action == T2G.Actions.create_object)
+            {
+                string objectName = instruction.parameters.GetString("Name");
+                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
+                {
+                    try
+                    {
+                        string parentName = instruction.parameters.GetString("Parent");
+                        AddObject(CurrentSpaceName, objectName, instruction.desc, parentName);
+                    }
+                    catch
+                    {
+                        AddObject(CurrentSpaceName, objectName, instruction.desc, null);
+                    }
+                }
+            }
+            else if (action == T2G.Actions.add_component)
+            {
+                string objectName = instruction.parameters.GetString("Name");
+                string componentType = instruction.parameters.GetString("Type");
+                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
+                {
+                    try
+                    {
+                        AddComponent(CurrentSpaceName, objectName, componentType);
+                    }
+                    catch { }
+                }
+            }
+            else if (action == T2G.Actions.set_property)
+            {
+                string objectName = instruction.parameters.GetString("Name");
+                string componentType = instruction.parameters.GetString("Component");
+                string propertyName = instruction.parameters.GetString("Property");
+                string propertyType = instruction.parameters.GetString("Type");
+                JToken value = instruction.parameters.GetValue("Value");
+
+                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) &&
+                    !string.IsNullOrWhiteSpace(componentType) && !string.IsNullOrWhiteSpace(propertyName))
+                {
+                    try
+                    {
+                        AddOrSetPropertyValue(CurrentSpaceName, objectName, componentType, propertyName, propertyType, value);
+                    }
+                    catch { }
+                }
+            }
+            else if (action == T2G.Actions.delete_object)
+            {
+                string objectName = instruction.parameters.GetString("Name");
+                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
+                {
+                    try
+                    {
+                        RemoveObject(CurrentSpaceName, objectName);
+                    }
+                    catch { }
+                }
+            }
+            else if (action == T2G.Actions.goto_space)
+            {
+                string spaceName = instruction.parameters.GetString("spaceName");
+                if (!string.IsNullOrWhiteSpace(spaceName))
+                {
+                    CurrentSpaceName = spaceName;
+                }
+            }
+            else if (action == T2G.Actions.remove_component)
+            {
+                string objectName = instruction.parameters.GetString("Name");
+                string componentType = instruction.parameters.GetString("Type");
+                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
+                {
+                    try
+                    {
+                        RemoveComponent(CurrentSpaceName, objectName, componentType);
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        public bool CreateFromGameDesc(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath is empty.");
+
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("GameDesc file not found.", filePath);
+
+            if (!LoadGameDesc(filePath))
+                return false;
+
+            if (GameDescParser.ParseForInstructions(Snapshot, out var instructions))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public T2G.Instruction[] GetInstructionsFromGameDesc(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath is empty.");
+
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("GameDesc file not found.", filePath);
+
+            if (!LoadGameDesc(filePath))
+                return null;
+
+            if (GameDescParser.ParseForInstructions(Snapshot, out var instructions))
+            {
+                return instructions;
+            }
+
+            return null;
+        }
 
         // ============================================================
         // Domain: Snapshot lifecycle
         // ============================================================
 
-        public GameDesc CreateGameDesc(string title = "")
+        public GameDesc CreateGameDesc(string projectName)
         {
             Snapshot = new GameDesc
             {
-                Title = title ?? "Untitled",
+                ProjectName = projectName ?? "Untitled",
+                Title = projectName ?? "Untitled",
                 Spaces = new List<T2G.Assistant.Object>()
             };
 
@@ -415,6 +625,7 @@ namespace T2G.Assistant
         private static void Normalize(GameDesc gd)
         {
             gd.Spaces ??= new List<Object>();
+            gd.InstructionHistory ??= new List<InstructionRecord>();
 
             foreach (var space in gd.Spaces)
             {

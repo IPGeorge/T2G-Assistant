@@ -8,8 +8,18 @@ namespace T2G.Assistant
     [Serializable]
     public class GameDesc
     {
+        public string ProjectName;
         public string Title;
         public List<T2G.Assistant.Object> Spaces;
+        public List<InstructionRecord> InstructionHistory;
+    }
+
+    [Serializable]
+    public class InstructionRecord
+    {
+        public string InstructionJson;
+        public DateTime ExecutedUtc;
+        public bool Succeeded;
     }
 
     [Serializable]
@@ -147,7 +157,7 @@ namespace T2G.Assistant
                     // Keeps JSON generation simple for the LLM
                     return prop.Value.Type == JTokenType.String;
                 default:
-                    // Unknown type — allow flexible fallback
+                    // Unknown type ï¿½ allow flexible fallback
                     return true;
             }
         }

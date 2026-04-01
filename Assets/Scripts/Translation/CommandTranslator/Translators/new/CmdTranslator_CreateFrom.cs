@@ -16,9 +16,10 @@ namespace T2G.Assistant
             instruction.parameters = new List<ValuePair>();
             string gameDescFile = Utils.GetParamFromArguments(args, "gameDesc");
             var gameDescManager = Assistant.Instance.GameDescManager;
-            if (gameDescManager != null && File.Exists(gameDescFile) && gameDescManager.LoadGameDesc(gameDescFile))
+            if (gameDescManager != null && !string.IsNullOrWhiteSpace(gameDescFile))
             {
-                if (GameDescParser.ParseForInstructions(gameDescManager.Snapshot, out var batchInstructions))
+                var batchInstructions = gameDescManager.GetInstructionsFromGameDesc(gameDescFile);
+                if (batchInstructions != null && batchInstructions.Length > 0)
                 {
                     instruction.instructions = batchInstructions;
                     instructions.Add(instruction);

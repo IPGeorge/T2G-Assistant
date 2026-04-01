@@ -11,10 +11,11 @@ namespace T2G
         public enum eMessageType : byte
         {
             Void = 0,
-            Message,                  //A pain text message
-            Settings,                 //the SettingsT2G json data
-            Instruction,              //An instruction
-            Response                  //A response with a data { "result": true, "message":"bla! bla! bla!" }
+            Settings,                   //the SettingsT2G json data
+            ProjectInfo,                //Connected project information sent from the server to the client
+            Message,                    //A pain text message
+            Instruction,                //An instruction
+            Response                    //A response with a data { "result": true, "message":"bla! bla! bla!" }
         }
 
         public struct MessageStruct

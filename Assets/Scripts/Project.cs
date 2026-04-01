@@ -11,7 +11,6 @@ public class Project
     public string Genre;
     public string Engine;
 
-
     static string GetRootDirectory()
     {
         string directory = Path.Combine(Application.persistentDataPath, "Projects");

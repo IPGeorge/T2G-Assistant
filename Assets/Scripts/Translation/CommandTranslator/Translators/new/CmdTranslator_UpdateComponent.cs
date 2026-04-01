@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 
 namespace T2G.Assistant
 {
@@ -26,8 +27,8 @@ namespace T2G.Assistant
             instruction.instructions[0].action = T2G.Actions.remove_component;
             instruction.instructions[0].state = Instruction.eState.Resolved;
             instruction.instructions[0].parameters = new List<ValuePair>();
-            instruction.parameters.Add(new ValuePair("objName", objName));
-            instruction.parameters.Add(new ValuePair("componentType", component));
+            instruction.instructions[0].parameters.Add(new ValuePair("objName", objName));
+            instruction.instructions[0].parameters.Add(new ValuePair("componentType", component));
 
             instruction.instructions[1] = new Instruction();
             instruction.instructions[1].action = T2G.Actions.add_component;
@@ -38,7 +39,7 @@ namespace T2G.Assistant
             }
             else
             {
-                if (ComponentResolver.IsValidComponentName(component))
+                if (ComponentResolver.IsValidComponentName(newComponent))
                 {
                     instruction.instructions[1].state = Instruction.eState.Resolved;
                     instruction.instructions[1].desc = "component";
@@ -46,7 +47,7 @@ namespace T2G.Assistant
                 else
                 {
                     instruction.instructions[1].state = Instruction.eState.Raw;
-                    instruction.instructions[1].desc = component;
+                    instruction.instructions[1].desc = newComponent;
                 }
             }
             instruction.instructions[1].parameters = new List<ValuePair>();

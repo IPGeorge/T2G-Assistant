@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using UnityEngine;
 
 namespace T2G.Assistant
 {
@@ -9,6 +10,14 @@ namespace T2G.Assistant
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
+            if (args != null)
+            {
+                foreach (var arg in args)
+                {
+                    Debug.Log($"[CmdTranslator_OpenProject] arg: {arg.name} = {arg.value}");
+                }
+            }
+
             List<Instruction> instructions = new List<Instruction>();
 
             Instruction instruction = new Instruction();

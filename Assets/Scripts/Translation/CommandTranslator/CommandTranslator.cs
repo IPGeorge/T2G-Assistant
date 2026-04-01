@@ -51,10 +51,8 @@ namespace T2G.Assistant
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>[\w\.]+(?:\.[\w]+)*)\s+(?:to)?\s*(?<value>(?:""[^""]*"")|(?:'[^']*')|(?:[^""'\s][^""'\n]*?|\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*\s*\)))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
             (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "add_component"),
             (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "remove_component"),
-            
             (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", "update_component"),
-
-            (@"^create from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
+            (@"^create\s+from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
        
             (@"^spin(?:\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))?(?:\s+(?<speed>[+-]?\d+(?:\.\d+)?))?$", "spin_object"),
             (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
@@ -85,21 +83,33 @@ namespace T2G.Assistant
 
         public override async Task<(bool succeeded, List<Instruction> instructions)> Translate(string command)
         {
-            if(MatchAction(command, out var action, out var arguments) && 
-                _translatorMap.ContainsKey(action))
+            if(MatchAction(command, out var action, out var arguments))
             {
-                List<Instruction> instructions = new List<Instruction>();
-                var result = _translatorMap[action].Translate(arguments);
-                if (result.succeeded)
+                Debug.Log($"[CommandTranslator] Matched action: {action}");
+                if (_translatorMap.ContainsKey(action))
                 {
-                    instructions.AddRange(result.instructions);
-                    await Task.Yield();
-                    return (true, instructions);
+                    List<Instruction> instructions = new List<Instruction>();
+                    var result = _translatorMap[action].Translate(arguments);
+                    if (result.succeeded)
+                    {
+                        instructions.AddRange(result.instructions);
+                        await Task.Yield();
+                        return (true, instructions);
+                    }
+                    else
+                    {
+                        Debug.Log($"[CommandTranslator] Translator for {action} returned failed");
+                        return (false, null);
+                    }
                 }
                 else
                 {
-                    return (false, null);
+                    Debug.Log($"[CommandTranslator] No translator found for action: {action}");
                 }
+            }
+            else
+            {
+                Debug.Log($"[CommandTranslator] No pattern matched for: {command}");
             }
 
             return (false, null);

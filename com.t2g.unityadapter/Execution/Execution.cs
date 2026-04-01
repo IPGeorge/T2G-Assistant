@@ -92,6 +92,10 @@ namespace T2G
                             string settingsJson = messageData.Message.ToString();
                             Settings = JsonConvert.DeserializeObject<SettingsLite>(settingsJson);
                             OnDisplayText?.Invoke("Received settings: " + settingsJson);
+
+                            ProjectInfo pi = new ProjectInfo();
+                            string piJson = JsonConvert.SerializeObject(pi);
+                            _server.SendMessage(CommunicatorBase.eMessageType.ProjectInfo, piJson);
                         }
                         break;
                     case CommunicatorBase.eMessageType.Instruction:

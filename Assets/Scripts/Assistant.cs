@@ -113,7 +113,28 @@ namespace T2G.Assistant
 
         private void OnReceivedMessage(CommunicatorBase.eMessageType type, string message)
         {
-            Debug.Log($"[Assistant] Received {type.ToString()}: {message}");
+            if(type == CommunicatorBase.eMessageType.ProjectInfo)
+            {
+                var pi = JsonConvert.DeserializeObject<ProjectInfo>(message);
+                if(pi != null && !string.IsNullOrEmpty(pi.ProjectName))
+                {
+                    if(GameProject != null && 
+                       string.Equals(GameProject.ProjectName, pi.ProjectName, StringComparison.OrdinalIgnoreCase) &&
+                       GameDescManager.Snapshot != null &&
+                       string.Equals(GameDescManager.Snapshot.ProjectName, pi.ProjectName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    if(GameDescManager.Snapshot != null && 
+                        !string.IsNullOrEmpty(GameDescManager.CurrentProjectName))
+                    {
+                        GameDescManager.SaveGameDesc();
+                    }
+
+                    GameDescManager.OpenGameDescProject(pi.ProjectName);
+                }
+            }
         }
 
         private void OnError(string errorMesasge)
@@ -184,6 +205,15 @@ namespace T2G.Assistant
                     var response = await WaitForResponse();
                     _completed &= response.responded;
                     _sb.AppendLine(response.message);
+
+                    if (response.responded && response.message != null)
+                    {
+                        var parsedResponse = JsonConvert.DeserializeObject<T2G.Response>(response.message);
+                        if (parsedResponse != null && parsedResponse.Succeeded)
+                        {
+                            GameDescManager.RecordInstruction(instruction, parsedResponse);
+                        }
+                    }
                 }
                 else
                 {
@@ -238,7 +268,7 @@ namespace T2G.Assistant
         {
             SaveCurrentProject();
             GameProject = new Project() { ProjectName = projectName, ProjectPath = projectPath };
-            GameDescManager.CreateGameDesc(projectName);
+            GameDescManager.CreateGameDescProject(projectName);
             SaveCurrentProject();
         }
 
@@ -248,17 +278,14 @@ namespace T2G.Assistant
             {
                 return false;
             }
-            
+             
             SaveCurrentProject();
             GameProject = Project.Load(projectName);
             if(GameProject == null || string.IsNullOrWhiteSpace(GameProject.ProjectName))
             {
                 return false;
             }
-            if (!GameDescManager.LoadGameDesc(GameProject.ProjectName))
-            {
-                GameDescManager.CreateGameDesc(projectName);
-            }
+            GameDescManager.OpenGameDescProject(projectName);
             return true;
         }
 
