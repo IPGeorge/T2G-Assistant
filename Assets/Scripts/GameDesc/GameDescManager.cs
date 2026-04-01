@@ -78,7 +78,7 @@ namespace T2G.Assistant
             SaveGameDesc(projectName);
         }
 
-        public void OpenGameDescProject(string projectName)
+        public void OpenOrCreateGameDescProject(string projectName, string title)
         {
             if (string.IsNullOrWhiteSpace(projectName))
                 throw new ArgumentException("projectName is empty.");
@@ -88,6 +88,8 @@ namespace T2G.Assistant
             if (File.Exists(filePath))
             {
                 LoadGameDesc(filePath);
+                Snapshot.ProjectName = projectName;
+                Snapshot.Title = title ?? Snapshot.Title;
                 if (Snapshot.Spaces != null && Snapshot.Spaces.Count > 0)
                 {
                     CurrentSpaceName = Snapshot.Spaces[0].Name;
@@ -95,7 +97,7 @@ namespace T2G.Assistant
             }
             else
             {
-                CreateGameDesc(projectName);
+                CreateGameDesc(projectName, title);
                 SaveGameDesc(projectName);
             }
         }
@@ -269,12 +271,12 @@ namespace T2G.Assistant
         // Domain: Snapshot lifecycle
         // ============================================================
 
-        public GameDesc CreateGameDesc(string projectName)
+        public GameDesc CreateGameDesc(string projectName, string title = null)
         {
             Snapshot = new GameDesc
             {
                 ProjectName = projectName ?? "Untitled",
-                Title = projectName ?? "Untitled",
+                Title = title ?? "Untitled",
                 Spaces = new List<T2G.Assistant.Object>()
             };
 

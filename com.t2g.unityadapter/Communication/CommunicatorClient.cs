@@ -145,7 +145,6 @@ namespace T2G
                             Type = (eMessageType)readStream.ReadByte(),
                             Message = readStream.ReadFixedString4096()
                         };
-
                         communicator.AddReceivedMessageToBuffer(ref ReceiveBuffer, receivedMessage);
                     }
                     else if (command == NetworkEvent.Type.Disconnect) //Disconnected

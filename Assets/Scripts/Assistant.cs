@@ -132,8 +132,9 @@ namespace T2G.Assistant
                         GameDescManager.SaveGameDesc();
                     }
 
-                    GameDescManager.OpenGameDescProject(pi.ProjectName);
+                    GameDescManager.OpenOrCreateGameDescProject(pi.ProjectName, pi.Title);
                 }
+                Communicator.RemoveMessageFromReceiveBuffer();
             }
         }
 
@@ -148,7 +149,8 @@ namespace T2G.Assistant
         {
             int timeoutMiniSeconds = 60000;
             int waitInterval = 100;
-            while(Communicator.IsReceiveBufferEmpty)
+            while(Communicator.IsReceiveBufferEmpty ||
+                Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
             {
                 await Task.Delay(waitInterval);
                 timeoutMiniSeconds -= waitInterval;
@@ -206,17 +208,14 @@ namespace T2G.Assistant
                     _completed &= response.responded;
                     _sb.AppendLine(response.message);
 
-                    if (response.responded && response.message != null)
+                    if (response.responded)
                     {
-                        var parsedResponse = JsonConvert.DeserializeObject<T2G.Response>(response.message);
-                        if (parsedResponse != null && parsedResponse.Succeeded)
-                        {
-                            GameDescManager.RecordInstruction(instruction, parsedResponse);
-                        }
+                        GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message));
                     }
                 }
                 else
                 {
+
                     _sb.AppendLine($"Failed to resolve the '{instruction.action}' instruction!");
                 }
             }
@@ -285,7 +284,7 @@ namespace T2G.Assistant
             {
                 return false;
             }
-            GameDescManager.OpenGameDescProject(projectName);
+            GameDescManager.OpenOrCreateGameDescProject(projectName, null);
             return true;
         }
 

@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Linq;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace T2G
 {
@@ -94,6 +95,8 @@ namespace T2G
                             OnDisplayText?.Invoke("Received settings: " + settingsJson);
 
                             ProjectInfo pi = new ProjectInfo();
+                            pi.ProjectName = Directory.GetParent(Application.dataPath).Name;
+                            pi.Title = Application.productName;
                             string piJson = JsonConvert.SerializeObject(pi);
                             _server.SendMessage(CommunicatorBase.eMessageType.ProjectInfo, piJson);
                         }

@@ -312,7 +312,7 @@ namespace T2G.Assistant
             float buttonHeight = 32f;
             float spacing = 10f;
 
-            if (GUI.Button(new Rect(windowX, buttonsY, buttonWidth, buttonHeight), "Clear Chat"))
+            if (GUI.Button(new Rect(windowX, buttonsY, buttonWidth, buttonHeight), "Clear"))
             {
                 ClearChat();
             }
@@ -322,7 +322,7 @@ namespace T2G.Assistant
                 SettingsWindow.Instance.ShowWindow();
             }
 
-            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 2, buttonsY, buttonWidth, buttonHeight), "Persistent"))
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 2, buttonsY, buttonWidth, buttonHeight), "Data Dir"))
             {
                 string persistantPath = Application.persistentDataPath.Replace("/", "\\");
                 System.Diagnostics.Process.Start("explorer.exe", persistantPath);

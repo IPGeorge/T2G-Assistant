@@ -242,6 +242,29 @@ namespace T2G
             return true;
         }
 
+        public void RemoveMessageFromReceiveBuffer()
+        {
+            if (IsReceiveBufferEmpty)
+            {
+                return;
+            }
+            _receiveBufferTail++;
+            if (_receiveBufferTail == _receiveBuffer.Length)
+            {
+                _receiveBufferTail = 0;
+            }
+        }
+
+        public eMessageType GetNextReceivedMessageType()
+        {
+            if(IsReceiveBufferEmpty)
+            {
+                return eMessageType.Void;
+            }
+
+            return _receiveBuffer[_receiveBufferTail].Type;
+        }
+
         public void EmptyReceiveBuffer()
         {
             _receiveBufferHead = _receiveBufferTail = 0;
