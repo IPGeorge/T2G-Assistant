@@ -126,7 +126,7 @@ namespace T2G.Assistant
                     {
                         GameDescManager.SaveGameDesc();
                     }
-                    OpenOrCreateProjectContext(pi.ProjectName, pi.Title, pi.ProjectPath);
+                    OpenOrCreateProjectContext(pi);
                 }
                 Communicator.RemoveMessageFromReceiveBuffer();
             }
@@ -270,20 +270,22 @@ namespace T2G.Assistant
             SaveCurrentProject();
         }
 
-        public bool OpenOrCreateProjectContext(string projectName, string title, string projectPath)
+        public bool OpenOrCreateProjectContext(ProjectInfo projectInfo)
         {
-            if(string.IsNullOrEmpty(projectName))
+            if(string.IsNullOrEmpty(projectInfo.ProjectName))
             {
                 return false;
             }
              
             SaveCurrentProject();
-            GameProject = ProjectContext.LoadOrCreate(projectName, projectPath);
-            if(GameProject == null || string.IsNullOrWhiteSpace(GameProject.ProjectName))
+            GameProject = ProjectContext.LoadOrCreate(projectInfo);
+            GameProject.CurrentSpace = projectInfo.CurrentSpace;
+
+            if (GameProject == null || string.IsNullOrWhiteSpace(GameProject.ProjectName))
             {
                 return false;
             }
-            GameDescManager.OpenOrCreateGameDesc(projectName, title);
+            GameDescManager.OpenOrCreateGameDesc(projectInfo.ProjectName, projectInfo.Title);
             return true;
         }
 

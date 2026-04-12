@@ -7,4 +7,5 @@ public class ProjectInfo
     public string ProjectName;
     public string ProjectPath;
     public string Title;
+    public string CurrentSpace;
 }

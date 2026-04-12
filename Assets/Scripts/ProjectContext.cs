@@ -15,7 +15,7 @@ namespace T2G.Assistant
         public string ProjectPath;
         public string Genre;
         public string Engine;
-
+        public string CurrentSpace;
 
         static string GetRootDirectory()
         {
@@ -56,27 +56,31 @@ namespace T2G.Assistant
             return prjList;
         }
 
-        static public ProjectContext LoadOrCreate(string projectName, string projectPath)
+        static public ProjectContext LoadOrCreate(ProjectInfo projectInfo)
         {
-            if (File.Exists(projectPath))
+            ProjectContext context;
+            if (File.Exists(projectInfo.ProjectPath))
             {
                 string directory = GetRootDirectory();
-                string path = Path.Combine(directory, projectName + ".prj");
+                string path = Path.Combine(directory, projectInfo.ProjectName + ".prj");
                 string projectJson = File.ReadAllText(path);
-                return JsonUtility.FromJson<ProjectContext>(projectJson);
+                context = JsonUtility.FromJson<ProjectContext>(projectJson);
+                context.CurrentSpace = projectInfo.CurrentSpace;
             }
             else
             {
-                ProjectContext project = new ProjectContext
+                context = new ProjectContext
                 {
-                    ProjectName = projectName,
-                    ProjectPath = projectPath,
+                    ProjectName = projectInfo.ProjectName,
+                    ProjectPath = projectInfo.ProjectPath,
                     Genre = "",
-                    Engine = "Unity"
+                    Engine = "Unity",
+                    CurrentSpace = projectInfo.CurrentSpace
                 };
-                project.Save();
-                return project;
             }
+            context.Save();
+            return context;
+
         }
     }
 }

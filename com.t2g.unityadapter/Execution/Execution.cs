@@ -10,6 +10,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.IO;
+using UnityEngine.SceneManagement;
 
 namespace T2G
 {
@@ -98,7 +99,8 @@ namespace T2G
                             {
                                 ProjectName = T2G.Utils.GetProjectName(),
                                 ProjectPath = T2G.Utils.GetProjectPath(),
-                                Title = Application.productName
+                                Title = Application.productName,
+                                CurrentSpace = SceneManager.GetActiveScene().name
                             };
                             string piJson = JsonConvert.SerializeObject(pi);
                             _server.SendMessage(CommunicatorBase.eMessageType.ProjectInfo, piJson);
