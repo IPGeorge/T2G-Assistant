@@ -24,7 +24,10 @@ namespace T2G
             Batch
         }
 
-        public string type = "Instruction";
+        public const int k_TypeInstruction = 0;
+        public const int k_TypeInstructionList = 1;
+
+        public int type = k_TypeInstruction;
         public string action;
         public eState state = eState.Init;
         public string desc;
@@ -55,7 +58,7 @@ namespace T2G
 
     public class InstructionList
     {
-        public string type = "InstructionList";
+        public int type = Instruction.k_TypeInstructionList;
         public List<Instruction> instructions;
     }
 

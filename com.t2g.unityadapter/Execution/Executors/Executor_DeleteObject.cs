@@ -13,7 +13,7 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("objectName");
+            string objName = instruction.parameters.GetString("Name");
 
             var gameObject = Utils.FindObjectByName(objName);
 

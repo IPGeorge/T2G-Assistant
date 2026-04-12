@@ -5,6 +5,7 @@ public class OA_ChatCompletionRequest
     public string model = "local-model";
     public List<OA_Message> messages;
     public float temperature = 0f;
+    public int max_tokens = 512;
 }
 
 public class OA_Message

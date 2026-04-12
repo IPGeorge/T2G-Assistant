@@ -40,6 +40,7 @@ namespace T2G
         public const string add_component = "add_component";
         public const string remove_component = "remove_component";
         public const string update_component = "update_component";
+        public const string call_method = "call_method";
         #endregion Component
     }
 

@@ -214,7 +214,7 @@ namespace T2G.Assistant
             onResult?.Invoke(content);
         }
 
-        private string BuildSystemPrompt()
+private string BuildSystemPrompt()
         {
             return @"You translate user requests into JSON instructions for Unity game development.
 
@@ -225,43 +225,57 @@ OUTPUT RULES:
 - No prefix text like 'Here is the JSON'
 
 Return either:
-(A) InstructionList: { ""type"": ""InstructionList"", ""instructions"": [ Instruction, ... ] }
-(B) Instruction: { ""type"": ""Instruction"", ""action"": ""..."", ""state"": ""init|Local|raw|resolved"", ""desc"": ""..."", ""parameters"": [ { ""name"": """", ""value"": ... } ], ""assets"": [], ""instructions"": [] }
+(A) InstructionList: { ""type"": 1, ""instructions"": [ Instruction, ... ] }
+(B) Instruction: { ""type"": 0, ""action"": ""..."", ""state"": ""init|Local|raw|resolved"", ""desc"": ""..."", ""parameters"": [ { ""name"": """", ""value"": ... } ], ""assets"": [], ""instructions"": [] }
 
 SCHEMA:
 - 'parameters' MUST be an array of { name, value }
 - 'assets' MUST be an array of strings (use [] if none)
 - value may be string, number, boolean, array, or object
-- state: init=local command, Local=local execution, raw=needs resolution, resolved=ready to execute
 
 FEW-SHOT EXAMPLES:
 
 User: Create a cube named Box
-Output: {""type"":""Instruction"",""action"":""create_object"",""state"":""Raw"",""parameters"":[{""name"":""Name"",""value"":""Box""},{""name"":""desc"",""value"":""cube""}],""assets"":[],""instructions"":[]}
+Output: {""type"":0,""action"":""create_object"",""state"":""Raw"",""desc"":""cube"",""parameters"":[{""name"":""Name"",""value"":""Box""}],""assets"":[],""instructions"":[]}
+
+User: Create a sphere named Ball
+Output: {""type"":0,""action"":""create_object"",""state"":""Raw"",""desc"":""sphere"",""parameters"":[{""name"":""Name"",""value"":""Ball""}],""assets"":[],""instructions"":[]}
+
+User: Create a cylinder named Pillar
+Output: {""type"":0,""action"":""create_object"",""state"":""Raw"",""desc"":""cylinder"",""parameters"":[{""name"":""Name"",""value"":""Pillar""}],""assets"":[],""instructions"":[]}
+
+User: Create a capsule named Player
+Output: {""type"":0,""action"":""create_object"",""state"":""Raw"",""desc"":""capsule"",""parameters"":[{""name"":""Name"",""value"":""Player""}],""assets"":[],""instructions"":[]}
+
+User: Add a camera named MainCamera
+Output: {""type"":0,""action"":""create_object"",""state"":""Raw"",""desc"":""camera"",""parameters"":[{""name"":""Name"",""value"":""MainCamera""}],""assets"":[],""instructions"":[]}
 
 User: Add a Camera component to Player
-Output: {""type"":""Instruction"",""action"":""add_component"",""state"":""Resolved"",""parameters"":[{""name"":""objName"",""value"":""Player""},{""name"":""component"",""value"":""Camera""}],""assets"":[],""instructions"":[]}
+Output: {""type"":0,""action"":""add_component"",""state"":""Resolved"",""parameters"":[{""name"":""objName"",""value"":""Player""},{""name"":""component"",""value"":""Camera""}],""assets"":[],""instructions"":[]}
 
 User: Create a new space called MainLevel
-Output: {""type"":""Instruction"",""action"":""create_space"",""state"":""Resolved"",""parameters"":[{""name"":""spaceName"",""value"":""MainLevel""}],""assets"":[],""instructions"":[]}
+Output: {""type"":0,""action"":""create_space"",""state"":""Resolved"",""parameters"":[{""name"":""spaceName"",""value"":""MainLevel""}],""assets"":[],""instructions"":[]}
 
 User: Go to space GameScene
-Output: {""type"":""Instruction"",""action"":""goto_space"",""state"":""Resolved"",""parameters"":[{""name"":""spaceName"",""value"":""GameScene""}],""assets"":[],""instructions"":[]}
+Output: {""type"":0,""action"":""goto_space"",""state"":""Resolved"",""parameters"":[{""name"":""spaceName"",""value"":""GameScene""}],""assets"":[],""instructions"":[]}
 
 User: Delete the object Enemy
 Output: {""type"":""Instruction"",""action"":""delete_object"",""state"":""Resolved"",""parameters"":[{""name"":""Name"",""value"":""Enemy""}],""assets"":[],""instructions"":[]}
 
-User: Set position to (1,2,3) for Player
-Output: {""type"":""Instruction"",""action"":""set_property"",""state"":""Resolved"",""parameters"":[{""name"":""Name"",""value"":""Player""},{""name"":""Component"",""value"":""Transform""},{""name"":""Property"",""value"":""position""},{""name"":""Type"",""value"":""Vector3""},{""name"":""Value"",""value"":[1,2,3]}],""assets"":[],""instructions"":[]}
+User: Set the Box position to (1,2,3)
+Output: {""type"":0,""action"":""set_property"",""state"":""Resolved"",""parameters"":[{""name"":""objName"",""value"":""Box""},{""name"":""property"",""value"":""position""},{""name"":""value"",""value"":""(1,2,3)""}],""assets"":[],""instructions"":[]}
+
+User: Set Sun Transform.Position=(0,2,0)
+Output: {""type"":0,""action"":""set_property"",""state"":""Resolved"",""parameters"":[{""name"":""objName"",""value"":""Sun""},{""name"":""property"",""value"":""Transform.Position""},{""name"":""value"",""value"":""(0,2,0)""}],""assets"":[],""instructions"":[]}
 
 User: Remove the Rigidbody component from Ball
-Output: {""type"":""Instruction"",""action"":""remove_component"",""state"":""Resolved"",""parameters"":[{""name"":""objName"",""value"":""Ball""},{""name"":""componentType"",""value"":""Rigidbody""}],""assets"":[],""instructions"":[]}
+Output: {""type"":0,""action"":""remove_component"",""state"":""Resolved"",""parameters"":[{""name"":""objName"",""value"":""Ball""},{""name"":""componentType"",""value"":""Rigidbody""}],""assets"":[],""instructions"":[]}
 
 User: Attach Player to Platform
-Output: {""type"":""Instruction"",""action"":""attach_to"",""state"":""Resolved"",""parameters"":[{""name"":""childName"",""value"":""Player""},{""name"":""parentName"",""value"":""Platform""}],""assets"":[],""instructions"":[]}
+Output: {""type"":0,""action"":""attach_to"",""state"":""Resolved"",""parameters"":[{""name"":""childName"",""value"":""Player""},{""name"":""parentName"",""value"":""Platform""}],""assets"":[],""instructions"":[]}
 
 If request cannot be mapped, output:
-{ ""type"": ""Instruction"", ""action"": ""unknown"", ""state"": ""Invalid"", ""desc"": ""Unsupported request"", ""parameters"": [{ ""name"": ""reason"", ""value"": ""..."" }], ""assets"": [], ""instructions"": [] }";
+{ ""type"": 0, ""action"": ""unknown"", ""state"": ""Invalid"", ""desc"": ""Unsupported request"", ""parameters"": [{ ""name"": ""reason"", ""value"": ""..."" }], ""assets"": [], ""instructions"": [] }";
         }
 
         private string BuildRepairSystemPrompt()
@@ -309,9 +323,10 @@ CONTENT TO FIX:
                 return false;
             }
 
-            string type = (string)root["type"];
+string typeStr = (string)root["type"];
+            int? typeInt = (int?)root["type"];
 
-            if (string.Equals(type, "InstructionList", StringComparison.OrdinalIgnoreCase))
+            if (typeInt == Instruction.k_TypeInstructionList || string.Equals(typeStr, "InstructionList", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -325,14 +340,14 @@ CONTENT TO FIX:
                 }
             }
 
-            if (string.Equals(type, "Instruction", StringComparison.OrdinalIgnoreCase))
+            if (typeInt == Instruction.k_TypeInstruction || string.Equals(typeStr, "Instruction", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
                     var inst = root.ToObject<Instruction>(JsonSerializer.Create(_jsonSettings));
                     list = new InstructionList
                     {
-                        type = "InstructionList",
+                        type = Instruction.k_TypeInstructionList,
                         instructions = new List<Instruction> { inst }
                     };
                     return true;
@@ -344,11 +359,11 @@ CONTENT TO FIX:
                 }
             }
 
-            error = $"Unknown payload type '{type ?? "(null)"}'.";
+            error = $"Unknown payload type '{typeStr ?? typeInt?.ToString() ?? "(null)"}'.";
             return false;
         }
 
-        private static void Normalize(InstructionList list)
+private static void Normalize(InstructionList list)
         {
             list.instructions ??= new List<Instruction>();
 
@@ -356,7 +371,7 @@ CONTENT TO FIX:
             {
                 if (ins == null) continue;
 
-                ins.type ??= "Instruction";
+                ins.type = ins.type == 0 ? Instruction.k_TypeInstruction : 0;
                 if (ins.parameters == null) ins.parameters = new List<ValuePair>();
                 if (ins.assets == null) ins.assets = new List<string>();
 
@@ -365,7 +380,7 @@ CONTENT TO FIX:
                     foreach (var child in ins.instructions)
                     {
                         if (child == null) continue;
-                        child.type ??= "Instruction";
+                        child.type = child.type == 0 ? Instruction.k_TypeInstruction : 0;
                         child.parameters ??= new List<ValuePair>();
                         child.assets ??= new List<string>();
                     }
@@ -373,7 +388,7 @@ CONTENT TO FIX:
             }
         }
 
-        private static bool Validate(InstructionList list, out string error)
+private static bool Validate(InstructionList list, out string error)
         {
             error = null;
 
@@ -392,7 +407,7 @@ CONTENT TO FIX:
                     return false;
                 }
 
-                if (!string.Equals(ins.type, "Instruction", StringComparison.OrdinalIgnoreCase))
+                if (ins.type != Instruction.k_TypeInstruction)
                 {
                     error = $"Instruction[{i}] has invalid type '{ins.type}'.";
                     return false;

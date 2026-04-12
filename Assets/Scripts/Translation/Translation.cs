@@ -17,8 +17,8 @@ namespace T2G.Assistant
         public void RegisterTranslators()
         {
             _translators.Add(new CommandTranslator());
-            _translators.Add(new CommandTranslatorEx());
-            _translators.Add(new PromptTranslator());
+            //_translators.Add(new CommandTranslatorEx());
+            //_translators.Add(new PromptTranslator());
             _translators.Add(new PromptTranslatorEx());
         }
 

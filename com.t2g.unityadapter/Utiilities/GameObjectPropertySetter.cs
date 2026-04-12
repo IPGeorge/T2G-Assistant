@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
+using T2G;
 
 public static class GameObjectPropertySetter
 {
@@ -19,9 +20,45 @@ public static class GameObjectPropertySetter
 
         try
         {
+            // Check if property has component prefix (e.g., "Health.value")
+            if (propertyName.Contains('.') && !IsCommonComponentProperty(propertyName))
+            {
+                string[] parts = propertyName.Split('.', 2);
+                string componentTypeName = parts[0];
+                string propertyOnlyName = parts[1];
+
+                // Try to get specific component
+                var componentType = ComponentResolver.GetComponentType(componentTypeName);
+                if (componentType == null)
+                {
+                    resultMessage = $"Component type '{componentTypeName}' not found in project.";
+                    return false;
+                }
+
+                var component = target.GetComponent(componentType);
+                if (component == null)
+                {
+                    resultMessage = $"Component '{componentTypeName}' not found on GameObject '{target.name}'.";
+                    return false;
+                }
+
+                // Try to set property on this specific component
+                if (TrySetPropertyOnObject(component, propertyOnlyName, valueStr, out resultMessage))
+                {
+                    resultMessage = $"{componentTypeName}.{propertyOnlyName} was set to {FormatValue(valueStr)}";
+                    Utils.UpdateEditorViews();
+                    return true;
+                }
+
+                resultMessage = $"Property '{propertyOnlyName}' not found on component '{componentTypeName}'.";
+                return false;
+            }
+
+            // Original logic: search all components for the property
             // First, check if it's a property on the GameObject itself
             if (TrySetPropertyOnObject(target, propertyName, valueStr, out resultMessage))
             {
+                Utils.UpdateEditorViews();
                 return true;
             }
 
@@ -39,6 +76,7 @@ public static class GameObjectPropertySetter
                 if (TrySetPropertyOnObject(component, propertyName, valueStr, out resultMessage))
                 {
                     resultMessage = $"{component.GetType().Name}.{propertyName} was set to {FormatValue(valueStr)}";
+                    Utils.UpdateEditorViews();
                     return true;
                 }
             }
@@ -57,6 +95,7 @@ public static class GameObjectPropertySetter
                     {
                         string ownerName = owner is Component ? (owner as Component).GetType().Name : "GameObject";
                         resultMessage = $"{ownerName}.{propertyName} was set to {FormatValue(valueStr)}";
+                        Utils.UpdateEditorViews();
                         return true;
                     }
                 }
@@ -70,6 +109,18 @@ public static class GameObjectPropertySetter
             resultMessage = $"Error setting property: {e.Message}";
             return false;
         }
+    }
+
+    private static bool IsCommonComponentProperty(string propertyName)
+    {
+        string[] commonPrefixes = { "transform.", "gameObject.", "rigidbody.", "collider." };
+        string lower = propertyName.ToLower();
+        foreach (var prefix in commonPrefixes)
+        {
+            if (lower.StartsWith(prefix))
+                return true;
+        }
+        return false;
     }
 
     private static int GetComponentPriority(Type type)

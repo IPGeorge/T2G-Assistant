@@ -229,20 +229,15 @@ CRITICAL OUTPUT RULES (STRICT):
 - Do NOT prepend text like 'Here is the JSON'.
 - If you output anything other than raw JSON, the system will fail.
 
-ACTION SELECTION RULES (very important):
-- Use create_project ONLY when the user explicitly asks for a NEW project (keywords: 'new', 'create').
-- Use init_project when the user asks to initialize / setup / configure an existing project(keywords: 'init', 'initialize', 'configure').
-- If the user says 'initialize' but also says 'new project', choose create_project.
-
 Return either:
 (A) InstructionList:
-{ ""type"": ""InstructionList"", ""instructions"": [ Instruction, ... ] }
+{ ""type"": 1, ""instructions"": [ Instruction, ... ] }
 
 OR
 
 (B) Instruction:
 {
-  ""type"": ""Instruction"",
+  ""type"": 0,
   ""action"": ""..."",
   ""state"": ""init|Local|raw|resolved"",
   ""desc"": ""..."",
@@ -253,7 +248,7 @@ OR
 
 SCHEMA RULES:
 - 'parameters' MUST be an array of { name, value }.
-- 'assets' MUST be an array of { name, value } (use [] if none).
+- 'assets' MUST be an array of strings (use [] if none).
 - value may be string, number, boolean, array, or object.
 
 NORMALIZATION:
@@ -265,7 +260,7 @@ ACTION MUST be one of the allowed actions:
 
 If the request cannot be mapped, output:
 {
-  ""type"": ""Instruction"",
+  ""type"": 0,
   ""action"": ""unknown"",
   ""state"": ""Invalid"",
   ""desc"": ""Unsupported request"",
@@ -327,9 +322,10 @@ CONTENT TO FIX:
                 return false;
             }
 
-            string type = (string)root["type"];
+            string typeStr = (string)root["type"];
+            int? typeInt = (int?)root["type"];
 
-            if (string.Equals(type, "InstructionList", StringComparison.OrdinalIgnoreCase))
+            if (typeInt == Instruction.k_TypeInstructionList || string.Equals(typeStr, "InstructionList", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -343,14 +339,14 @@ CONTENT TO FIX:
                 }
             }
 
-            if (string.Equals(type, "Instruction", StringComparison.OrdinalIgnoreCase))
+            if (typeInt == Instruction.k_TypeInstruction || string.Equals(typeStr, "Instruction", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
                     var inst = root.ToObject<Instruction>(JsonSerializer.Create(_jsonSettings));
                     list = new InstructionList
                     {
-                        type = "InstructionList",
+                        type = Instruction.k_TypeInstructionList,
                         instructions = new List<Instruction> { inst }
                     };
                     return true;
@@ -362,7 +358,7 @@ CONTENT TO FIX:
                 }
             }
 
-            error = $"Unknown payload type '{type ?? "(null)"}'.";
+            error = $"Unknown payload type '{typeStr ?? typeInt?.ToString() ?? "(null)"}'.";
             return false;
         }
 
@@ -374,7 +370,7 @@ CONTENT TO FIX:
             {
                 if (ins == null) continue;
 
-                ins.type ??= "Instruction";
+                ins.type = ins.type == 0 ? Instruction.k_TypeInstruction : 0;
                 if (ins.parameters == null) ins.parameters = new List<ValuePair>();
                 if (ins.assets == null) ins.assets = new List<string>();
 
@@ -383,7 +379,7 @@ CONTENT TO FIX:
                     foreach (var child in ins.instructions)
                     {
                         if (child == null) continue;
-                        child.type ??= "Instruction";
+                        child.type = child.type == 0 ? Instruction.k_TypeInstruction : 0;
                         child.parameters ??= new List<ValuePair>();
                         child.assets ??= new List<string>();
                     }
@@ -410,7 +406,7 @@ CONTENT TO FIX:
                     return false;
                 }
 
-                if (!string.Equals(ins.type, "Instruction", StringComparison.OrdinalIgnoreCase))
+                if (ins.type != Instruction.k_TypeInstruction)
                 {
                     error = $"Instruction[{i}] has invalid type '{ins.type}'.";
                     return false;

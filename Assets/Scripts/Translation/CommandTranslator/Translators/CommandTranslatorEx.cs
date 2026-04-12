@@ -51,7 +51,7 @@ namespace T2G.Assistant
             (@"^(?:detach|unparent|unlink)(?:\s+(?:the\s+)?(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))(?:\s+(?:from|to))?$", "detach"),
 
             // Property setting - expanded
-            (@"^(?:set|change|update|modify)(?:\s+(?:the\s+)?(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>[\w\.]+(?:\.[\w]+)*)\s+(?:to\s+|=\s*)?(?<value>(?:""[^""]*"")|(?:'[^']*')|(?:[^""'\s][^""'\n]*?))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
+            (@"^(?:set|change|update|modify)(?:\s+(?:the\s+)?(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
 
             // Component operations - expanded
             (@"^(?:add|attach|enable)(?:\s+(?:a\s+)?(?:new\s+)?(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?:the\s+)?(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)$", "add_component"),
