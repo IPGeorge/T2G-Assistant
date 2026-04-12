@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using System.IO;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -266,5 +267,39 @@ namespace T2G
                 }
             }
         }
+
+        public static string GetProjectName()
+        {
+            string projectPath = GetProjectPath(false);
+            string projectName = new DirectoryInfo(projectPath).Name;
+            return projectName;
+        }
+
+        public static string GetProjectPath(bool excludeProjectName = true)
+        {
+            try
+            {
+                string path = Application.dataPath;
+
+                // Remove the "/Assets" part
+                if (path.EndsWith("/Assets", StringComparison.OrdinalIgnoreCase) || path.EndsWith("\\Assets", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = path.Substring(0, path.Length - 7);
+                }
+
+                if(excludeProjectName)
+                {
+                    path = Directory.GetParent(path).FullName;
+                }
+
+                return path;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Failed to get project path: {e.Message}");
+                return null;
+            }
+        }
+
     }
 }

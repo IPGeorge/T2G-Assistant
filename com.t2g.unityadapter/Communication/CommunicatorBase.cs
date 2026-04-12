@@ -218,10 +218,14 @@ namespace T2G
                 OnError?.Invoke("The receiving buffer is full!");
                 return false;
             }
-            buffer[_receiveBufferHead++] = messageData;
-            if (_receiveBufferHead == _receiveBuffer.Length)
+
+            if (messageData.Type != eMessageType.ProjectInfo)
             {
-                _receiveBufferHead = 0;
+                buffer[_receiveBufferHead++] = messageData;
+                if (_receiveBufferHead == _receiveBuffer.Length)
+                {
+                    _receiveBufferHead = 0;
+                }
             }
             OnReceivedMessage?.Invoke(messageData.Type, messageData.Message.ToString());
             return true;

@@ -22,10 +22,10 @@ namespace T2G.Assistant
 
         private GameDescManager()
         {
-            _saveFolder = Path.Combine(Application.persistentDataPath, "GameDescs");
-            if (!Directory.Exists(_saveFolder))
+            _saveGameDescFolder = Path.Combine(Application.persistentDataPath, "GameDescs");
+            if (!Directory.Exists(_saveGameDescFolder))
             {
-                Directory.CreateDirectory(_saveFolder);
+                Directory.CreateDirectory(_saveGameDescFolder);
             }
 
             _jsonSettings = new JsonSerializerSettings
@@ -45,15 +45,10 @@ namespace T2G.Assistant
         /// </summary>
         public GameDesc Snapshot { get; private set; }
 
-        /// <summary>
-        /// Snapshot context (project path, last save path, timestamps).
-        /// </summary>
-        public SnapshotContext Context { get; private set; } = new SnapshotContext();
-
         // -------------------------
         // Internal
         // -------------------------
-        private readonly string _saveFolder;
+        private readonly string _saveGameDescFolder;
         private readonly JsonSerializerSettings _jsonSettings;
         public string CurrentSpaceName { get; private set; }
         public string CurrentProjectName 
@@ -78,12 +73,12 @@ namespace T2G.Assistant
             SaveGameDesc(projectName);
         }
 
-        public void OpenOrCreateGameDescProject(string projectName, string title)
+        public void OpenOrCreateGameDesc(string projectName, string title)
         {
             if (string.IsNullOrWhiteSpace(projectName))
                 throw new ArgumentException("projectName is empty.");
 
-            string filePath = Path.Combine(_saveFolder, projectName + ".json");
+            string filePath = Path.Combine(_saveGameDescFolder, projectName + ".json");
 
             if (File.Exists(filePath))
             {
@@ -277,14 +272,8 @@ namespace T2G.Assistant
             {
                 ProjectName = projectName ?? "Untitled",
                 Title = title ?? "Untitled",
-                Spaces = new List<T2G.Assistant.Object>()
-            };
-
-            Context = new SnapshotContext
-            {
-                LastFilePath = string.Empty,
-                CreatedUtc = DateTime.UtcNow,
-                LastSavedUtc = null
+                Spaces = new List<T2G.Assistant.Object>(),
+                InstructionHistory = new List<InstructionRecord>()
             };
 
             return Snapshot;
@@ -296,7 +285,7 @@ namespace T2G.Assistant
 
             var wrapper = new GameDescFile
             {
-                Context = Context,
+                Context = Assistant.Instance.GameProject,
                 GameDesc = Snapshot
             };
 
@@ -306,17 +295,15 @@ namespace T2G.Assistant
             {
                 fileName = MakeSafeFileName(Snapshot.Title);
             }
-            else if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            
+            if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
                 fileName += ".json";
             }
 
-            string fullPath = Path.Combine(_saveFolder, fileName);
+            string fullPath = Path.Combine(_saveGameDescFolder, fileName);
             File.WriteAllText(fullPath, json);
-
-            Context.LastFilePath = fullPath;
-            Context.LastSavedUtc = DateTime.UtcNow;
-
+            
             return fullPath;
         }
 
@@ -345,10 +332,6 @@ namespace T2G.Assistant
 
             Snapshot = wrapper.GameDesc;
 
-            // Context is optional for backward compatibility with older saved files.
-            Context = wrapper.Context ?? new SnapshotContext();
-            Context.LastFilePath = filePath;
-
             // Rebuild parent pointers for hierarchy correctness.
             RebuildParents(Snapshot);
 
@@ -360,9 +343,9 @@ namespace T2G.Assistant
 
         public List<string> ListSavedGameDescs()
         {
-            Directory.CreateDirectory(_saveFolder);
+            Directory.CreateDirectory(_saveGameDescFolder);
 
-            var files = new DirectoryInfo(_saveFolder)
+            var files = new DirectoryInfo(_saveGameDescFolder)
                 .GetFiles("*.json", SearchOption.TopDirectoryOnly);
 
             Array.Sort(files, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
@@ -702,7 +685,7 @@ namespace T2G.Assistant
         [Serializable]
         private class GameDescFile
         {
-            public SnapshotContext Context;
+            public ProjectContext Context;
             public GameDesc GameDesc;
         }
     }

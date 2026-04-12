@@ -14,6 +14,7 @@ namespace T2G.Assistant
         [Header("UI Settings")]
         [SerializeField] private Settings _settings;
         public Settings Settings => _settings;
+        public string PersistentDataPath { get; private set; }
 
         private ChatBotUI _chatBot;
         private Translation _tanslation = new Translation();
@@ -25,11 +26,12 @@ namespace T2G.Assistant
         private bool _completed;
         private StringBuilder _sb = new StringBuilder();
 
-        public Project GameProject { get; private set; } = null;
+        public ProjectContext GameProject { get; private set; } = null;
         public GameDescManager GameDescManager { get; private set; } = null;
 
         private void Awake()
         {
+            PersistentDataPath = Application.persistentDataPath;
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
@@ -115,24 +117,16 @@ namespace T2G.Assistant
         {
             if(type == CommunicatorBase.eMessageType.ProjectInfo)
             {
+                Debug.Log($"Received project info: {message}");
                 var pi = JsonConvert.DeserializeObject<ProjectInfo>(message);
                 if(pi != null && !string.IsNullOrEmpty(pi.ProjectName))
                 {
-                    if(GameProject != null && 
-                       string.Equals(GameProject.ProjectName, pi.ProjectName, StringComparison.OrdinalIgnoreCase) &&
-                       GameDescManager.Snapshot != null &&
-                       string.Equals(GameDescManager.Snapshot.ProjectName, pi.ProjectName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return;
-                    }
-
                     if(GameDescManager.Snapshot != null && 
                         !string.IsNullOrEmpty(GameDescManager.CurrentProjectName))
                     {
                         GameDescManager.SaveGameDesc();
                     }
-
-                    GameDescManager.OpenOrCreateGameDescProject(pi.ProjectName, pi.Title);
+                    OpenOrCreateProjectContext(pi.ProjectName, pi.Title, pi.ProjectPath);
                 }
                 Communicator.RemoveMessageFromReceiveBuffer();
             }
@@ -260,18 +254,23 @@ namespace T2G.Assistant
             {
                 GameProject.Save();
                 GameDescManager.SaveGameDesc(GameProject.ProjectName);
+                Debug.Log($"Current GameProject {GameProject} is saved!");
+            }
+            else
+            {
+                Debug.Log("Current GameProject is null!");
             }
         }
 
-        public void CreateNewProject(string projectName, string projectPath)
+        public void CreateNewProjectContext(string projectName, string projectPath)
         {
             SaveCurrentProject();
-            GameProject = new Project() { ProjectName = projectName, ProjectPath = projectPath };
+            GameProject = new ProjectContext() { ProjectName = projectName, ProjectPath = projectPath, Genre="", Engine="Unity" };
             GameDescManager.CreateGameDescProject(projectName);
             SaveCurrentProject();
         }
 
-        public bool OpenProject(string projectName)
+        public bool OpenOrCreateProjectContext(string projectName, string title, string projectPath)
         {
             if(string.IsNullOrEmpty(projectName))
             {
@@ -279,18 +278,18 @@ namespace T2G.Assistant
             }
              
             SaveCurrentProject();
-            GameProject = Project.Load(projectName);
+            GameProject = ProjectContext.LoadOrCreate(projectName, projectPath);
             if(GameProject == null || string.IsNullOrWhiteSpace(GameProject.ProjectName))
             {
                 return false;
             }
-            GameDescManager.OpenOrCreateGameDescProject(projectName, null);
+            GameDescManager.OpenOrCreateGameDesc(projectName, title);
             return true;
         }
 
         public int FindSavedProjectIndex(string projectName)
         {
-            var prjList = Project.GetProjectList();
+            var prjList = ProjectContext.GetProjectList();
             return prjList.FindIndex(item => string.Equals(item, projectName, StringComparison.OrdinalIgnoreCase));
         }
     }

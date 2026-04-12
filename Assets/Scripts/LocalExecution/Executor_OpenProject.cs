@@ -28,18 +28,7 @@ namespace T2G.Assistant
             _projectName = instruction.parameters.GetString("projectName");
             _projectPathName = Path.Combine(_projectPath, _projectName);
 
-            bool projectIsOpened = false;
-            if (string.IsNullOrWhiteSpace(_projectPath) && Assistant.Instance.FindSavedProjectIndex(_projectName) >= 0)
-            {
-                projectIsOpened  = Assistant.Instance.OpenProject(_projectName);
-                if (projectIsOpened)
-                {
-                    _projectPathName = Assistant.Instance.GameProject.ProjectPath;
-                    _projectPath = Directory.GetParent(_projectPathName)?.FullName;
-                }
-            }
-            
-            if (!Directory.Exists(_projectPathName) && !projectIsOpened)
+            if (!Directory.Exists(_projectPathName))
             {
                 return (false, $"Project {_projectPathName} was not found.", null);
             }
@@ -57,8 +46,6 @@ namespace T2G.Assistant
 
             if (_connected)
             {
-                Assistant.Instance.CreateNewProject(_projectName, _projectPathName);
-
                 Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
                 ChatBotUI.Instance.SaveSettings();
 
@@ -66,10 +53,6 @@ namespace T2G.Assistant
             }
             else
             {
-                if (!projectIsOpened)
-                {
-                    Assistant.Instance.OpenProject(_projectName);
-                }
                 return (true, $"Failed to open the project!", null);
             }
         }

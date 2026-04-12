@@ -94,9 +94,12 @@ namespace T2G
                             Settings = JsonConvert.DeserializeObject<SettingsLite>(settingsJson);
                             OnDisplayText?.Invoke("Received settings: " + settingsJson);
 
-                            ProjectInfo pi = new ProjectInfo();
-                            pi.ProjectName = Directory.GetParent(Application.dataPath).Name;
-                            pi.Title = Application.productName;
+                            ProjectInfo pi = new ProjectInfo()
+                            {
+                                ProjectName = T2G.Utils.GetProjectName(),
+                                ProjectPath = T2G.Utils.GetProjectPath(),
+                                Title = Application.productName
+                            };
                             string piJson = JsonConvert.SerializeObject(pi);
                             _server.SendMessage(CommunicatorBase.eMessageType.ProjectInfo, piJson);
                         }
