@@ -10,7 +10,7 @@ namespace T2G.Assistant
     {
         public string ProjectName;
         public string Title;
-        public List<T2G.Assistant.Object> Spaces;
+        public List<T2G.Assistant.Space> Spaces;
         public List<InstructionRecord> InstructionHistory;
     }
 
@@ -20,6 +20,14 @@ namespace T2G.Assistant
         public string InstructionJson;
         public DateTime ExecutedUtc;
         public bool Succeeded;
+    }
+
+    [Serializable]
+    public class Space
+    {
+        public string Name;
+        public List<T2G.Assistant.Component> Components = new List<Component>();
+        public List<T2G.Assistant.Object> Objects = new List<Object>();
     }
 
     [Serializable]

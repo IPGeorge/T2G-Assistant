@@ -50,7 +50,17 @@ namespace T2G.Assistant
         // -------------------------
         private readonly string _saveGameDescFolder;
         private readonly JsonSerializerSettings _jsonSettings;
-        public string CurrentSpaceName { get; private set; }
+        public string CurrentSpaceName 
+        { 
+            get
+            {
+                return Assistant.Instance.GameProject.CurrentSpace;
+            }
+            set
+            {
+                Assistant.Instance.GameProject.CurrentSpace = value;
+            }
+        }
         public string CurrentProjectName 
         { 
             get
@@ -85,21 +95,12 @@ namespace T2G.Assistant
                 LoadGameDesc(filePath);
                 Snapshot.ProjectName = projectName;
                 Snapshot.Title = title ?? Snapshot.Title;
-                if (Snapshot.Spaces != null && Snapshot.Spaces.Count > 0)
-                {
-                    CurrentSpaceName = Snapshot.Spaces[0].Name;
-                }
             }
             else
             {
                 CreateGameDesc(projectName, title);
                 SaveGameDesc(projectName);
             }
-        }
-
-        public void SetCurrentSpace(string spaceName)
-        {
-            CurrentSpaceName = spaceName;
         }
 
         public void RecordInstruction(T2G.Instruction instruction, T2G.Response response)
@@ -128,6 +129,8 @@ namespace T2G.Assistant
 
         private void UpdateFromInstruction(T2G.Instruction instruction)
         {
+            Debug.Log($"Update game after instruction {instruction.action} execution.");
+
             if (instruction == null || string.IsNullOrWhiteSpace(instruction.action))
                 return;
 
@@ -138,8 +141,7 @@ namespace T2G.Assistant
                 string spaceName = instruction.parameters.GetString("spaceName");
                 if (!string.IsNullOrWhiteSpace(spaceName))
                 {
-                    AddSpace(spaceName, instruction.desc);
-                    CurrentSpaceName = spaceName;
+                    AddSpace(spaceName);
                 }
             }
             else if (action == T2G.Actions.create_object)
@@ -147,6 +149,13 @@ namespace T2G.Assistant
                 string objectName = instruction.parameters.GetString("Name");
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
                 {
+                    // Auto-create space if it doesn't exist in GameDesc
+                    if (FindSpace(CurrentSpaceName) == null)
+                    {
+                        AddSpace(CurrentSpaceName);
+                    }
+                    
+                    // Add object to the space
                     try
                     {
                         string parentName = instruction.parameters.GetString("Parent");
@@ -272,7 +281,7 @@ namespace T2G.Assistant
             {
                 ProjectName = projectName ?? "Untitled",
                 Title = title ?? "Untitled",
-                Spaces = new List<T2G.Assistant.Object>(),
+                Spaces = new List<T2G.Assistant.Space>(),
                 InstructionHistory = new List<InstructionRecord>()
             };
 
@@ -361,21 +370,19 @@ namespace T2G.Assistant
         // Domain: Snapshot edits
         // ============================================================
 
-        public Object AddSpace(string spaceName, string desc = null)
+        public Space AddSpace(string spaceName)
         {
             EnsureSnapshot();
             if (string.IsNullOrWhiteSpace(spaceName))
                 throw new ArgumentException("spaceName is empty.");
 
-            Snapshot.Spaces ??= new List<Object>();
+            Snapshot.Spaces ??= new List<Space>();
 
-            var space = new Object
+            var space = new Space
             {
                 Name = spaceName,
-                Desc = desc ?? "Space",
                 Components = new List<Component>(),
-                Parent = null,
-                Children = new List<Object>()
+                Objects = new List<Object>()
             };
 
             Snapshot.Spaces.Add(space);
@@ -399,9 +406,9 @@ namespace T2G.Assistant
 
             if (string.IsNullOrWhiteSpace(parentName))
             {
-                space.Children ??= new List<Object>();
-                newObj.Parent = space;
-                space.Children.Add(newObj);
+                space.Objects ??= new List<Object>();
+                newObj.Parent = null;
+                space.Objects.Add(newObj);
             }
             else
             {
@@ -423,16 +430,30 @@ namespace T2G.Assistant
             var space = FindSpace(spaceName);
             if (space == null) return false;
 
+            // Check if it's the space itself
             if (string.Equals(space.Name, objectName, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            var target = FindObjectInSpace(space, objectName);
-            if (target == null) return false;
+            // First search in space.Objects (top-level objects)
+            if (space.Objects != null)
+            {
+                var target = space.Objects.Find(o => 
+                    o != null && string.Equals(o.Name, objectName, StringComparison.OrdinalIgnoreCase));
+                if (target != null)
+                {
+                    space.Objects.Remove(target);
+                    return true;
+                }
+            }
 
-            var parent = target.Parent;
+            // Then search recursively (children)
+            var found = FindObjectInSpace(space, objectName);
+            if (found == null) return false;
+
+            var parent = found.Parent;
             if (parent?.Children == null) return false;
 
-            return parent.Children.Remove(target);
+            return parent.Children.Remove(found);
         }
 
         public Component AddComponent(string spaceName, string objectName, string componentType)
@@ -548,7 +569,7 @@ namespace T2G.Assistant
                 throw new InvalidOperationException("Snapshot is null. Call CreateNewSnapshot(...) or LoadSnapshot(...) first.");
         }
 
-        private Object FindSpace(string spaceName)
+        private Space FindSpace(string spaceName)
         {
             if (Snapshot?.Spaces == null) return null;
 
@@ -583,13 +604,34 @@ namespace T2G.Assistant
             return comp;
         }
 
-        private static Object FindObjectInSpace(Object spaceRoot, string objectName)
+        private Object FindObjectInSpace(Space space, string objectName)
         {
-            if (spaceRoot == null || string.IsNullOrWhiteSpace(objectName))
+            if (space == null || string.IsNullOrWhiteSpace(objectName))
                 return null;
 
+            // First search top-level objects in space
+            if (space.Objects != null)
+            {
+                foreach (var obj in space.Objects)
+                {
+                    if (obj != null && string.Equals(obj.Name, objectName, StringComparison.OrdinalIgnoreCase))
+                        return obj;
+                }
+            }
+
+            // Then search in children (recursive)
             var stack = new Stack<Object>();
-            stack.Push(spaceRoot);
+            if (space.Objects != null)
+            {
+                foreach (var obj in space.Objects)
+                {
+                    if (obj?.Children != null)
+                    {
+                        for (int i = obj.Children.Count - 1; i >= 0; i--)
+                            stack.Push(obj.Children[i]);
+                    }
+                }
+            }
 
             while (stack.Count > 0)
             {
@@ -599,9 +641,11 @@ namespace T2G.Assistant
                 if (string.Equals(cur.Name, objectName, StringComparison.OrdinalIgnoreCase))
                     return cur;
 
-                if (cur.Children == null) continue;
-                for (int i = cur.Children.Count - 1; i >= 0; i--)
-                    stack.Push(cur.Children[i]);
+                if (cur.Children != null)
+                {
+                    for (int i = cur.Children.Count - 1; i >= 0; i--)
+                        stack.Push(cur.Children[i]);
+                }
             }
 
             return null;
@@ -609,21 +653,24 @@ namespace T2G.Assistant
 
         private static void Normalize(GameDesc gd)
         {
-            gd.Spaces ??= new List<Object>();
+            gd.Spaces ??= new List<Space>();
             gd.InstructionHistory ??= new List<InstructionRecord>();
 
             foreach (var space in gd.Spaces)
             {
                 if (space == null) continue;
 
-                space.Children ??= new List<Object>();
+                space.Objects ??= new List<Object>();
                 space.Components ??= new List<Component>();
 
-                NormalizeObjectRecursive(space);
+                foreach (var obj in space.Objects)
+                {
+                    NormalizeObjectRecursive(obj);
+                }
             }
         }
 
-        private static void NormalizeObjectRecursive(Object obj)
+        private static void NormalizeObjectRecursive(T2G.Assistant.Object obj)
         {
             if (obj == null) return;
 
@@ -639,7 +686,9 @@ namespace T2G.Assistant
             }
 
             foreach (var child in obj.Children)
+            {
                 NormalizeObjectRecursive(child);
+            }
         }
 
         private static void RebuildParents(GameDesc gd)
@@ -648,10 +697,13 @@ namespace T2G.Assistant
 
             foreach (var space in gd.Spaces)
             {
-                if (space == null) continue;
+                if (space == null || space.Objects == null) continue;
 
-                space.Parent = null;
-                RebuildParentsRecursive(space);
+                foreach (var obj in space.Objects)
+                {
+                    obj.Parent = null;
+                    RebuildParentsRecursive(obj);
+                }
             }
         }
 
@@ -719,7 +771,7 @@ namespace T2G.Assistant
 
             foreach(var space in gameDesc.Spaces)
             {
-                var spaceInstruction = ParseObjectForInstruction(space);
+                var spaceInstruction = ParseSpaceForInstruction(space);
                 if (spaceInstruction != null)
                 {
                     instructionList.Add(spaceInstruction);
@@ -729,6 +781,31 @@ namespace T2G.Assistant
 
             return true;
 
+        }
+
+
+        private static Instruction ParseSpaceForInstruction(T2G.Assistant.Space space)
+        {
+            if (space == null)
+            {
+                return null;
+            }
+
+            Instruction instruction = new Instruction();
+            instruction.action = T2G.Actions.create_space;
+            instruction.parameters.Add(new ValuePair("Name", space.Name));
+
+            List<Instruction> objInstructions = new List<Instruction>();
+            foreach(T2G.Assistant.Object obj in space.Objects)
+            {
+                var objInstruction = ParseObjectForInstruction(obj);
+                if(objInstruction != null)
+                {
+                    objInstructions.Add(objInstruction);
+                }
+            }
+            instruction.instructions = objInstructions.ToArray();
+            return instruction;
         }
 
         // -------------------------
