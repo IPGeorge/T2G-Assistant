@@ -4,6 +4,7 @@ using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using T2G;
 
 namespace T2G.Assistant
 {
@@ -182,20 +183,60 @@ namespace T2G.Assistant
             }
             else if (action == T2G.Actions.set_property)
             {
+                // Support both parameter naming conventions: "Name"/"Property"/"Value" and "objName"/"property"/"value"
                 string objectName = instruction.parameters.GetString("Name");
-                string componentType = instruction.parameters.GetString("Component");
+                if (string.IsNullOrWhiteSpace(objectName))
+                    objectName = instruction.parameters.GetString("objName");
+                
                 string propertyName = instruction.parameters.GetString("Property");
-                string propertyType = instruction.parameters.GetString("Type");
-                JToken value = instruction.parameters.GetValue("Value");
+                if (string.IsNullOrWhiteSpace(propertyName))
+                    propertyName = instruction.parameters.GetString("property");
+                
+                string valueStr = instruction.parameters.GetString("Value");
+                if (string.IsNullOrWhiteSpace(valueStr))
+                    valueStr = instruction.parameters.GetString("value");
+
+                // Debug removed for cleaner output
 
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) &&
-                    !string.IsNullOrWhiteSpace(componentType) && !string.IsNullOrWhiteSpace(propertyName))
+                    !string.IsNullOrWhiteSpace(propertyName))
                 {
-                    try
+                    // Auto-create space if it doesn't exist
+                    if (FindSpace(CurrentSpaceName) == null)
                     {
-                        AddOrSetPropertyValue(CurrentSpaceName, objectName, componentType, propertyName, propertyType, value);
+                        AddSpace(CurrentSpaceName);
                     }
-                    catch { }
+
+                    // Auto-create object if it doesn't exist
+                    var space = FindSpace(CurrentSpaceName);
+                    var obj = FindObjectInSpace(space, objectName);
+                    if (obj == null)
+                    {
+                        obj = AddObject(CurrentSpaceName, objectName, null);
+                    }
+
+                    // Add or update property on the object
+                    obj.Properties ??= new List<ValuePair>();
+                    var existingProp = obj.Properties.Find(p => string.Equals(p.name, propertyName, StringComparison.OrdinalIgnoreCase));
+                    
+                    JToken tokenValue = null;
+                    if (!string.IsNullOrWhiteSpace(valueStr))
+                    {
+                        try {
+                            tokenValue = JToken.Parse(valueStr);
+                        } catch {
+                            tokenValue = valueStr;
+                        }
+                    }
+                    
+                    if (existingProp != null)
+                    {
+                        existingProp.value = tokenValue;
+                    }
+                    else
+                    {
+                        obj.Properties.Add(new ValuePair(propertyName, tokenValue));
+                    }
                 }
             }
             else if (action == T2G.Actions.delete_object)

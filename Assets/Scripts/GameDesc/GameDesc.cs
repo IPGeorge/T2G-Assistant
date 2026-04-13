@@ -35,6 +35,7 @@ namespace T2G.Assistant
     {
         public string Name;
         public string Desc;
+        public List<ValuePair> Properties = new List<ValuePair>();
         public List<T2G.Assistant.Component> Components = new List<Component>();
         public T2G.Assistant.Object Parent;
         public List<T2G.Assistant.Object> Children = new List<Object>();
