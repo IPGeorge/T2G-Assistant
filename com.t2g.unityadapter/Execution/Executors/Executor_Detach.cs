@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 
+using UnityEngine;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -7,7 +8,7 @@ namespace T2G
 {
     [Executor(Actions.detach)]
 
-    public class Executor_Dettach : ExecutorBase
+    public class Executor_Detach : ExecutorBase
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
@@ -19,6 +20,7 @@ namespace T2G
                 return (false, $"Couldn't find {objName}!", null);
             }
             obj.transform.parent = null;
+            obj.transform.localScale = Vector3.one;
             Utils.UpdateEditorViews();
             await Task.Yield();
             return (true, $"{objName} was dettached.", null);

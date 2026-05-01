@@ -14,13 +14,22 @@ namespace T2G.Assistant
             instruction.state = Instruction.eState.Resolved;
             string source = Utils.GetParamFromArguments(args, "source");
             string target = Utils.GetParamFromArguments(args, "target");
+            string bone = Utils.GetParamFromArguments(args, "bone");
+            
             if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target))
             {
                 return (false, null);
             }
+            
             instruction.parameters = new List<ValuePair>();
             instruction.parameters.Add(new ValuePair("source", source));
             instruction.parameters.Add(new ValuePair("target", target));
+            
+            if (!string.IsNullOrEmpty(bone))
+            {
+                instruction.parameters.Add(new ValuePair("bone", bone));
+            }
+            
             instructions.Add(instruction);
             return (true, instructions);
         }

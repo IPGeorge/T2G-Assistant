@@ -27,6 +27,8 @@ namespace T2G
             _importAssetList.Add((assets[0], assets[1]));
             SaveLists();
             await SimImportAssetsImpl();
+            Debug.LogError($"Assets4={_importAssetList.Count}");
+            Debug.LogError($"Objects4={_createObjectsList.Count}");
         }
 
         public static void SaveLists()

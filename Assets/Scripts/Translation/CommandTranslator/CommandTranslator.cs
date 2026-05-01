@@ -46,7 +46,7 @@ namespace T2G.Assistant
             (@"^(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
             (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
-            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "attach_to"),
+            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:at|on)\s+(?<bone>[\w\-]+))?\s*$", "attach_to"),
             (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", "detach"),
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
             (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", "call_method"),

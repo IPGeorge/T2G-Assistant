@@ -148,6 +148,8 @@ namespace T2G.Assistant
             else if (action == T2G.Actions.create_object)
             {
                 string objectName = instruction.parameters.GetString("Name");
+                Debug.Log($"[GameDescManager] create_object: objectName={objectName}, desc={instruction?.desc}, CurrentSpaceName={CurrentSpaceName}");
+                
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
                 {
                     // Auto-create space if it doesn't exist in GameDesc
@@ -161,11 +163,17 @@ namespace T2G.Assistant
                     {
                         string parentName = instruction.parameters.GetString("Parent");
                         AddObject(CurrentSpaceName, objectName, instruction.desc, parentName);
+                        Debug.Log($"[GameDescManager] Created object: {objectName} with desc: {instruction?.desc}");
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}");
                         AddObject(CurrentSpaceName, objectName, instruction.desc, null);
                     }
+                }
+                else
+                {
+                    Debug.LogWarning($"[GameDescManager] create_object skipped - objectName or CurrentSpaceName is empty");
                 }
             }
             else if (action == T2G.Actions.add_component)
@@ -264,6 +272,7 @@ namespace T2G.Assistant
                 // Support multiple parameter naming conventions
                 string childName = instruction.parameters.GetString("source");
                 string parentName = instruction.parameters.GetString("target");
+                string boneName = instruction.parameters.GetString("bone");
 
                 if (!string.IsNullOrWhiteSpace(childName) && !string.IsNullOrWhiteSpace(parentName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
                 {
@@ -307,6 +316,21 @@ namespace T2G.Assistant
                         parent.Children ??= new List<Object>();
                         child.Parent = parent;
                         parent.Children.Add(child);
+
+                        // If bone is specified, store it as a property on the child
+                        if (!string.IsNullOrWhiteSpace(boneName))
+                        {
+                            child.Properties ??= new List<ValuePair>();
+                            var boneProp = child.Properties.Find(p => string.Equals(p.name, "bone", StringComparison.OrdinalIgnoreCase));
+                            if (boneProp != null)
+                            {
+                                boneProp.value = boneName;
+                            }
+                            else
+                            {
+                                child.Properties.Add(new ValuePair("bone", boneName));
+                            }
+                        }
                     }
                     catch { }
                 }
@@ -356,6 +380,12 @@ namespace T2G.Assistant
                         if (!space.Objects.Contains(obj))
                         {
                             space.Objects.Add(obj);
+                        }
+
+                        // Remove bone property if exists
+                        if (obj.Properties != null)
+                        {
+                            obj.Properties.RemoveAll(p => string.Equals(p.name, "bone", StringComparison.OrdinalIgnoreCase));
                         }
                     }
                     catch { }

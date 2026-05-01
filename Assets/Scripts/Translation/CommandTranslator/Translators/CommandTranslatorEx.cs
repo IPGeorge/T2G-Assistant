@@ -47,7 +47,7 @@ namespace T2G.Assistant
             (@"^(?:place|put|drop|position)(?:\s+(?:the\s+)?(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface))?\.?$", T2G.Actions.place_on_ground),
 
             // Attach/Detach - expanded
-            (@"^(?:attach|parent|link)(?:\s+(?:the\s+)?(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?))\s+(?:to|under)\s+(?:the\s+)?(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)$", "attach_to"),
+            (@"^(?:attach|parent|link)(?:\s+(?:the\s+)?(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?))\s+(?:to|under)\s+(?:the\s+)?(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:at|on)\s+(?<bone>[\w\-]+))?$", "attach_to"),
             (@"^(?:detach|unparent|unlink)(?:\s+(?:the\s+)?(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))(?:\s+(?:from|to))?$", "detach"),
 
             // Property setting - expanded
