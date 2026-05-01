@@ -259,6 +259,58 @@ namespace T2G.Assistant
                     CurrentSpaceName = spaceName;
                 }
             }
+            else if (action == T2G.Actions.attach_to)
+            {
+                // Support multiple parameter naming conventions
+                string childName = instruction.parameters.GetString("source");
+                string parentName = instruction.parameters.GetString("target");
+
+                if (!string.IsNullOrWhiteSpace(childName) && !string.IsNullOrWhiteSpace(parentName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
+                {
+                    try
+                    {
+                        // Auto-create space if it doesn't exist
+                        if (FindSpace(CurrentSpaceName) == null)
+                        {
+                            AddSpace(CurrentSpaceName);
+                        }
+
+                        var space = FindSpace(CurrentSpaceName);
+                        if (space == null) return;
+
+                        // Find or create child object
+                        var child = FindObjectInSpace(space, childName);
+                        if (child == null)
+                        {
+                            child = AddObject(CurrentSpaceName, childName, null);
+                        }
+
+                        // Find or create parent object
+                        var parent = FindObjectInSpace(space, parentName);
+                        if (parent == null)
+                        {
+                            parent = AddObject(CurrentSpaceName, parentName, null);
+                        }
+
+                        // Remove child from its current parent (if any)
+                        if (child.Parent != null && child.Parent.Children != null)
+                        {
+                            child.Parent.Children.Remove(child);
+                        }
+                        else
+                        {
+                            // Child might be at root level (space.Objects), remove from there
+                            space.Objects?.Remove(child);
+                        }
+
+                        // Add child to new parent's Children list
+                        parent.Children ??= new List<Object>();
+                        child.Parent = parent;
+                        parent.Children.Add(child);
+                    }
+                    catch { }
+                }
+            }
             else if (action == T2G.Actions.remove_component)
             {
                 string objectName = instruction.parameters.GetString("Name");
@@ -268,6 +320,43 @@ namespace T2G.Assistant
                     try
                     {
                         RemoveComponent(CurrentSpaceName, objectName, componentType);
+                    }
+                    catch { }
+                }
+            }
+            else if (action == T2G.Actions.detach)
+            {
+                string objectName = instruction.parameters.GetString("Name");
+                if (string.IsNullOrWhiteSpace(objectName))
+                    objectName = instruction.parameters.GetString("childName");
+
+                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
+                {
+                    try
+                    {
+                        var space = FindSpace(CurrentSpaceName);
+                        if (space == null) return;
+
+                        var obj = FindObjectInSpace(space, objectName);
+                        if (obj == null) return;
+
+                        // If object has a parent, remove from parent's Children
+                        if (obj.Parent != null)
+                        {
+                            obj.Parent.Children?.Remove(obj);
+                        }
+                        else
+                        {
+                            // Object is at root level, just remove from parent's check
+                        }
+
+                        // Set Parent to null and add to root (space.Objects)
+                        obj.Parent = null;
+                        space.Objects ??= new List<Object>();
+                        if (!space.Objects.Contains(obj))
+                        {
+                            space.Objects.Add(obj);
+                        }
                     }
                     catch { }
                 }

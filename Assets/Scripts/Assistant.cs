@@ -55,6 +55,11 @@ namespace T2G.Assistant
 
         private void OnDestroy()
         {
+            if(Communicator != null && Communicator.IsConnected)
+            {
+                Communicator.Disconnect();
+            }
+
             Uninit();
         }
 
