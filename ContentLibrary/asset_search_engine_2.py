@@ -4,8 +4,8 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.neighbors import NearestNeighbors
 
+
 def load_assets_from_file(file_path):
-    """Load asset metadata from an Excel or CSV file."""
     try:
         if file_path.endswith(".csv"):
             df = pd.read_csv(file_path)
@@ -38,12 +38,36 @@ class AssetSearchEngine:
         self.nn_model = None
         self.embeddings = []
         self.asset_ids = []
+        self._load_db()
 
     def _connect_db(self):
         return sqlite3.connect(self.db_path)
 
-    def index_sample_assets(self, assets, sample_count):
-        """Create and populate the SQLite asset table, then build vector index."""
+    def _load_db(self):
+        conn = self._connect_db()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id, name, description FROM assets")
+            rows = cursor.fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        conn.close()
+
+        self.embeddings = []
+        self.asset_ids = []
+        for row in rows:
+            id_, name, description = row
+            self.asset_ids.append(id_)
+            text = f"{name} {description}"
+            embedding = self.model.encode(text)
+            self.embeddings.append(embedding)
+
+        if self.embeddings:
+            n_assets = len(self.embeddings)
+            self.nn_model = NearestNeighbors(n_neighbors=min(n_assets, 5), metric='cosine')
+            self.nn_model.fit(np.array(self.embeddings))
+
+    def index_assets(self, assets, sample_count):
         conn = self._connect_db()
         cursor = conn.cursor()
 
@@ -73,13 +97,12 @@ class AssetSearchEngine:
         conn.commit()
         conn.close()
 
-        n_samples = len(self.embeddings)
-        n_neighbors = min(n_samples, sample_count)
+        n_assets = len(self.embeddings)
+        n_neighbors = min(n_assets, sample_count)
         self.nn_model = NearestNeighbors(n_neighbors=n_neighbors, metric='cosine')
         self.nn_model.fit(np.array(self.embeddings))
 
     def search(self, query, asset_type=None):
-        """Return matching asset paths based on semantic similarity."""
         if not self.nn_model:
             return []
 
@@ -89,27 +112,47 @@ class AssetSearchEngine:
         conn = self._connect_db()
         cursor = conn.cursor()
 
-        results = []
+        scored_results = []
         for idx in indices[0]:
             asset_id = self.asset_ids[idx]
-            cursor.execute("SELECT path, type FROM assets WHERE id=?", (asset_id,))
+            cursor.execute("SELECT name, description, path, type FROM assets WHERE id=?", (asset_id,))
             row = cursor.fetchone()
             if row:
-                path, type_ = row
+                name, description, path, type_ = row
                 if asset_type is None or type_.lower() == asset_type.lower():
-                    results.append(path)
+                    keyword_score = self._calculate_keyword_match_score(query, name, description)
+                    semantic_distance = distances[0][list(indices[0]).index(idx)]
+                    combined_score = semantic_distance - (keyword_score * 0.1)
+                    scored_results.append({
+                        'path': path,
+                        'score': combined_score
+                    })
 
         conn.close()
-        return results
+        scored_results.sort(key=lambda x: x['score'])
+        return [r['path'] for r in scored_results]
+
+    def _calculate_keyword_match_score(self, query, name, description):
+        query_words = set(query.lower().split())
+        text = f"{name} {description}".lower()
+        score = 0
+        for word in query_words:
+            if word in text:
+                score += 1
+                if word in name.lower():
+                    score += 0.5
+                if word == "sample":
+                    score += 1
+        return score
 
 
-# 🔍 Example Usage
 if __name__ == "__main__":
-    asset_file = "AssetsDatabase.xlsx"  # Can also be .csv
+    asset_file = "AssetsDatabase.xlsx"
     assets = load_assets_from_file(asset_file)
 
     if not assets:
         print("No assets to index. Exiting.")
     else:
         engine = AssetSearchEngine()
-        engine.index_sample_assets(assets, sample_count=5)
+        engine.index_assets(assets, sample_count=5)
+        print(f"Indexed {len(assets)} assets from {asset_file}.")

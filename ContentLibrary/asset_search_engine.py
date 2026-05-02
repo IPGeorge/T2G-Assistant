@@ -77,6 +77,10 @@ class AssetSearchEngine:
         if not self.nn_model:
             return []
 
+        # First, check for keyword matches (boost exact/partial matches)
+        query_words = query.lower().split()
+        
+        # Get semantic similarity results
         query_embedding = self.model.encode(query).reshape(1, -1)
         distances, indices = self.nn_model.kneighbors(query_embedding)
 
@@ -84,17 +88,54 @@ class AssetSearchEngine:
         cursor = conn.cursor()
 
         results = []
+        scored_results = []
+        
         for idx in indices[0]:
             asset_id = self.asset_ids[idx]
-            cursor.execute("SELECT path, type FROM assets WHERE id=?", (asset_id,))
+            cursor.execute("SELECT name, description, path, type FROM assets WHERE id=?", (asset_id,))
             row = cursor.fetchone()
             if row:
-                path, type_ = row
+                name, description, path, type_ = row
+                
                 if asset_type is None or type_ == asset_type:
-                    results.append(path)
+                    # Calculate keyword boost score
+                    keyword_score = self._calculate_keyword_match_score(query, name, description)
+                    
+                    # Combine semantic distance with keyword boost
+                    # Lower distance is better, so we add keyword boost to improve matching
+                    semantic_distance = distances[0][list(indices[0]).index(idx)]
+                    combined_score = semantic_distance - (keyword_score * 0.1)  # Subtract because lower distance is better
+                    
+                    scored_results.append({
+                        'path': path,
+                        'score': combined_score,
+                        'keyword_score': keyword_score
+                    })
 
         conn.close()
-        return results
+        
+        # Sort by combined score (lower is better)
+        scored_results.sort(key=lambda x: x['score'])
+        
+        return [r['path'] for r in scored_results]
+
+    def _calculate_keyword_match_score(self, query, name, description):
+        """Calculate keyword match score to boost results with matching keywords."""
+        query_words = set(query.lower().split())
+        text = f"{name} {description}".lower()
+        
+        score = 0
+        for word in query_words:
+            if word in text:
+                score += 1
+                # Extra boost for exact word match
+                if word in name.lower():
+                    score += 0.5
+                # Boost for "sample" keyword
+                if word == "sample":
+                    score += 1
+        
+        return score
 
 # Example Usage
 if __name__ == "__main__":
