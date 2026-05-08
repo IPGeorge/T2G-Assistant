@@ -164,11 +164,45 @@ namespace T2G.Assistant
                         string parentName = instruction.parameters.GetString("Parent");
                         AddObject(CurrentSpaceName, objectName, instruction.desc, parentName);
                         Debug.Log($"[GameDescManager] Created object: {objectName} with desc: {instruction?.desc}");
+
+                        // Populate Assets from instruction.assets
+                        var instrAssets = instruction.assets;
+                        if (instrAssets != null && instrAssets.Count > 0)
+                        {
+                            var space = FindSpace(CurrentSpaceName);
+                            var obj = FindObjectInSpace(space, objectName);
+                            if (obj != null)
+                            {
+                                obj.Assets ??= new List<string>();
+                                foreach (var path in instrAssets)
+                                {
+                                    if (!obj.Assets.Contains(path))
+                                        obj.Assets.Add(path);
+                                }
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
                         Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}");
                         AddObject(CurrentSpaceName, objectName, instruction.desc, null);
+
+                        // Populate Assets from instruction.assets
+                        var instrAssets = instruction.assets;
+                        if (instrAssets != null && instrAssets.Count > 0)
+                        {
+                            var space = FindSpace(CurrentSpaceName);
+                            var obj = FindObjectInSpace(space, objectName);
+                            if (obj != null)
+                            {
+                                obj.Assets ??= new List<string>();
+                                foreach (var path in instrAssets)
+                                {
+                                    if (!obj.Assets.Contains(path))
+                                        obj.Assets.Add(path);
+                                }
+                            }
+                        }
                     }
                 }
                 else
@@ -628,7 +662,6 @@ namespace T2G.Assistant
             {
                 Type = componentType,
                 Properties = new List<PropertyDesc>(),
-                Properties = new List<PropertyDesc>(),
                 BehaviorScript = string.Empty
             };
 
@@ -836,11 +869,11 @@ namespace T2G.Assistant
 
             obj.Children ??= new List<Object>();
             obj.Components ??= new List<Component>();
+            obj.Assets ??= new List<string>();
 
             foreach (var c in obj.Components)
             {
                 if (c == null) continue;
-                c.Assets ??= new List<string>();
                 c.Properties ??= new List<PropertyDesc>();
                 c.RebuildPropertyMapIfExists();
             }
@@ -1042,3 +1075,5 @@ namespace T2G.Assistant
         }
     }
 }
+
+

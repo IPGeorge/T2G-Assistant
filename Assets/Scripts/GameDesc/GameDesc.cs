@@ -36,6 +36,7 @@ namespace T2G.Assistant
         public string Name;
         public string Desc;
         public List<ValuePair> Properties = new List<ValuePair>();
+        public List<string> Assets = new List<string>();
         public List<T2G.Assistant.Component> Components = new List<Component>();
         public T2G.Assistant.Object Parent;
         public List<T2G.Assistant.Object> Children = new List<Object>();
@@ -46,7 +47,6 @@ namespace T2G.Assistant
     public class Component
     {
         public string Type;
-        public List<string> Assets;
         public List<PropertyDesc> Properties = new List<PropertyDesc>();
         public string BehaviorScript;
 
