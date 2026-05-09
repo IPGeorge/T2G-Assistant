@@ -93,7 +93,7 @@ namespace T2G
                         {
                             string settingsJson = messageData.Message.ToString();
                             Settings = JsonConvert.DeserializeObject<SettingsLite>(settingsJson);
-                            OnDisplayText?.Invoke("Received settings: " + settingsJson);
+                            Debug.Log("Received settings: " + settingsJson);
 
                             ProjectInfo pi = new ProjectInfo()
                             {

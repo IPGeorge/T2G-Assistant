@@ -301,6 +301,24 @@ namespace T2G.Assistant
                     CurrentSpaceName = spaceName;
                 }
             }
+            else if (action == T2G.Actions.rename_space)
+            {
+                string newSpaceName = instruction.parameters.GetString("spaceName");
+                if (!string.IsNullOrWhiteSpace(newSpaceName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
+                {
+                    var space = FindSpace(CurrentSpaceName);
+                    if (space != null)
+                    {
+                        string oldName = space.Name;
+                        space.Name = newSpaceName;
+                        if (string.Equals(CurrentSpaceName, oldName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            CurrentSpaceName = newSpaceName;
+                        }
+                        Debug.Log($"[GameDescManager] Renamed space: {oldName} -> {newSpaceName}");
+                    }
+                }
+            }
             else if (action == T2G.Actions.attach_to)
             {
                 // Support multiple parameter naming conventions

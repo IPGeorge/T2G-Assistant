@@ -28,7 +28,7 @@ namespace T2G
             var activeScene = EditorSceneManager.GetActiveScene();
             if (string.IsNullOrEmpty(activeScene.name))
             {
-                string untitledSpace = Path.Combine(k_Assets, k_SpacesDirectory, "UntitledSpace.unity");
+                string untitledSpace = Path.Combine(k_Assets, k_SpacesDirectory, k_DefaultSpaceName + ".unity");
                 EditorSceneManager.SaveScene(activeScene, untitledSpace);
             }
             else

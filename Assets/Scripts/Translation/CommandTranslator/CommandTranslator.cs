@@ -42,6 +42,7 @@ namespace T2G.Assistant
             (@"^create\s+space\s+(?<name>[^\s]+)$", T2G.Actions.create_space),
             (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", T2G.Actions.goto_space),
             (@"^(save space|save)$", T2G.Actions.save_space),
+            (@"^rename\s+space\s+(?<name>[^\s]+)$", T2G.Actions.rename_space),
             (@"^(create|instantiate)\s+(?:a\s+|an\s+)?(?:new\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|name|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\.)?$", T2G.Actions.create_object),
             (@"^(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),

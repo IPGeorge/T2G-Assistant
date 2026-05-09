@@ -23,6 +23,7 @@ namespace T2G
         public const string create_space = "create_space";
         public const string goto_space = "goto_space";
         public const string save_space = "save_space";
+        public const string rename_space = "rename_space";
         #endregion Space
 
         #region Object
