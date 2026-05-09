@@ -187,32 +187,32 @@ namespace T2G
 
             _server.OnFailedToStartServer += () =>
             {
-                AddConsoleText("\n System> Failed to start litsening server!");
+                Debug.Log("\n System> Failed to start litsening server!");
             };
 
             _server.OnClientConnected += () =>
             {
-                AddConsoleText("\n System> Client was connected!");
+                Debug.Log("\n System> Client was connected!");
             };
 
             _server.OnClientDisconnected += () =>
             {
-                AddConsoleText("\n System> Client was disconnected!");
+                Debug.Log("System> Client was disconnected!");
             };
 
             _server.OnReceivedMessage += (type, message) =>
             {
-                AddConsoleText("\n Received> " + message);
+                Debug.Log("Received> " + message);
             };
 
             _server.OnSentMessage += (message) =>
             {
-                AddConsoleText("\n Sent> " + message);
+                Debug.Log("Sent> " + message);
             };
 
             _server.OnLogMessage += (message) =>
             {
-                AddConsoleText("\n Received> " + message);
+                Debug.Log("Received> " + message);
             };
             #endregion Handle server events
 

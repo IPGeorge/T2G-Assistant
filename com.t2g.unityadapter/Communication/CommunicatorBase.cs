@@ -22,6 +22,7 @@ namespace T2G
         {
             public eMessageType Type;
             public FixedString4096Bytes Message;
+            public bool Silent;
         }
 
         public const int MAX_MESSAGE_LENGTH = 4096;
@@ -113,13 +114,13 @@ namespace T2G
             return true;
         }
 
-        virtual public bool SendMessage(eMessageType type, string message)
+        virtual public bool SendMessage(eMessageType type, string message, bool silent = false)
         {
             if (string.IsNullOrEmpty(message))
             {
                 return false;
             }
-            MessageStruct msg = new MessageStruct { Type = type, Message = message };
+            MessageStruct msg = new MessageStruct { Type = type, Message = message, Silent = silent };
             SendMessage(msg);
             return true;
         }
@@ -135,7 +136,10 @@ namespace T2G
                 writer.WriteByte((byte)messageData.Type);
                 writer.WriteFixedString4096(messageData.Message);
                 _networkDriver.EndSend(writer);
-                OnSentMessage?.Invoke(messageData.Message.ToString());
+                if (!messageData.Silent)
+                {
+                    OnSentMessage?.Invoke(messageData.Message.ToString());
+                }
                 return true;
             }
             return false;

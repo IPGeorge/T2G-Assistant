@@ -47,7 +47,16 @@ namespace T2G
                 _newObj = new GameObject(name);
                 Light light = _newObj.AddComponent<Light>();
                 light.type = Utils.GetLightTypeFromDesc(desc);
-                light.color = Color.white;
+                light.shadows = LightShadows.Soft;
+                if (light.type == LightType.Directional)
+                {
+                    _newObj.transform.Rotate(45.0f, 45.0f, 0.0f);
+                    light.color = new Color(0.957f, 0.914f, 0.608f, 1.0f);
+                }
+                else
+                {
+                    light.color = Color.white;
+                }
                 light.intensity = 1.0f;
                 light.range = 10f;
             }

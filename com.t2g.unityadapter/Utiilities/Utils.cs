@@ -126,17 +126,17 @@ namespace T2G
 
         public static LightType GetLightTypeFromDesc(string desc)
         {
-            if(desc.IndexOf("directional", StringComparison.OrdinalIgnoreCase) >=0)
-            {
-                return LightType.Directional;
-            }
-            else if (desc.IndexOf("spot", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (desc.IndexOf("spot", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return LightType.Spot;
             }
-            else 
+            else if (desc.IndexOf("point", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return LightType.Point;
+            }
+            else // "directional" by default
+            {
+                return LightType.Directional;
             }
         }
 
