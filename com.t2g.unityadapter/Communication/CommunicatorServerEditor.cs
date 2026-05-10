@@ -202,12 +202,21 @@ namespace T2G
 
             _server.OnReceivedMessage += (type, message) =>
             {
-                Debug.Log("Received> " + message);
+                if (type == CommunicatorBase.eMessageType.Message ||
+                    type == CommunicatorBase.eMessageType.Instruction ||
+                    type == CommunicatorBase.eMessageType.Response)
+                {
+                    AddConsoleText("Received> " + message);
+                }
+                else
+                {
+                    Debug.Log("Received> " + message);
+                }
             };
 
             _server.OnSentMessage += (message) =>
             {
-                Debug.Log("Sent> " + message);
+                AddConsoleText("Sent> " + message);
             };
 
             _server.OnLogMessage += (message) =>

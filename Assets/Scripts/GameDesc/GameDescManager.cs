@@ -213,12 +213,30 @@ namespace T2G.Assistant
             else if (action == T2G.Actions.add_component)
             {
                 string objectName = instruction.parameters.GetString("Name");
+                if (string.IsNullOrWhiteSpace(objectName))
+                    objectName = instruction.parameters.GetString("objName");
+                
                 string componentType = instruction.parameters.GetString("Type");
+                if (string.IsNullOrWhiteSpace(componentType))
+                    componentType = instruction.parameters.GetString("component");
+
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
                 {
                     try
                     {
                         AddComponent(CurrentSpaceName, objectName, componentType);
+                        
+                        // Populate BehaviorScript from instruction.assets (resolved asset path)
+                        var space = FindSpace(CurrentSpaceName);
+                        var obj = FindObjectInSpace(space, objectName);
+                        if (obj != null && obj.Components != null && obj.Components.Count > 0)
+                        {
+                            var comp = obj.Components[obj.Components.Count - 1];
+                            if (instruction.assets != null && instruction.assets.Count > 0)
+                            {
+                                comp.BehaviorScript = instruction.assets[0];
+                            }
+                        }
                     }
                     catch { }
                 }

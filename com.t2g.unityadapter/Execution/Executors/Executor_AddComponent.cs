@@ -33,8 +33,12 @@ namespace T2G
                 if (result.succeeded)
                 {
                     Utils.UpdateEditorViews();
+                    return (true, result.responseMessage, null);
                 }
-                return (result.succeeded, result.responseMessage, null);
+                else
+                {
+                    return (false, result.responseMessage, null);
+                }
             }
             else 
             {
@@ -56,7 +60,7 @@ namespace T2G
                     }
                 }
 
-                if (!File.Exists(component))
+                if (!File.Exists(source))
                 {
                     return (false, $"Couldn't find the source file {source}.", null);
                 }
@@ -65,13 +69,25 @@ namespace T2G
                 dest = Path.Combine(Application.dataPath, "Scripts", Path.GetFileName(source));
                 string script = File.ReadAllText(source);
                 string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                if(string.IsNullOrEmpty(componentTypeName))
+                {
+                    return (false, $"Invalid component type name.", null);
+                }
+
+                //Directly add the component in case it is available
+                var result = AddScriptComponent(obj, componentTypeName);
+                if (result.succeeded)
+                {
+                    return (true, result.responseMessage, null);
+                }
+
                 EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
                 string directory = Path.GetDirectoryName(dest);
                 if(!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
-                File.Copy(component, dest, true);
+                File.Copy(source, dest, true);
                 AssetDatabase.Refresh();
 
                 void OnCompilationFinished(object param)
@@ -84,7 +100,7 @@ namespace T2G
                 bool completed = await tcs.Task;
                 if (componentTypeName != null)
                 {
-                    var result = AddScriptComponent(obj, componentTypeName);
+                    result = AddScriptComponent(obj, componentTypeName);
                     if (result.succeeded)
                     {
                         EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);

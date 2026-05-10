@@ -38,15 +38,23 @@ namespace T2G
                 return ResolveAmbiguousMatch(types, normalized);
             }
 
-            // Try partial match
-            foreach (var kvp in _componentCache)
+            // Try partial match (only if input is at least 4 chars to avoid false positives)
+            if (normalized.Length >= 4)
             {
-                if (kvp.Key.Contains(normalized) || normalized.Contains(kvp.Key))
+                foreach (var kvp in _componentCache)
                 {
-                    if (kvp.Value.Count == 1)
-                        return kvp.Value[0];
+                    if(string.IsNullOrEmpty(kvp.Key))
+                    {
+                        continue;
+                    }
 
-                    return ResolveAmbiguousMatch(kvp.Value, normalized);
+                    if (kvp.Key.Contains(normalized) || normalized.Contains(kvp.Key))
+                    {
+                        if (kvp.Value.Count == 1)
+                            return kvp.Value[0];
+
+                        return ResolveAmbiguousMatch(kvp.Value, normalized);
+                    }
                 }
             }
 
@@ -489,7 +497,6 @@ namespace T2G
             normalized = normalized.Replace("behaviour", "");
             normalized = normalized.Replace("behavior", "");
             normalized = normalized.Replace("script", "");
-            normalized = normalized.Replace("controller", "");
             normalized = normalized.Replace("manager", "");
 
             return normalized;
