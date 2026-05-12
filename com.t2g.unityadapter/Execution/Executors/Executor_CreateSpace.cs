@@ -75,6 +75,7 @@ namespace T2G
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 await Task.Run(() => { while (!isCreated) { Task.Yield(); } });
             }
+            Utils.UpdateEditorViews();
             return (true, $"Entered {spaceName} space.", null);
         }
     }

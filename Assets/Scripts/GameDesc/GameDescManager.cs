@@ -143,6 +143,7 @@ namespace T2G.Assistant
                 if (!string.IsNullOrWhiteSpace(spaceName))
                 {
                     AddSpace(spaceName);
+                    CurrentSpaceName = spaceName;
                 }
             }
             else if (action == T2G.Actions.create_object)
