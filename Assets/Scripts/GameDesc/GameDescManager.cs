@@ -148,7 +148,8 @@ namespace T2G.Assistant
             else if (action == T2G.Actions.create_object)
             {
                 string objectName = instruction.parameters.GetString("Name");
-                Debug.Log($"[GameDescManager] create_object: objectName={objectName}, desc={instruction?.desc}, CurrentSpaceName={CurrentSpaceName}");
+                string desc = instruction.desc;
+                Debug.Log($"[GameDescManager] create_object: objectName={objectName}, desc={desc}, CurrentSpaceName={CurrentSpaceName}");
                 
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
                 {
@@ -165,19 +166,24 @@ namespace T2G.Assistant
                         AddObject(CurrentSpaceName, objectName, instruction.desc, parentName);
                         Debug.Log($"[GameDescManager] Created object: {objectName} with desc: {instruction?.desc}");
 
+                        // Verify object was added
+                        var space = FindSpace(CurrentSpaceName);
+                        var obj = FindObjectInSpace(space, objectName);
+                        Debug.Log($"[GameDescManager] Object added: {objectName}, space.Objects count: {space?.Objects?.Count ?? 0}");
+
                         // Populate Assets from instruction.assets
                         var instrAssets = instruction.assets;
                         if (instrAssets != null && instrAssets.Count > 0)
                         {
-                            var space = FindSpace(CurrentSpaceName);
-                            var obj = FindObjectInSpace(space, objectName);
-                            if (obj != null)
+                            var spaceName = FindSpace(CurrentSpaceName);
+                            var gameobj = FindObjectInSpace(spaceName, objectName);
+                            if (gameobj != null)
                             {
-                                obj.Assets ??= new List<string>();
+                                gameobj.Assets ??= new List<string>();
                                 foreach (var path in instrAssets)
                                 {
-                                    if (!obj.Assets.Contains(path))
-                                        obj.Assets.Add(path);
+                                    if (!gameobj.Assets.Contains(path))
+                                        gameobj.Assets.Add(path);
                                 }
                             }
                         }
@@ -186,18 +192,18 @@ namespace T2G.Assistant
                         string positionStr = instruction.parameters.GetString("position");
                         if (!string.IsNullOrWhiteSpace(positionStr))
                         {
-                            var space = FindSpace(CurrentSpaceName);
-                            var obj = FindObjectInSpace(space, objectName);
-                            if (obj != null)
+                            var spaceName = FindSpace(CurrentSpaceName);
+                            var gameObj = FindObjectInSpace(spaceName, objectName);
+                            if (gameObj != null)
                             {
-                                obj.Properties ??= new List<ValuePair>();
-                                obj.Properties.Add(new ValuePair("position", positionStr));
+                                gameObj.Properties ??= new List<ValuePair>();
+                                gameObj.Properties.Add(new ValuePair("position", positionStr));
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}");
+                        Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}\n{ex.StackTrace}");
                         AddObject(CurrentSpaceName, objectName, instruction.desc, null);
 
                         // Populate Assets from instruction.assets

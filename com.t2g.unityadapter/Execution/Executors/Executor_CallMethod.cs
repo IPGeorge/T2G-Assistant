@@ -17,6 +17,8 @@ namespace T2G
             string objName = instruction.parameters.GetString("objName");
             string methodFullName = instruction.parameters.GetString("method");
 
+            await Task.Yield();
+
             if (string.IsNullOrEmpty(objName) || string.IsNullOrEmpty(methodFullName))
             {
                 return (false, "Missing objName or method parameter.", null);

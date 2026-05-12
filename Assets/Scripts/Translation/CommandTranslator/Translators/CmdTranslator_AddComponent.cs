@@ -18,7 +18,10 @@ namespace T2G.Assistant
             List<Instruction> instructions = new List<Instruction>();
             Instruction instruction = new Instruction();
             instruction.action = GetActionName();
-            
+            instruction.parameters = new List<ValuePair>();
+            instruction.parameters.Add(new ValuePair("objName", objName));
+            instruction.parameters.Add(new ValuePair("component", component));
+
             if (PathValidator.IsValidFilePath(component, true))
             {
                 instruction.state = Instruction.eState.Resolved;
@@ -26,10 +29,6 @@ namespace T2G.Assistant
             }
             else
             {
-                instruction.parameters = new List<ValuePair>();
-                instruction.parameters.Add(new ValuePair("objName", objName));
-                instruction.parameters.Add(new ValuePair("component", component));
-
                 // Only mark as resolved if it's a known standard Unity component
                 // Skip using ComponentResolver due to false positive partial matching
                 // Use specific checks instead

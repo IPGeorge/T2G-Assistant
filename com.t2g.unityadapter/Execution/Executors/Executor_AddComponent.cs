@@ -138,12 +138,14 @@ namespace T2G
 
 
         [InitializeOnLoadMethod]
-        public static void AddComponentAfterInitOnLoad()
+        public static async void AddComponentAfterInitOnLoad()
         {
             if(!EditorPrefs.HasKey(k_InitOnLoadAddComponentKey))
             {
                 return;
             }
+
+            await Task.Yield();
 
             Response response = new Response();
             string keyValue = EditorPrefs.GetString(k_InitOnLoadAddComponentKey);

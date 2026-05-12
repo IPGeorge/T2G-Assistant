@@ -203,6 +203,7 @@ namespace T2G
             _server.OnReceivedMessage += (type, message) =>
             {
                 Debug.Log($"[CommunicatorServerEditor] OnReceivedMessage: type={type}, message={message?.Substring(0, Math.Min(100, message?.Length ?? 0))}...");
+
                 if (type == CommunicatorBase.eMessageType.Message ||
                     type == CommunicatorBase.eMessageType.Instruction ||
                     type == CommunicatorBase.eMessageType.Response)
@@ -235,7 +236,7 @@ namespace T2G
 
         static void AddConsoleText(string textToAdd)
         {
-            _text += textToAdd;
+            _text += textToAdd + "\n";
             _repaintText = true;
         }
 
