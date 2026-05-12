@@ -17,6 +17,15 @@ namespace T2G
         {
             string name = instruction.parameters.GetString("Name");
             string desc = instruction.desc;
+            string positionStr = instruction.parameters.GetString("position");
+            Vector3? position = null;
+
+            // Parse position if provided (format: "(x, y, z)")
+            if (!string.IsNullOrEmpty(positionStr))
+            {
+                position = T2G.Utils.ParsePosition(positionStr);
+            }
+
             _newObj = null;
 
             if (string.Compare(desc, "object", true) == 0)
@@ -68,19 +77,27 @@ namespace T2G
             
             if(_newObj == null)
             {
-                await AssetImporter.ImportAssets(name, instruction.assets);
+                await AssetImporter.ImportAssets(name, instruction.assets, position);
                 CreateObjectImpl();
                 return (false, null, null);
             }
             else
             {
-                Utils.PlaceInFrontOfCamera(_newObj);
+                if (position.HasValue)
+                {
+                    _newObj.transform.position = position.Value;
+                }
+                else
+                {
+                    Utils.PlaceInFrontOfCamera(_newObj);
+                }
                 Utils.UpdateEditorViews();
                 return (true, $"{name} was created.", null);
             }
         }
 
-        static bool CreateObject((string name, string targetRelPath) objPrefab)
+
+        static bool CreateObject((string name, string targetRelPath, string position) objPrefab)
         {
             string prefabPath = Path.Combine("Assets", objPrefab.targetRelPath);
             GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -88,6 +105,22 @@ namespace T2G
             {
                 _newObj = GameObject.Instantiate<GameObject>(prefabAsset);
                 _newObj.name = objPrefab.name;
+                if(string.IsNullOrEmpty(objPrefab.position))
+                {
+                    Utils.PlaceInFrontOfCamera(_newObj);
+                }
+                else
+                {
+                    Vector3? pos =  T2G.Utils.ParsePosition(objPrefab.position);
+                    if (pos.HasValue)
+                    {
+                        _newObj.transform.position = pos.Value;
+                    }
+                    else
+                    {
+                        Utils.PlaceInFrontOfCamera(_newObj);
+                    }
+                }
                 Utils.UpdateEditorViews();
                 return true;
             }
@@ -111,8 +144,6 @@ namespace T2G
                 var objPrefab = AssetImporter.CreateObjectsList[0];
                 if (CreateObject(objPrefab))
                 {
-                    Utils.PlaceInFrontOfCamera(_newObj);
-                    Utils.UpdateEditorViews();
                     response.Succeeded = true;
                     response.Message = $"{objPrefab.name} was created.";
                     Execution.Instance.SendExecutionResponse(response);

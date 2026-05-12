@@ -227,7 +227,7 @@ namespace T2G.Assistant
 
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
         {
-            _instructions = await _tanslation.Translate(intent);
+            _instructions = await _tanslation.Translate(intent.Trim());
 
             if (_instructions == null)
             {

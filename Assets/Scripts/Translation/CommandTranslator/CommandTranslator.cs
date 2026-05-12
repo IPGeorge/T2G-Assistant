@@ -43,7 +43,7 @@ namespace T2G.Assistant
             (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", T2G.Actions.goto_space),
             (@"^(save space|save)$", T2G.Actions.save_space),
             (@"^rename\s+space\s+(?<name>[^\s]+)$", T2G.Actions.rename_space),
-            (@"^(create|instantiate)\s+(?:a\s+|an\s+)?(?:new\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|name|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\.)?$", T2G.Actions.create_object),
+            (@"^(create|instantiate)\s+(?:a\s+|an\s+)?(?:new\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|name|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\s+(?:at|at\s+position|at\s+location)\s+\((?<x>-?\d+(?:\.\d+)?),\s*(?<y>-?\d+(?:\.\d+)?),\s*(?<z>-?\d+(?:\.\d+)?)\))?(?:\.)?$", T2G.Actions.create_object),
             (@"^(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
             (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),

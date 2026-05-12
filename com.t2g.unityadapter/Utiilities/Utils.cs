@@ -301,5 +301,24 @@ namespace T2G
             }
         }
 
+        public static Vector3? ParsePosition(string positionStr)
+        {
+            try
+            {
+                // Remove parentheses and parse
+                positionStr = positionStr.Trim('(', ')', ' ');
+                var parts = positionStr.Split(',');
+                if (parts.Length == 3)
+                {
+                    float x = float.Parse(parts[0].Trim());
+                    float y = float.Parse(parts[1].Trim());
+                    float z = float.Parse(parts[2].Trim());
+                    return new Vector3(x, y, z);
+                }
+            }
+            catch { }
+            return null;
+        }
+
     }
 }

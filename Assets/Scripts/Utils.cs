@@ -55,7 +55,6 @@ namespace T2G.Assistant
                    !fileName.EndsWith(".") &&
                    !fileName.EndsWith(" ");
         }
-
     }
 }
 

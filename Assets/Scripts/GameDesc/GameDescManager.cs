@@ -181,6 +181,19 @@ namespace T2G.Assistant
                                 }
                             }
                         }
+
+                        // Populate position from instruction.parameters
+                        string positionStr = instruction.parameters.GetString("position");
+                        if (!string.IsNullOrWhiteSpace(positionStr))
+                        {
+                            var space = FindSpace(CurrentSpaceName);
+                            var obj = FindObjectInSpace(space, objectName);
+                            if (obj != null)
+                            {
+                                obj.Properties ??= new List<ValuePair>();
+                                obj.Properties.Add(new ValuePair("position", positionStr));
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -201,6 +214,19 @@ namespace T2G.Assistant
                                     if (!obj.Assets.Contains(path))
                                         obj.Assets.Add(path);
                                 }
+                            }
+                        }
+
+                        // Populate position from instruction.parameters
+                        string positionStr = instruction.parameters.GetString("position");
+                        if (!string.IsNullOrWhiteSpace(positionStr))
+                        {
+                            var space = FindSpace(CurrentSpaceName);
+                            var obj = FindObjectInSpace(space, objectName);
+                            if (obj != null)
+                            {
+                                obj.Properties ??= new List<ValuePair>();
+                                obj.Properties.Add(new ValuePair("position", positionStr));
                             }
                         }
                     }

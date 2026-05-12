@@ -16,14 +16,23 @@ namespace T2G
         public static readonly string GameObjectsToCreateListFileName = "CreateGameObjectsList.txt";
 
         static List<(string sourcePath, string targetRelPath)> _importAssetList = new List<(string, string)>();
-        static List<(string name, string targetRelPath)> _createObjectsList = new List<(string, string)>();
+        static List<(string name, string targetRelPath, string position)> _createObjectsList = new List<(string, string, string)>();
 
         public static List<(string sourcePath, string targetRelPath)> ImportAssetList => _importAssetList;
-        public static List<(string name, string targetRelPath)> CreateObjectsList => _createObjectsList;
+        public static List<(string name, string targetRelPath, string position)> CreateObjectsList => _createObjectsList;
 
-        public static async Awaitable ImportAssets(string objName, List<string> assets)
+        public static async Awaitable ImportAssets(string objName, List<string> assets, Vector3? position)
         {
-            _createObjectsList.Add((objName, assets[1]));
+            if (position.HasValue)
+            {
+                var pos = position.Value;
+                _createObjectsList.Add((objName, assets[1], string.Format("({0},{1},{2})", pos.x, pos.y, pos.z)));
+            }
+            else
+            {
+                _createObjectsList.Add((objName, assets[1], string.Empty));
+            }
+
             _importAssetList.Add((assets[0], assets[1]));
             SaveLists();
             await SimImportAssetsImpl();
@@ -57,7 +66,7 @@ namespace T2G
             if (File.Exists(path))
             {
                 string json = File.ReadAllText(path);
-                var tmp = JsonConvert.DeserializeObject<List<(string, string)>>(json);
+                var tmp = JsonConvert.DeserializeObject<List<(string, string, string)>>(json);
                 _createObjectsList = tmp ?? _createObjectsList;
             }
             else

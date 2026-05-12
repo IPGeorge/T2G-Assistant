@@ -202,6 +202,7 @@ namespace T2G
 
             _server.OnReceivedMessage += (type, message) =>
             {
+                Debug.Log($"[CommunicatorServerEditor] OnReceivedMessage: type={type}, message={message?.Substring(0, Math.Min(100, message?.Length ?? 0))}...");
                 if (type == CommunicatorBase.eMessageType.Message ||
                     type == CommunicatorBase.eMessageType.Instruction ||
                     type == CommunicatorBase.eMessageType.Response)

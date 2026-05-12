@@ -15,6 +15,7 @@ namespace T2G.Assistant
             instruction.action = GetActionName();
             instruction.state = Instruction.eState.Raw;
             instruction.parameters = new List<ValuePair>();
+
             string objectName = Utils.GetParamFromArguments(args, "name").Trim();
             if(string.IsNullOrEmpty(objectName))
             {
@@ -22,6 +23,16 @@ namespace T2G.Assistant
             }
             instruction.desc = Utils.GetParamFromArguments(args, "desc").Trim();
             instruction.parameters.Add(new ValuePair("Name", objectName));
+
+            // Handle optional position parameters
+            string x = Utils.GetParamFromArguments(args, "x");
+            string y = Utils.GetParamFromArguments(args, "y");
+            string z = Utils.GetParamFromArguments(args, "z");
+            if (!string.IsNullOrEmpty(x) && !string.IsNullOrEmpty(y) && !string.IsNullOrEmpty(z))
+            {
+                instruction.parameters.Add(new ValuePair("position", $"({x}, {y}, {z})"));
+            }
+
             instructions.Add(instruction);
 
             return (true, instructions);
