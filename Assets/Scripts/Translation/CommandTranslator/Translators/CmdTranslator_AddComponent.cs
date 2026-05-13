@@ -20,29 +20,25 @@ namespace T2G.Assistant
             instruction.action = GetActionName();
             instruction.parameters = new List<ValuePair>();
             instruction.parameters.Add(new ValuePair("objName", objName));
-            instruction.parameters.Add(new ValuePair("component", component));
+            instruction.desc = component;
 
             if (PathValidator.IsValidFilePath(component, true))
             {
                 instruction.state = Instruction.eState.Resolved;
-                instruction.desc = "file";
+                instruction.parameters.Add(new ValuePair("type", "file"));
             }
             else
             {
-                // Only mark as resolved if it's a known standard Unity component
-                // Skip using ComponentResolver due to false positive partial matching
-                // Use specific checks instead
                 string lower = component.ToLowerInvariant();
                 if (IsKnownUnityComponent(lower))
                 {
                     instruction.state = Instruction.eState.Resolved;
-                    instruction.desc = "component";
+                    instruction.parameters.Add(new ValuePair("type", "component")); 
                 }
                 else
                 {
-                    // Custom script - go to Raw for AssetSearchClient resolution
                     instruction.state = Instruction.eState.Raw;
-                    instruction.desc = component;
+                    instruction.parameters.Add(new ValuePair("type", "behaviour"));
                 }
             }
             instructions.Add(instruction);

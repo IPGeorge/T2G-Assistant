@@ -46,6 +46,8 @@ namespace T2G
             }
         }
 
+        public bool ShakeHand { get; private set; } = false;
+
         public Execution()
         {
             Register_Executors();
@@ -59,12 +61,14 @@ namespace T2G
         private void Init()
         {
             _server = CommunicatorServer.Instance;
+            ShakeHand = false;
             EditorApplication.update += Update;
         }
 
         private void Uninit()
         {
             EditorApplication.update -= Update;
+            ShakeHand = false;
         }
 
         Dictionary<string, ExecutorBase> _executorMap = new Dictionary<string, ExecutorBase>();
@@ -104,6 +108,7 @@ namespace T2G
                             };
                             string piJson = JsonConvert.SerializeObject(pi);
                             _server.SendMessage(CommunicatorBase.eMessageType.ProjectInfo, piJson);
+                            ShakeHand = true;
                         }
                         break;
                     case CommunicatorBase.eMessageType.Instruction:

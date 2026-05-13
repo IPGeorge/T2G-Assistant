@@ -19,7 +19,7 @@ namespace T2G
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string objName = instruction.parameters.GetString("objName");
-            string component = instruction.parameters.GetString("component");
+            string componentType = instruction.parameters.GetString("type");
 
             var obj = Utils.FindObjectByName(objName);
             if (obj == null)
@@ -27,9 +27,9 @@ namespace T2G
                 return (false, $"Couldn't find {objName}!", null);
             }
 
-            if (string.Compare(instruction.desc, "component", true) == 0)
+            if (string.Compare(componentType, "component", true) == 0)
             {
-                var result = AddScriptComponent(obj, component);
+                var result = AddScriptComponent(obj, instruction.desc);
                 if (result.succeeded)
                 {
                     Utils.UpdateEditorViews();
@@ -44,9 +44,9 @@ namespace T2G
             {
                 string source, dest;
 
-                if (string.Compare(instruction.desc, "file", true) == 0)
+                if (string.Compare(componentType, "file", true) == 0)
                 {
-                    source = component;
+                    source = instruction.desc;
                 }
                 else
                 {
@@ -56,7 +56,7 @@ namespace T2G
                     }
                     else
                     {
-                        return (false, $"No resolved asset for {component}.", null);
+                        return (false, $"No resolved asset for {instruction.desc}.", null);
                     }
                 }
 
@@ -78,6 +78,7 @@ namespace T2G
                 var result = AddScriptComponent(obj, componentTypeName);
                 if (result.succeeded)
                 {
+                    Utils.UpdateEditorViews();
                     return (true, result.responseMessage, null);
                 }
 
@@ -145,7 +146,10 @@ namespace T2G
                 return;
             }
 
-            await Task.Yield();
+            while (!CommunicatorServer.Instance.IsConnected || !Execution.Instance.ShakeHand)
+            {
+                await Task.Yield();
+            }
 
             Response response = new Response();
             string keyValue = EditorPrefs.GetString(k_InitOnLoadAddComponentKey);
@@ -169,10 +173,10 @@ namespace T2G
                 return;
             }
             var result = AddScriptComponent(obj, componentTypeName);
-            Utils.UpdateEditorViews();
             response.Succeeded = result.succeeded;
             response.Message = result.responseMessage;
             Execution.Instance.SendExecutionResponse(response);
+            Utils.UpdateEditorViews();
         }
     }
 
