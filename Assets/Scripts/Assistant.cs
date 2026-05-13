@@ -52,7 +52,8 @@ namespace T2G.Assistant
 
         private async void Update()
         {
-            if(!ExponentialBackoffFocusRestorer.IsRestoringFocus &&
+            if(ExponentialBackoffFocusRestorer.NeedFocus && 
+                !ExponentialBackoffFocusRestorer.IsRestoringFocus &&
                 !ExponentialBackoffFocusRestorer.IsFocusedWindow())
             {
                 await ExponentialBackoffFocusRestorer.RestoreFocusWithExponentialBackoff();
@@ -209,6 +210,7 @@ namespace T2G.Assistant
             else
             {
                 instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved 
+                ExponentialBackoffFocusRestorer.NeedFocus = true;
 
                 if (instruction.state == Instruction.eState.Resolved)
                 {

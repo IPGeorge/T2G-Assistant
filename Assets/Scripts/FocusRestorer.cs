@@ -31,9 +31,15 @@ namespace T2G.Assistant
 
         public static bool IsFocusedWindow()
         {
-            return (GetForegroundWindow() == _appWindowHandle);
+            bool isfocused = (GetForegroundWindow() == _appWindowHandle);
+            if (isfocused)
+            {
+                NeedFocus = false;
+            }
+            return isfocused;
         }
 
+        public static bool NeedFocus = false;
 
         /// <summary>
         /// Exponential backoff - delays increase with each retry

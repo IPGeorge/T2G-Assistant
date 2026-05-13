@@ -48,6 +48,7 @@ namespace T2G.Assistant
     {
         public string Type;
         public List<PropertyDesc> Properties = new List<PropertyDesc>();
+        public string Description;
         public string BehaviorScript;
 
         // Snapshot cache (fast lookup). Not serialized.

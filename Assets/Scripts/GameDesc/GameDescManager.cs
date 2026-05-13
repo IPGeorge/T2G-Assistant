@@ -245,31 +245,14 @@ namespace T2G.Assistant
             }
             else if (action == T2G.Actions.add_component)
             {
-                string objectName = instruction.parameters.GetString("Name");
-                if (string.IsNullOrWhiteSpace(objectName))
-                    objectName = instruction.parameters.GetString("objName");
-                
-                string componentType = instruction.parameters.GetString("Type");
-                if (string.IsNullOrWhiteSpace(componentType))
-                    componentType = instruction.parameters.GetString("component");
+                string objectName = instruction.parameters.GetString("objName");
+                string componentType = instruction.parameters.GetString("type");
 
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
                 {
                     try
                     {
-                        AddComponent(CurrentSpaceName, objectName, componentType);
-                        
-                        // Populate BehaviorScript from instruction.assets (resolved asset path)
-                        var space = FindSpace(CurrentSpaceName);
-                        var obj = FindObjectInSpace(space, objectName);
-                        if (obj != null && obj.Components != null && obj.Components.Count > 0)
-                        {
-                            var comp = obj.Components[obj.Components.Count - 1];
-                            if (instruction.assets != null && instruction.assets.Count > 0)
-                            {
-                                comp.BehaviorScript = instruction.assets[0];
-                            }
-                        }
+                        AddComponent(CurrentSpaceName, objectName, componentType, instruction);
                     }
                     catch { }
                 }
@@ -719,7 +702,7 @@ namespace T2G.Assistant
             return parent.Children.Remove(found);
         }
 
-        public Component AddComponent(string spaceName, string objectName, string componentType)
+        public Component AddComponent(string spaceName, string objectName, string componentType, Instruction instruction)
         {
             EnsureSnapshot();
 
@@ -729,10 +712,20 @@ namespace T2G.Assistant
 
             var comp = new Component
             {
-                Type = componentType,
-                Properties = new List<PropertyDesc>(),
-                BehaviorScript = string.Empty
+                Type = componentType,                   //file, component, asset
+                Description = instruction.desc,
+                BehaviorScript = string.Empty,
+                Properties = new List<PropertyDesc>()
             };
+
+            if(string.Compare(comp.Type, "file", true) == 0 && File.Exists(comp.Description))
+            {
+                comp.BehaviorScript = File.ReadAllText(comp.Description);
+            }
+            else if (string.Compare(comp.Type, "asset", true) == 0 && instruction.assets.Count > 0)
+            {
+                comp.Description = instruction.assets[0];
+            }
 
             obj.Components.Add(comp);
             comp.RebuildPropertyMapIfExists();
