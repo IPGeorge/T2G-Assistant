@@ -33,7 +33,7 @@ namespace T2G
         public string IPAddress = "127.0.0.1";
         public ushort Port = 7778;
 
-        public Action<string> OnSentMessage;
+        public Action<eMessageType, string> OnSentMessage;
         public Action<eMessageType, string> OnReceivedMessage;
         public Action<string> OnError;
 
@@ -138,7 +138,7 @@ namespace T2G
                 _networkDriver.EndSend(writer);
                 if (!messageData.Silent)
                 {
-                    OnSentMessage?.Invoke(messageData.Message.ToString());
+                    OnSentMessage?.Invoke(messageData.Type, messageData.Message.ToString());
                 }
                 return true;
             }

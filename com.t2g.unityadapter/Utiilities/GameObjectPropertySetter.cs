@@ -84,12 +84,13 @@ public static class GameObjectPropertySetter
             // Try nested properties (like transform.position.x)
             if (propertyName.Contains('.'))
             {
+                Debug.LogWarning($"SetProperty 1: {propertyName}, {valueStr}");
                 string[] parts = propertyName.Split('.');
-                string mainProperty = parts[0];
-                string subProperty = string.Join(".", parts.Skip(1));
-
+                string componentName = parts[0];
+                string subProperty = parts[1];
+                Debug.LogWarning($"SetProperty 2: {componentName}, {subProperty}, {valueStr}");
                 // Try to find the object that has the main property
-                if (TryGetPropertyOwner(target, mainProperty, out object owner, out MemberInfo member))
+                if (TryGetPropertyOwner(target, componentName, out object owner, out MemberInfo member))
                 {
                     if (TrySetPropertyOnObject(owner, subProperty, valueStr, out resultMessage))
                     {

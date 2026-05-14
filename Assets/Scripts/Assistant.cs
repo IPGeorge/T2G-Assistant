@@ -125,7 +125,7 @@ namespace T2G.Assistant
             Debug.Log("[Assistant] Disconnected!");
         }
 
-        private void OnSentMessage(string message)
+        private void OnSentMessage(CommunicatorBase.eMessageType type, string message)
         {
             Debug.Log($"[Assistant] Sent message: {message}");
         }

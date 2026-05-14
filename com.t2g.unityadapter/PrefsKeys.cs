@@ -53,5 +53,6 @@ public class PrefsKeys
     public static readonly string k_SpacesDirectory = "Assets/Spaces";
     public static readonly string k_DefaultSpaceName = "PrimeSpace";
 
-
+    //Assistant
+    public static readonly string k_ServerConsoleText = "ServerConsoleText";
 }

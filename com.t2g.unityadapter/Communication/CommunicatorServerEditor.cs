@@ -56,7 +56,7 @@ namespace T2G
         {
             Debug.Log("[ServerEditor] Called when closing the server dashboard window.");
 
-            _text = string.Empty;
+            //_text = string.Empty;
             Uninit();
             SetMenuChecked(false);
         }
@@ -74,7 +74,7 @@ namespace T2G
         {
             Debug.Log("[ServerEditor] before assemble reload: called after code change (1-new code doesn't take effect)");
 
-            _text = string.Empty;
+            //_text = string.Empty;
             if (_server != null)
             {
                 EditorPrefs.SetBool(PrefsKeys.k_StartListener, _server.IsActive);
@@ -84,6 +84,7 @@ namespace T2G
                     EditorPrefs.SetBool(PrefsKeys.k_StartListener, true);
                 }
             }
+            EditorPrefs.SetString(PrefsKeys.k_DefaultSpaceName, _text);
             Uninit();
         }
 
@@ -117,6 +118,8 @@ namespace T2G
         public static void InitOnLoadMethod()
         {
             Debug.Log($"[CommunicatorServerEditor] InitOnLoadMethod is called.");
+            _text = EditorPrefs.GetString(PrefsKeys.k_DefaultSpaceName, string.Empty);
+
             Init();
 
             // Delay execution until editor is fully initialized
@@ -131,13 +134,13 @@ namespace T2G
                     Debug.Log($"[CommunicatorServerEditor.InitOnLoadMethod] Start Server is {startServer}.");
                     if (startServer)
                     {
-                        _text = string.Empty;
+                        //_text = string.Empty;
                         _server.StartServer();
                     }
                 }
                 else
                 {
-                    _text = string.Empty;
+                    //_text = string.Empty;
                     _server.StartServer();
                 }
 
@@ -177,12 +180,12 @@ namespace T2G
             #region Handle server events
             _server.OnServerStarted += () =>
             {
-                AddConsoleText("\n System> Server started.");
+                Debug.Log("System> Server started.");
             };
 
             _server.AfterShutdownServer += () =>
             {
-                AddConsoleText("\n System> Server was shut down.");
+                Debug.Log("System> Server was shut down.");
             };
 
             _server.OnFailedToStartServer += () =>
@@ -202,8 +205,6 @@ namespace T2G
 
             _server.OnReceivedMessage += (type, message) =>
             {
-                Debug.Log($"[CommunicatorServerEditor] OnReceivedMessage: type={type}, message={message?.Substring(0, Math.Min(100, message?.Length ?? 0))}...");
-
                 if (type == CommunicatorBase.eMessageType.Message ||
                     type == CommunicatorBase.eMessageType.Instruction ||
                     type == CommunicatorBase.eMessageType.Response)
@@ -216,9 +217,18 @@ namespace T2G
                 }
             };
 
-            _server.OnSentMessage += (message) =>
+            _server.OnSentMessage += (type, message) =>
             {
-                AddConsoleText("Sent> " + message);
+                if (type == CommunicatorBase.eMessageType.Message ||
+                    type == CommunicatorBase.eMessageType.Instruction ||
+                    type == CommunicatorBase.eMessageType.Response)
+                {
+                    AddConsoleText("Sent> " + message);
+                }
+                else
+                {
+                    Debug.Log("Sent> " + message);
+                }
             };
 
             _server.OnLogMessage += (message) =>
