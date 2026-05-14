@@ -259,7 +259,6 @@ namespace T2G.Assistant
             }
             else if (action == T2G.Actions.set_property)
             {
-                // Support both parameter naming conventions: "Name"/"Property"/"Value" and "objName"/"property"/"value"
                 string objectName = instruction.parameters.GetString("Name");
                 if (string.IsNullOrWhiteSpace(objectName))
                     objectName = instruction.parameters.GetString("objName");
@@ -272,11 +271,20 @@ namespace T2G.Assistant
                 if (string.IsNullOrWhiteSpace(valueStr))
                     valueStr = instruction.parameters.GetString("value");
 
-                // Debug removed for cleaner output
-
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) &&
                     !string.IsNullOrWhiteSpace(propertyName))
                 {
+                    // Parse property to check for component prefix (e.g., "Light.Color")
+                    string componentName = null;
+                    string actualPropertyName = propertyName;
+                    
+                    int dotIndex = propertyName.IndexOf('.');
+                    if (dotIndex > 0 && dotIndex < propertyName.Length - 1)
+                    {
+                        componentName = propertyName.Substring(0, dotIndex);
+                        actualPropertyName = propertyName.Substring(dotIndex + 1);
+                    }
+
                     // Auto-create space if it doesn't exist
                     if (FindSpace(CurrentSpaceName) == null)
                     {
@@ -291,10 +299,7 @@ namespace T2G.Assistant
                         obj = AddObject(CurrentSpaceName, objectName, null);
                     }
 
-                    // Add or update property on the object
-                    obj.Properties ??= new List<ValuePair>();
-                    var existingProp = obj.Properties.Find(p => string.Equals(p.name, propertyName, StringComparison.OrdinalIgnoreCase));
-                    
+                    // Parse value
                     JToken tokenValue = null;
                     if (!string.IsNullOrWhiteSpace(valueStr))
                     {
@@ -304,14 +309,60 @@ namespace T2G.Assistant
                             tokenValue = valueStr;
                         }
                     }
-                    
-                    if (existingProp != null)
+
+                    // If component is specified (via "Component.Property" format), set on component
+                    if (!string.IsNullOrWhiteSpace(componentName))
                     {
-                        existingProp.value = tokenValue;
+                        var comp = obj.Components?.Find(c => 
+                            string.Equals(c.Description, componentName, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (comp != null)
+                        {
+                            comp.Properties ??= new List<PropertyDesc>();
+                            var existingProp = comp.Properties.Find(p => 
+                                string.Equals(p.Name, actualPropertyName, StringComparison.OrdinalIgnoreCase));
+                            
+                            if (existingProp != null)
+                            {
+                                existingProp.Value = tokenValue;
+                            }
+                            else
+                            {
+                                comp.Properties.Add(new PropertyDesc { Name = actualPropertyName, Value = tokenValue });
+                            }
+                        }
+                        else
+                        {
+                            // Component not found - set on object's properties as fallback
+                            obj.Properties ??= new List<ValuePair>();
+                            var existingProp = obj.Properties.Find(p => 
+                                string.Equals(p.name, propertyName, StringComparison.OrdinalIgnoreCase));
+                            
+                            if (existingProp != null)
+                            {
+                                existingProp.value = tokenValue;
+                            }
+                            else
+                            {
+                                obj.Properties.Add(new ValuePair(propertyName, tokenValue));
+                            }
+                        }
                     }
                     else
                     {
-                        obj.Properties.Add(new ValuePair(propertyName, tokenValue));
+                        // No component specified - set on object's properties
+                        obj.Properties ??= new List<ValuePair>();
+                        var existingProp = obj.Properties.Find(p => 
+                            string.Equals(p.name, actualPropertyName, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (existingProp != null)
+                        {
+                            existingProp.value = tokenValue;
+                        }
+                        else
+                        {
+                            obj.Properties.Add(new ValuePair(actualPropertyName, tokenValue));
+                        }
                     }
                 }
             }
@@ -722,7 +773,7 @@ namespace T2G.Assistant
             {
                 comp.BehaviorScript = File.ReadAllText(comp.Description);
             }
-            else if (string.Compare(comp.Type, "asset", true) == 0 && instruction.assets.Count > 0)
+            else if (string.Compare(comp.Type, "asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
             {
                 comp.Description = instruction.assets[0];
             }

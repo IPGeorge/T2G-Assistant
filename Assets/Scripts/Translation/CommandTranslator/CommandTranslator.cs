@@ -49,7 +49,7 @@ namespace T2G.Assistant
             (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
             (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:at|on)\s+(?<bone>[\w\-]+))?\s*$", "attach_to"),
             (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", "detach"),
-            (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
+            (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=|to)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", "set_property"),
             (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", "call_method"),
             (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "add_component"),
             (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", "remove_component"),
