@@ -56,7 +56,6 @@ namespace T2G
         {
             Debug.Log("[ServerEditor] Called when closing the server dashboard window.");
 
-            //_text = string.Empty;
             Uninit();
             SetMenuChecked(false);
         }
@@ -74,7 +73,6 @@ namespace T2G
         {
             Debug.Log("[ServerEditor] before assemble reload: called after code change (1-new code doesn't take effect)");
 
-            //_text = string.Empty;
             if (_server != null)
             {
                 EditorPrefs.SetBool(PrefsKeys.k_StartListener, _server.IsActive);
@@ -134,13 +132,11 @@ namespace T2G
                     Debug.Log($"[CommunicatorServerEditor.InitOnLoadMethod] Start Server is {startServer}.");
                     if (startServer)
                     {
-                        //_text = string.Empty;
                         _server.StartServer();
                     }
                 }
                 else
                 {
-                    //_text = string.Empty;
                     _server.StartServer();
                 }
 

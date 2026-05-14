@@ -21,7 +21,8 @@ public static class GameObjectPropertySetter
         try
         {
             // Check if property has component prefix (e.g., "Health.value")
-            if (propertyName.Contains('.') && !IsCommonComponentProperty(propertyName))
+            if (propertyName.Contains('.'))
+                //&& !IsCommonComponentProperty(propertyName))
             {
                 string[] parts = propertyName.Split('.', 2);
                 string componentTypeName = parts[0];
@@ -84,16 +85,15 @@ public static class GameObjectPropertySetter
             // Try nested properties (like transform.position.x)
             if (propertyName.Contains('.'))
             {
-                Debug.LogWarning($"SetProperty 1: {propertyName}, {valueStr}");
                 string[] parts = propertyName.Split('.');
                 string componentName = parts[0];
                 string subProperty = parts[1];
-                Debug.LogWarning($"SetProperty 2: {componentName}, {subProperty}, {valueStr}");
                 // Try to find the object that has the main property
                 if (TryGetPropertyOwner(target, componentName, out object owner, out MemberInfo member))
                 {
                     if (TrySetPropertyOnObject(owner, subProperty, valueStr, out resultMessage))
                     {
+                        Debug.LogWarning($"SetProperty 2: {owner}, {subProperty}");
                         string ownerName = owner is Component ? (owner as Component).GetType().Name : "GameObject";
                         resultMessage = $"{ownerName}.{propertyName} was set to {FormatValue(valueStr)}";
                         Utils.UpdateEditorViews();
