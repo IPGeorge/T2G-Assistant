@@ -77,6 +77,14 @@ namespace T2G
             return null;
         }
 
+        public static bool IsValidComponentName(string componentName)
+        {
+            bool isValid = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => a.GetTypes())
+                .Any(t => t.Name == componentName && t.IsSubclassOf(typeof(MonoBehaviour)));
+            return isValid;
+        }
+
         public static bool IsPrimitiveDesc(string desc, out PrimitiveType? primitiveType)
         {
             if (string.IsNullOrEmpty(desc))

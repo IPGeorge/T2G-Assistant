@@ -189,7 +189,7 @@ namespace T2G.Assistant
             }
         }
 
-        async Awaitable ProcessInstruction(int i)
+        async Awaitable<bool> ProcessInstruction(int i)
         {
             var instruction = _instructions[i];
             if (instruction.state == Instruction.eState.Local)
@@ -228,7 +228,7 @@ namespace T2G.Assistant
                 }
                 else
                 {
-
+                    _completed = false;
                     _sb.AppendLine($"Failed to resolve the '{instruction.action}' instruction!");
                 }
             }
@@ -237,6 +237,7 @@ namespace T2G.Assistant
             {
                 InsertAdditionalInstructions(i, new List<Instruction>(instruction.instructions));
             }
+            return _completed;
         }
 
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
@@ -253,7 +254,7 @@ namespace T2G.Assistant
 
             for (int i = 0; i < _instructions.Count && _completed; ++i)
             {
-                await ProcessInstruction(i);
+                _completed &= await ProcessInstruction(i);
             }
 
             TranslationLogger.Append(new TranslationRecord()

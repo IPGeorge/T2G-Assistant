@@ -15,7 +15,7 @@ namespace T2G
         {
             string sourceObjName = instruction.parameters.GetString("source");
             string targetObjName = instruction.parameters.GetString("target");
-            string boneName = instruction.parameters.GetString("bone");
+            string socketName = instruction.parameters.GetString("socket");
 
             var sourceObject = Utils.FindObjectByName(sourceObjName);
             if(sourceObject == null)
@@ -28,43 +28,47 @@ namespace T2G
                 return (false, $"Couldn't find {targetObjName}!", null);
             }
 
-            // If bone is specified, try to find the bone/socket transform
-            Transform attachTarget = targetObject.transform;
-            if (!string.IsNullOrEmpty(boneName))
+            Transform targetTransform = targetObject.transform;
+            bool isSocketTarget = !string.IsNullOrEmpty(socketName);
+
+            if (isSocketTarget)
             {
                 // Search for bone/socket in target object's hierarchy
-                var boneTransform = targetObject.transform.Find(boneName);
-                if (boneTransform != null)
+                var socketTransform = targetObject.transform.Find(socketName);
+                if (socketTransform != null)
                 {
-                    attachTarget = boneTransform;
+                    targetTransform = socketTransform;
                 }
                 else
                 {
                     // Also search recursively in children
-                    boneTransform = FindChildByName(targetObject.transform, boneName);
-                    if (boneTransform != null)
+                    socketTransform = FindChildByName(targetObject.transform, socketName);
+                    if (socketTransform != null)
                     {
-                        attachTarget = boneTransform;
+                        targetTransform = socketTransform;
                     }
                     else
                     {
-                        Debug.LogWarning($"[Executor_Attach] Bone/socket '{boneName}' not found on {targetObjName}, attaching to object instead.");
+                        Debug.LogWarning($"[Executor_Attach] Bone/socket '{socketName}' not found on {targetObjName}, attaching to object instead.");
                     }
                 }
-            }
 
-            sourceObject.transform.SetParent(attachTarget, false);
-            sourceObject.transform.localPosition = Vector3.zero;
-            sourceObject.transform.localRotation = Quaternion.identity;
-            sourceObject.transform.localScale = Vector3.one;
+                sourceObject.transform.SetParent(targetTransform, false);
+                sourceObject.transform.localPosition = Vector3.zero;
+                sourceObject.transform.localRotation = Quaternion.identity;
+                sourceObject.transform.localScale = Vector3.one;
+            }
+            else
+            {
+                sourceObject.transform.SetParent(targetTransform, true);
+            }
 
             Utils.UpdateEditorViews();
             await Task.Delay(100);
-            T2G.Utils.UpdateEditorViews();
             
-            string message = string.IsNullOrEmpty(boneName) 
-                ? $"{sourceObjName} was attached to {targetObjName}."
-                : $"{sourceObjName} was attached to {targetObjName} at {boneName}.";
+            string message = isSocketTarget 
+                ? $"{sourceObjName} was attached to {targetObjName} at {socketName}."
+                : $"{sourceObjName} was attached to {targetObjName}.";
             
             return (true, message, null);
         }

@@ -40,38 +40,22 @@ namespace T2G
                     return (false, result.responseMessage, null);
                 }
             }
-            else 
+            else if (string.Compare(componentType, "file", true) == 0)
             {
-                string source, dest;
-
-                if (string.Compare(componentType, "file", true) == 0)
+                string dest;
+                string source = instruction.desc;
+                var tcs = new TaskCompletionSource<bool>();
+                dest = Path.Combine(Application.dataPath, "Scripts", Path.GetFileName(source));
+                string script = File.ReadAllText(source);
+                string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                if (string.IsNullOrEmpty(componentTypeName))
                 {
-                    source = instruction.desc;
-                }
-                else
-                {
-                    if (instruction.assets != null && instruction.assets.Count > 0)
-                    {
-                        source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, instruction.assets[0]);
-                    }
-                    else
-                    {
-                        return (false, $"No resolved asset for {instruction.desc}.", null);
-                    }
+                    return (false, $"Invalid component type name.", null);
                 }
 
                 if (!File.Exists(source))
                 {
                     return (false, $"Couldn't find the source file {source}.", null);
-                }
-
-                var tcs = new TaskCompletionSource<bool>();
-                dest = Path.Combine(Application.dataPath, "Scripts", Path.GetFileName(source));
-                string script = File.ReadAllText(source);
-                string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
-                if(string.IsNullOrEmpty(componentTypeName))
-                {
-                    return (false, $"Invalid component type name.", null);
                 }
 
                 //Directly add the component in case it is available
@@ -84,13 +68,13 @@ namespace T2G
 
                 EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
                 string directory = Path.GetDirectoryName(dest);
-                if(!Directory.Exists(directory))
+                if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
                 File.Copy(source, dest, true);
-                AssetDatabase.Refresh();
 
+                AssetDatabase.Refresh();
                 void OnCompilationFinished(object param)
                 {
                     CompilationPipeline.compilationFinished -= OnCompilationFinished;
@@ -113,6 +97,50 @@ namespace T2G
                 {
                     EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
                     return (false, "Invalid component file.", null);
+                }
+            }
+            else
+            {
+                if (instruction.assets != null && instruction.assets.Count > 0)
+                {
+                    int imported = await AssetImporter.BeginImportScripts(instruction.assets);
+                    if (imported != instruction.assets.Count)
+                    {
+                        return (false, $"One or some scripts were not imported!", null);
+                    }
+
+                    string targetScript = Path.Combine(Application.dataPath, instruction.assets[0]);
+                    string script = File.ReadAllText(targetScript);
+                    string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+
+                    Debug.LogWarning("targetScript=" + targetScript + ", Asset Count = " + instruction.assets.Count);
+
+                    EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
+
+                    await AssetImporter.EndImportScripts(componentType);
+
+                    Debug.LogWarning("after end complication. " + "componentTypeName: " + componentTypeName);
+
+                    if (componentTypeName != null)
+                    {
+                        var result = AddScriptComponent(obj, componentTypeName);
+                        Debug.LogWarning("add script result = " + result);
+                        if (result.succeeded)
+                        {
+                            EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
+                            Utils.UpdateEditorViews();
+                        }
+                        return (result.succeeded, result.responseMessage, null);
+                    }
+                    else
+                    {
+                        EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
+                        return (false, "Invalid component file.", null);
+                    }
+                }
+                else
+                {
+                    return (false, $"No resolved asset for {instruction.desc}.", null);
                 }
             }
         }
@@ -141,7 +169,7 @@ namespace T2G
         [InitializeOnLoadMethod]
         public static async void AddComponentAfterInitOnLoad()
         {
-            if(!EditorPrefs.HasKey(k_InitOnLoadAddComponentKey))
+            if (!EditorPrefs.HasKey(k_InitOnLoadAddComponentKey))
             {
                 return;
             }

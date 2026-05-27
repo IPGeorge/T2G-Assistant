@@ -15,22 +15,31 @@ namespace T2G.Assistant
                 case Instruction.eState.Resolved:
                     break;
                 case Instruction.eState.Raw:
-                    if (T2G.Utils.IsObjectDesc(instruction.desc) ||
-                        T2G.Utils.IsPrimitiveDesc(instruction.desc, out var primitiveType) ||
-                        T2G.Utils.IsCameraDesc(instruction.desc) ||
-                        T2G.Utils.IsLightDesc(instruction.desc))
                     {
-                        instruction.state = Instruction.eState.Resolved;
-                    }
-                    else
-                    {
-                        var assetsArray = await Resolver.Resolve(instruction.desc);
-                        if (assetsArray != null && assetsArray.Length > 0)
+                        string desc = instruction.desc;
+                        if (T2G.Utils.IsObjectDesc(desc) ||
+                            T2G.Utils.IsPrimitiveDesc(desc, out var primitiveType) ||
+                            T2G.Utils.IsCameraDesc(desc) ||
+                            T2G.Utils.IsLightDesc(desc))
                         {
-                            string[] seperator = { ",", ", " };
-                            string[] assets = assetsArray[0].Split(seperator, StringSplitOptions.None);
-                            instruction.assets = new List<string>(assets);
                             instruction.state = Instruction.eState.Resolved;
+                        }
+                        else if(desc.IndexOf("node", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            desc.IndexOf("object", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            instruction.desc = "node object";
+                            instruction.state = Instruction.eState.Resolved;
+                        }
+                        else
+                        {
+                            var assetsArray = await Resolver.Resolve(instruction.desc);
+                            if (assetsArray != null && assetsArray.Length > 0)
+                            {
+                                string[] seperator = { ",", ", " };
+                                string[] assets = assetsArray[0].Split(seperator, StringSplitOptions.None);
+                                instruction.assets = new List<string>(assets);
+                                instruction.state = Instruction.eState.Resolved;
+                            }
                         }
                     }
                     break;

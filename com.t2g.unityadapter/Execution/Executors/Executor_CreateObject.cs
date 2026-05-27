@@ -74,6 +74,10 @@ namespace T2G
                 _newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 _newObj.name = name;
             }
+            else if(desc.Contains("node object", System.StringComparison.OrdinalIgnoreCase))
+            {
+                _newObj = new GameObject(name);
+            }
             
             if(_newObj == null)
             {

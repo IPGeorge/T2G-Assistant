@@ -38,6 +38,47 @@ namespace T2G
             await SimImportAssetsImpl();
         }
 
+        public static async Awaitable<int> BeginImportScripts(List<string> scriptPaths)
+        {
+            EditorApplication.LockReloadAssemblies();
+            int importedCount = 0;
+            foreach (var scriptPath in scriptPaths)
+            {
+                string source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, scriptPath);
+                string target = Path.Combine(Application.dataPath, scriptPath);
+                string targetDir = Path.GetDirectoryName(target);
+                if (File.Exists(source))
+                {
+                    if(!Directory.Exists(targetDir))
+                    {
+                        Directory.CreateDirectory(targetDir);
+                    }
+
+                    File.Copy(source, target, true);
+                    importedCount++;
+                }
+            }
+            await Task.Yield();
+            return importedCount;
+        }
+
+        public static async Awaitable EndImportScripts(string componentName = null)
+        {
+            EditorApplication.UnlockReloadAssemblies();
+            CompilationPipeline.RequestScriptCompilation();
+            AssetDatabase.Refresh();
+
+            if (componentName != null)
+            {
+                bool isValidComponentName = false;
+                while (!isValidComponentName) //Wait for InitializeOnLoadMethod is triggered
+                {
+                    await Task.Delay(100);
+                    isValidComponentName = Utils.IsValidComponentName(componentName);
+                }
+            }
+        }
+
         public static void SaveLists()
         {
             string json;

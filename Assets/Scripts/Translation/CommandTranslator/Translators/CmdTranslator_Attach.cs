@@ -14,7 +14,7 @@ namespace T2G.Assistant
             instruction.state = Instruction.eState.Resolved;
             string source = Utils.GetParamFromArguments(args, "source");
             string target = Utils.GetParamFromArguments(args, "target");
-            string bone = Utils.GetParamFromArguments(args, "bone");
+            string socket = Utils.GetParamFromArguments(args, "socket");
             
             if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target))
             {
@@ -25,9 +25,9 @@ namespace T2G.Assistant
             instruction.parameters.Add(new ValuePair("source", source));
             instruction.parameters.Add(new ValuePair("target", target));
             
-            if (!string.IsNullOrEmpty(bone))
+            if (!string.IsNullOrEmpty(socket))
             {
-                instruction.parameters.Add(new ValuePair("bone", bone));
+                instruction.parameters.Add(new ValuePair("socket", socket));
             }
             
             instructions.Add(instruction);
