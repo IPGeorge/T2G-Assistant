@@ -38,7 +38,7 @@ namespace T2G.Assistant
         public List<ValuePair> Properties = new List<ValuePair>();
         public List<string> Assets = new List<string>();
         public List<T2G.Assistant.Component> Components = new List<Component>();
-        public T2G.Assistant.Object Parent;
+        [NonSerialized] public T2G.Assistant.Object Parent;
         public List<T2G.Assistant.Object> Children = new List<Object>();
     }
 

@@ -40,7 +40,7 @@ namespace T2G.Assistant
             (@"^disconnect$", T2G.Actions.disconnect),
             (@"^(clear|clean)(?:\s+(history|chat|chat\s+history))?$", T2G.Actions.clear),
             (@"^create\s+space\s+(?<name>[^\s]+)$", T2G.Actions.create_space),
-            (@"^(goto|enter|open)\s+space\s+(?<name>[^\s]+)$", T2G.Actions.goto_space),
+            (@"^(goto|go\s+to|enter|open)\s+(?:space\s+)?(?<name>[^\s]+)$", T2G.Actions.goto_space),
             (@"^(save space|save)$", T2G.Actions.save_space),
             (@"^rename\s+space\s+(?<name>[^\s]+)$", T2G.Actions.rename_space),
             (@"^(create|instantiate)\s+(?:a\s+|an\s+)?(?:new\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|name|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\s+(?:at|at\s+position|at\s+location)\s+\((?<x>-?\d+(?:\.\d+)?),\s*(?<y>-?\d+(?:\.\d+)?),\s*(?<z>-?\d+(?:\.\d+)?)\))?(?:\.)?$", T2G.Actions.create_object),

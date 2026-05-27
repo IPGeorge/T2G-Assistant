@@ -773,7 +773,7 @@ namespace T2G.Assistant
             {
                 comp.BehaviorScript = File.ReadAllText(comp.Description);
             }
-            else if (string.Compare(comp.Type, "asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
+            else if (string.Compare(comp.Type, "script asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
             {
                 comp.Description = instruction.assets[0];
             }

@@ -38,7 +38,7 @@ namespace T2G.Assistant
                 else
                 {
                     instruction.state = Instruction.eState.Raw;
-                    instruction.parameters.Add(new ValuePair("type", "asset"));
+                    instruction.parameters.Add(new ValuePair("type", "script asset"));
                 }
             }
             instructions.Add(instruction);
