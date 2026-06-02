@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using System.IO;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -328,5 +330,32 @@ namespace T2G
             return null;
         }
 
+        public static Canvas CreateCanvasSystem()
+        {
+            Canvas canvas = GameObject.FindFirstObjectByType<Canvas>();
+            GameObject canvasGO;
+            if (canvas == null)
+            {
+                canvasGO = new GameObject("Canvas");
+                canvas = canvasGO.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvasGO.AddComponent<CanvasScaler>();
+                canvasGO.AddComponent<GraphicRaycaster>();
+            }
+            else
+            {
+                canvasGO = canvas.gameObject;
+            }
+
+            // Check if an EventSystem already exists to prevent duplicates
+            if (GameObject.FindFirstObjectByType<EventSystem>() == null)
+            {
+                GameObject eventSystemGO = new GameObject("EventSystem");
+                eventSystemGO.AddComponent<EventSystem>();
+                eventSystemGO.AddComponent<StandaloneInputModule>();
+            }
+
+            return canvas;
+        }
     }
 }

@@ -109,7 +109,14 @@ namespace T2G
             {
                 _newObj = GameObject.Instantiate<GameObject>(prefabAsset);
                 _newObj.name = objPrefab.name;
-                if(string.IsNullOrEmpty(objPrefab.position))
+                var rectTransform = _newObj.GetComponent<RectTransform>();
+                if (rectTransform != null)
+                {
+                   var canvas = Utils.CreateCanvasSystem();
+                    rectTransform.parent = canvas.transform;
+                    rectTransform.localPosition = Vector3.zero;
+                }
+                else if (string.IsNullOrEmpty(objPrefab.position))
                 {
                     Utils.PlaceInFrontOfCamera(_newObj);
                 }
