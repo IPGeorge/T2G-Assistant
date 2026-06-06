@@ -11,62 +11,48 @@ public static class GameObjectPropertySetter
     private static readonly Dictionary<Type, Dictionary<string, PropertyInfo>> _propertyCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
     private static readonly Dictionary<Type, Dictionary<string, FieldInfo>> _fieldCache = new Dictionary<Type, Dictionary<string, FieldInfo>>();
 
-    /// <summary>
-    /// Sets a property on a GameObject with explicit parameters
-    /// </summary>
     public static bool SetProperty(GameObject target, string propertyName, string valueStr, out string resultMessage)
     {
         resultMessage = "";
 
         try
         {
-            // Check if property has component prefix (e.g., "Health.value")
             if (propertyName.Contains('.'))
-                //&& !IsCommonComponentProperty(propertyName))
             {
                 string[] parts = propertyName.Split('.', 2);
                 string componentTypeName = parts[0];
                 string propertyOnlyName = parts[1];
 
-                // Try to get specific component
                 var componentType = ComponentResolver.GetComponentType(componentTypeName);
-                if (componentType == null)
+                if (componentType != null)
                 {
-                    resultMessage = $"Component type '{componentTypeName}' not found in project.";
+                    var component = target.GetComponent(componentType);
+                    if (component == null)
+                    {
+                        resultMessage = $"Component '{componentTypeName}' not found on GameObject '{target.name}'.";
+                        return false;
+                    }
+
+                    if (TrySetPropertyOnObject(component, propertyOnlyName, valueStr, out resultMessage))
+                    {
+                        resultMessage = $"{componentTypeName}.{propertyOnlyName} was set to {FormatValue(valueStr)}";
+                        Utils.UpdateEditorViews();
+                        return true;
+                    }
+
+                    resultMessage = $"Property '{propertyOnlyName}' not found on component '{componentTypeName}'.";
                     return false;
                 }
-
-                var component = target.GetComponent(componentType);
-                if (component == null)
-                {
-                    resultMessage = $"Component '{componentTypeName}' not found on GameObject '{target.name}'.";
-                    return false;
-                }
-
-                // Try to set property on this specific component
-                if (TrySetPropertyOnObject(component, propertyOnlyName, valueStr, out resultMessage))
-                {
-                    resultMessage = $"{componentTypeName}.{propertyOnlyName} was set to {FormatValue(valueStr)}";
-                    Utils.UpdateEditorViews();
-                    return true;
-                }
-
-                resultMessage = $"Property '{propertyOnlyName}' not found on component '{componentTypeName}'.";
-                return false;
             }
 
-            // Original logic: search all components for the property
-            // First, check if it's a property on the GameObject itself
             if (TrySetPropertyOnObject(target, propertyName, valueStr, out resultMessage))
             {
                 Utils.UpdateEditorViews();
                 return true;
             }
 
-            // If not found, search through all components
             Component[] components = target.GetComponents<Component>();
 
-            // Sort components by relevance (Transform first, then Renderer, then others)
             var sortedComponents = components
                 .Where(c => c != null)
                 .OrderBy(c => GetComponentPriority(c.GetType()))
@@ -82,26 +68,6 @@ public static class GameObjectPropertySetter
                 }
             }
 
-            // Try nested properties (like transform.position.x)
-            if (propertyName.Contains('.'))
-            {
-                string[] parts = propertyName.Split('.');
-                string componentName = parts[0];
-                string subProperty = parts[1];
-                // Try to find the object that has the main property
-                if (TryGetPropertyOwner(target, componentName, out object owner, out MemberInfo member))
-                {
-                    if (TrySetPropertyOnObject(owner, subProperty, valueStr, out resultMessage))
-                    {
-                        Debug.LogWarning($"SetProperty 2: {owner}, {subProperty}");
-                        string ownerName = owner is Component ? (owner as Component).GetType().Name : "GameObject";
-                        resultMessage = $"{ownerName}.{propertyName} was set to {FormatValue(valueStr)}";
-                        Utils.UpdateEditorViews();
-                        return true;
-                    }
-                }
-            }
-
             resultMessage = $"Could not find property '{propertyName}' on GameObject '{target.name}' or any of its components";
             return false;
         }
@@ -112,17 +78,6 @@ public static class GameObjectPropertySetter
         }
     }
 
-    private static bool IsCommonComponentProperty(string propertyName)
-    {
-        string[] commonPrefixes = { "transform.", "gameObject.", "rigidbody.", "collider." };
-        string lower = propertyName.ToLower();
-        foreach (var prefix in commonPrefixes)
-        {
-            if (lower.StartsWith(prefix))
-                return true;
-        }
-        return false;
-    }
 
     private static int GetComponentPriority(Type type)
     {
@@ -137,78 +92,64 @@ public static class GameObjectPropertySetter
         return 10;
     }
 
-    private static bool TryGetPropertyOwner(GameObject target, string propertyName, out object owner, out MemberInfo memberInfo)
-    {
-        owner = null;
-        memberInfo = null;
 
-        // Check GameObject first
-        if (TryGetMember(target, propertyName, out memberInfo))
-        {
-            owner = target;
-            return true;
-        }
-
-        // Check components
-        Component[] components = target.GetComponents<Component>();
-        foreach (Component component in components)
-        {
-            if (component != null && TryGetMember(component, propertyName, out memberInfo))
-            {
-                owner = component;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool TryGetMember(object obj, string memberName, out MemberInfo memberInfo)
-    {
-        memberInfo = null;
-        Type type = obj.GetType();
-
-        // Check properties
-        var prop = GetCachedProperty(type, memberName);
-        if (prop != null)
-        {
-            memberInfo = prop;
-            return true;
-        }
-
-        // Check fields
-        var field = GetCachedField(type, memberName);
-        if (field != null)
-        {
-            memberInfo = field;
-            return true;
-        }
-
-        return false;
-    }
 
     private static bool TrySetPropertyOnObject(object obj, string propertyName, string valueStr, out string resultMessage)
     {
+        Type type;
         resultMessage = "";
 
-        Type type = obj.GetType();
-
-        // Try as property
-        PropertyInfo property = GetCachedProperty(type, propertyName);
-        if (property != null && property.CanWrite)
+        if (propertyName.Contains('.'))
         {
-            object convertedValue = ConvertValue(valueStr, property.PropertyType);
-            property.SetValue(obj, convertedValue);
+            string[] parts = propertyName.Split(new[] { '.' }, 2);
+            string firstProperty = parts[0];
+            string remainingProperties = parts[1];
+
+            type = obj.GetType();
+
+            PropertyInfo property = GetCachedProperty(type, firstProperty);
+            if (property != null)
+            {
+                object propertyValue = property.GetValue(obj);
+                if (propertyValue == null)
+                {
+                    resultMessage = $"Property '{firstProperty}' is null on {type.Name}";
+                    return false;
+                }
+                return TrySetPropertyOnObject(propertyValue, remainingProperties, valueStr, out resultMessage);
+            }
+
+            FieldInfo field = GetCachedField(type, firstProperty);
+            if (field != null)
+            {
+                object fieldValue = field.GetValue(obj);
+                if (fieldValue == null)
+                {
+                    resultMessage = $"Field '{firstProperty}' is null on {type.Name}";
+                    return false;
+                }
+                return TrySetPropertyOnObject(fieldValue, remainingProperties, valueStr, out resultMessage);
+            }
+
+            return false;
+        }
+
+        type = obj.GetType();
+
+        PropertyInfo directProperty = GetCachedProperty(type, propertyName);
+        if (directProperty != null && directProperty.CanWrite)
+        {
+            object convertedValue = ConvertValue(valueStr, directProperty.PropertyType);
+            directProperty.SetValue(obj, convertedValue);
             resultMessage = $"'{propertyName}' was set to {FormatValue(valueStr)}";
             return true;
         }
 
-        // Try as field
-        FieldInfo field = GetCachedField(type, propertyName);
-        if (field != null)
+        FieldInfo directField = GetCachedField(type, propertyName);
+        if (directField != null)
         {
-            object convertedValue = ConvertValue(valueStr, field.FieldType);
-            field.SetValue(obj, convertedValue);
+            object convertedValue = ConvertValue(valueStr, directField.FieldType);
+            directField.SetValue(obj, convertedValue);
             resultMessage = $"'{propertyName}' was set to {FormatValue(valueStr)}";
             return true;
         }
@@ -222,7 +163,6 @@ public static class GameObjectPropertySetter
         {
             _propertyCache[type] = new Dictionary<string, PropertyInfo>(StringComparer.OrdinalIgnoreCase);
 
-            // Cache all properties
             PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             foreach (PropertyInfo prop in properties)
             {
@@ -231,7 +171,6 @@ public static class GameObjectPropertySetter
                     _propertyCache[type][prop.Name] = prop;
                 }
 
-                // Also cache common aliases
                 string alias = GetPropertyAlias(prop.Name);
                 if (alias != null && !_propertyCache[type].ContainsKey(alias))
                 {
@@ -278,14 +217,12 @@ public static class GameObjectPropertySetter
     {
         valueStr = valueStr.Trim();
 
-        // Handle null
         if (valueStr.Equals("null", StringComparison.OrdinalIgnoreCase) ||
             valueStr.Equals("none", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        // Boolean
         if (targetType == typeof(bool))
         {
             if (valueStr.Equals("true", StringComparison.OrdinalIgnoreCase)) return true;
@@ -297,10 +234,8 @@ public static class GameObjectPropertySetter
             return bool.Parse(valueStr);
         }
 
-        // String
         if (targetType == typeof(string))
         {
-            // Remove quotes if present
             if (valueStr.StartsWith("\"") && valueStr.EndsWith("\""))
                 return valueStr.Substring(1, valueStr.Length - 2);
             if (valueStr.StartsWith("'") && valueStr.EndsWith("'"))
@@ -308,7 +243,6 @@ public static class GameObjectPropertySetter
             return valueStr;
         }
 
-        // Integer types
         if (targetType == typeof(int)) return int.Parse(valueStr);
         if (targetType == typeof(uint)) return uint.Parse(valueStr);
         if (targetType == typeof(short)) return short.Parse(valueStr);
@@ -318,57 +252,48 @@ public static class GameObjectPropertySetter
         if (targetType == typeof(byte)) return byte.Parse(valueStr);
         if (targetType == typeof(sbyte)) return sbyte.Parse(valueStr);
 
-        // Float types
         if (targetType == typeof(float)) return float.Parse(valueStr, CultureInfo.InvariantCulture);
         if (targetType == typeof(double)) return double.Parse(valueStr, CultureInfo.InvariantCulture);
         if (targetType == typeof(decimal)) return decimal.Parse(valueStr, CultureInfo.InvariantCulture);
 
-        // Vector2
         if (targetType == typeof(Vector2))
         {
             float[] values = ParseParenthesizedNumbers(valueStr, 2);
             return new Vector2(values[0], values[1]);
         }
 
-        // Vector3
         if (targetType == typeof(Vector3))
         {
             float[] values = ParseParenthesizedNumbers(valueStr, 3);
             return new Vector3(values[0], values[1], values[2]);
         }
 
-        // Vector4
         if (targetType == typeof(Vector4))
         {
             float[] values = ParseParenthesizedNumbers(valueStr, 4);
             return new Vector4(values[0], values[1], values[2], values[3]);
         }
 
-        // Vector2Int
         if (targetType == typeof(Vector2Int))
         {
             int[] values = ParseParenthesizedInts(valueStr, 2);
             return new Vector2Int(values[0], values[1]);
         }
 
-        // Vector3Int
         if (targetType == typeof(Vector3Int))
         {
             int[] values = ParseParenthesizedInts(valueStr, 3);
             return new Vector3Int(values[0], values[1], values[2]);
         }
 
-        // Color
         if (targetType == typeof(Color))
         {
-            // Try hex format (#RRGGBB or #RRGGBBAA)
             if (valueStr.StartsWith("#"))
             {
                 if (ColorUtility.TryParseHtmlString(valueStr, out Color color))
                     return color;
             }
 
-            // Try RGB/RGBA format (r,g,b) or (r,g,b,a)
             float[] values = ParseParenthesizedNumbers(valueStr, 3, 4);
             if (values.Length == 3)
                 return new Color(values[0], values[1], values[2]);
@@ -376,14 +301,12 @@ public static class GameObjectPropertySetter
                 return new Color(values[0], values[1], values[2], values[3]);
         }
 
-        // Rect
         if (targetType == typeof(Rect))
         {
             float[] values = ParseParenthesizedNumbers(valueStr, 4);
             return new Rect(values[0], values[1], values[2], values[3]);
         }
 
-        // Bounds
         if (targetType == typeof(Bounds))
         {
             string[] parts = valueStr.Split(new[] { ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
@@ -395,20 +318,17 @@ public static class GameObjectPropertySetter
             }
         }
 
-        // Quaternion (as euler angles)
         if (targetType == typeof(Quaternion))
         {
             float[] values = ParseParenthesizedNumbers(valueStr, 3);
             return Quaternion.Euler(values[0], values[1], values[2]);
         }
 
-        // Enum
         if (targetType.IsEnum)
         {
             return Enum.Parse(targetType, valueStr, true);
         }
 
-        // Try Convert.ChangeType as fallback
         return Convert.ChangeType(valueStr, targetType, CultureInfo.InvariantCulture);
     }
 
@@ -416,14 +336,12 @@ public static class GameObjectPropertySetter
     {
         if (maxLength == -1) maxLength = minLength;
 
-        // Remove parentheses if present
         string cleaned = valueStr.Trim();
         if (cleaned.StartsWith("(") && cleaned.EndsWith(")"))
         {
             cleaned = cleaned.Substring(1, cleaned.Length - 2);
         }
 
-        // Split by common separators
         string[] parts = cleaned.Split(new[] { ',', ' ', ';', '|' },
             StringSplitOptions.RemoveEmptyEntries);
 
@@ -490,21 +408,18 @@ public static class GameObjectPropertySetter
 
     private static string FormatValue(string valueStr)
     {
-        // Just return the original for display purposes
         return valueStr;
     }
 
     private static GameObject FindGameObject(string name)
     {
-        // First try GameObject.Find (finds active objects only)
         GameObject obj = GameObject.Find(name);
         if (obj != null) return obj;
 
-        // If not found, search all objects including inactive
         GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
         foreach (GameObject go in allObjects)
         {
-            if (go.name == name && go.scene.isLoaded) // Make sure it's in a loaded scene
+            if (go.name == name && go.scene.isLoaded)
             {
                 return go;
             }
