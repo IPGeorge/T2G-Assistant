@@ -98,7 +98,8 @@ namespace T2G
             foreach (PrimitiveType enumType in Enum.GetValues(typeof(PrimitiveType)))
             {
                 string typeName = enumType.ToString();
-                if (string.Compare(typeName, desc, true) == 0)
+                if (desc.Length >= typeName.Length &&
+                    string.Compare(typeName, desc.Substring(0, typeName.Length), true) == 0)
                 {
                     primitiveType = enumType;
                     return true;

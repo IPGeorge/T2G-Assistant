@@ -62,7 +62,7 @@ public static class GameObjectPropertySetter
             {
                 if (TrySetPropertyOnObject(component, propertyName, valueStr, out resultMessage))
                 {
-                    resultMessage = $"{component.GetType().Name}.{propertyName} was set to {FormatValue(valueStr)}";
+                    resultMessage = $"{target.name} {component.GetType().Name}.{propertyName} was set to {FormatValue(valueStr)}";
                     Utils.UpdateEditorViews();
                     return true;
                 }

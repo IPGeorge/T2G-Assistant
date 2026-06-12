@@ -41,6 +41,23 @@ namespace T2G
 
         [SerializeReference]
         public Instruction[] instructions;
+
+        public Instruction CloneWithoutSubInstructions()
+        {
+            Instruction inst = new Instruction();
+            inst.action = this.action;
+            inst.state = this.state;
+            inst.desc = this.desc;
+            if (this.parameters != null)
+            {
+                inst.parameters = new List<ValuePair>(this.parameters);
+            }
+            if (this.assets != null)
+            {
+                inst.assets = new List<string>(this.assets);
+            }
+            return inst;
+        }
     }
 
     [Serializable]

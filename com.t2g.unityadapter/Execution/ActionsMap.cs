@@ -33,7 +33,7 @@ namespace T2G
         public const string place_on_ground = "place_on_ground";
         public const string create_from = "create_from";
         public const string attach_to = "attach_to";
-        public const string detach = "detach";
+        public const string detach_from = "detach_from";
         public const string set_property = "set_property";
         #endregion Object
 

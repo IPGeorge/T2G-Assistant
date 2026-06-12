@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator(T2G.Actions.detach)]
+    [CommandTranslator(T2G.Actions.detach_from)]
     public class CmdTranslator_Dettach : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)

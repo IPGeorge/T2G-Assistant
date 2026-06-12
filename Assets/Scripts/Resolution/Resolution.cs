@@ -25,6 +25,7 @@ namespace T2G.Assistant
                             instruction.state = Instruction.eState.Resolved;
                         }
                         else if(desc.IndexOf("node", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            desc.IndexOf("empty", StringComparison.OrdinalIgnoreCase) >= 0 ||
                             desc.IndexOf("object", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             instruction.desc = "node object";

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace T2G
 {
-    [Executor(Actions.detach)]
+    [Executor(Actions.detach_from)]
 
     public class Executor_Detach : ExecutorBase
     {

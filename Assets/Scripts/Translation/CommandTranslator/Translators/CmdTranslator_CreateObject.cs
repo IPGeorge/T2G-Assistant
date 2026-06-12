@@ -22,8 +22,7 @@ namespace T2G.Assistant
                 objectName = "Obj_" + Guid.NewGuid().ToString("N");  //use 32 characters without hyphens format
             }
             instruction.desc = Utils.GetParamFromArguments(args, "desc").Trim();
-            instruction.parameters.Add(new ValuePair("Name", objectName));
-
+                        
             // Handle optional position parameters
             string x = Utils.GetParamFromArguments(args, "x");
             string y = Utils.GetParamFromArguments(args, "y");
@@ -31,6 +30,24 @@ namespace T2G.Assistant
             if (!string.IsNullOrEmpty(x) && !string.IsNullOrEmpty(y) && !string.IsNullOrEmpty(z))
             {
                 instruction.parameters.Add(new ValuePair("position", $"({x}, {y}, {z})"));
+            }
+
+            string countString = Utils.GetParamFromArguments(args, "count").Trim();
+            if (int.TryParse(countString, out int count) && count > 1)
+            {
+                List<Instruction> subInstructions = new List<Instruction>();
+                for(int i = 1; i < count; ++ i)
+                {
+                    Instruction inst = instruction.CloneWithoutSubInstructions();
+                    inst.parameters.Add(new ValuePair("Name", objectName + (i + 1)));
+                    subInstructions.Add(inst);
+                }
+                instruction.instructions = subInstructions.ToArray();
+                instruction.parameters.Add(new ValuePair("Name", objectName + "1"));
+            }
+            else
+            {
+                instruction.parameters.Add(new ValuePair("Name", objectName));
             }
 
             instructions.Add(instruction);

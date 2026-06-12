@@ -485,7 +485,7 @@ namespace T2G.Assistant
                     catch { }
                 }
             }
-            else if (action == T2G.Actions.detach)
+            else if (action == T2G.Actions.detach_from)
             {
                 string objectName = instruction.parameters.GetString("Name");
                 if (string.IsNullOrWhiteSpace(objectName))
