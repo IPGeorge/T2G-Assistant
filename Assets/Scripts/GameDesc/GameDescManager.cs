@@ -198,7 +198,9 @@ namespace T2G.Assistant
                             if (gameObj != null)
                             {
                                 gameObj.Properties ??= new List<ValuePair>();
-                                gameObj.Properties.Add(new ValuePair("position", positionStr));
+                                var posProp = gameObj.Properties.Find(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase));
+                                if (posProp != null) posProp.value = positionStr;
+                                else gameObj.Properties.Add(new ValuePair("position", positionStr));
                             }
                         }
                     }
@@ -233,7 +235,11 @@ namespace T2G.Assistant
                             if (obj != null)
                             {
                                 obj.Properties ??= new List<ValuePair>();
-                                obj.Properties.Add(new ValuePair("position", positionStr));
+                                var posProp = obj.Properties.Find(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase));
+                                if (posProp != null) 
+                                    posProp.value = positionStr;
+                                else 
+                                    obj.Properties.Add(new ValuePair("position", positionStr));
                             }
                         }
                     }
@@ -318,18 +324,7 @@ namespace T2G.Assistant
                         
                         if (comp != null)
                         {
-                            comp.Properties ??= new List<PropertyDesc>();
-                            var existingProp = comp.Properties.Find(p => 
-                                string.Equals(p.Name, actualPropertyName, StringComparison.OrdinalIgnoreCase));
-                            
-                            if (existingProp != null)
-                            {
-                                existingProp.Value = tokenValue;
-                            }
-                            else
-                            {
-                                comp.Properties.Add(new PropertyDesc { Name = actualPropertyName, Value = tokenValue });
-                            }
+                            AddOrSetPropertyValue(comp, actualPropertyName, "", tokenValue);
                         }
                         else
                         {
@@ -818,10 +813,14 @@ namespace T2G.Assistant
             EnsureSnapshot();
 
             var comp = RequireComponent(spaceName, objectName, componentType);
+            AddOrSetPropertyValue(comp, propertyName, propertyType, value);
+        }
+
+        public void AddOrSetPropertyValue(Component comp, string propertyName, string propertyType, JToken value)
+        {
             comp.Properties ??= new List<PropertyDesc>();
 
-            int idx = comp.Properties.FindIndex(p =>
-                p != null && string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
+            int idx = comp.Properties.FindIndex(p => p != null && string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
 
             var prop = new PropertyDesc
             {
@@ -830,8 +829,10 @@ namespace T2G.Assistant
                 Value = value
             };
 
-            if (idx >= 0) comp.Properties[idx] = prop;
-            else comp.Properties.Add(prop);
+            if (idx >= 0) 
+                comp.Properties[idx] = prop;
+            else 
+                comp.Properties.Add(prop);
 
             comp.RebuildPropertyMapIfExists();
         }
