@@ -48,6 +48,7 @@ namespace T2G.Assistant
     {
         public string Type;
         public List<PropertyDesc> Properties = new List<PropertyDesc>();
+        public List<string> Assets = new List<string>();
         public string Description;
         public string BehaviorScript;
 

@@ -207,9 +207,18 @@ namespace T2G.Assistant
                     InsertAdditionalInstructions(i, result.additionalInstructions);
                 }
             }
+            else if (instruction.state == Instruction.eState.Batch)
+            {
+                _sb.AppendLine($"Start executing {instruction.instructions.Length} instructions:");
+                _completed = true;
+            }
             else
             {
-                instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved 
+                if (instruction.state == Instruction.eState.Raw)
+                {
+                    instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved
+                }
+
                 ExponentialBackoffFocusRestorer.NeedFocus = true;
 
                 if (instruction.state == Instruction.eState.Resolved)

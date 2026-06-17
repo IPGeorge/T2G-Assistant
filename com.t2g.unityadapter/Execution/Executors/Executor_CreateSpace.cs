@@ -36,7 +36,7 @@ namespace T2G
                 EditorSceneManager.SaveScene(activeScene);
             }
 
-            string spaceName = instruction.parameters.GetString("spaceName");
+            string spaceName = instruction.parameters.GetString("SpaceName");
             if (string.IsNullOrEmpty(spaceName))
             {
                 spaceName = k_DefaultSpaceName;

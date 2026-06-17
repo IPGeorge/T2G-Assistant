@@ -339,14 +339,17 @@ namespace T2G.Assistant
                 return;
             }
 
-            AddMessage(Assistant.Instance.Settings.userName, currentInput);
+            string input = currentInput;
+            currentInput = string.Empty;
+            AddMessage(Assistant.Instance.Settings.userName, input);
 
-            AddToInputHistory(currentInput);
-            UpdateIntentFrequency(currentInput);
+            AddToInputHistory(input);
+            UpdateIntentFrequency(input);
 
-            AddMessage(Assistant.Instance.Settings.botName, k_Working);     
-            //var result = Assistant.Instance.ProcessEnteredIntent(currentInput).GetAwaiter().GetResult();
-            var result = await Assistant.Instance.ProcessEnteredIntent(currentInput);
+            AddMessage(Assistant.Instance.Settings.botName, k_Working);
+
+            var result = await Assistant.Instance.ProcessEnteredIntent(input);
+
             Debug.Log($"[ChatBotUI] ProcessEnteredIntent result: succeeded={result.succeeded}, response='{result.response}'");
             if (result.succeeded)
             {
@@ -358,7 +361,6 @@ namespace T2G.Assistant
                 AddMessage(Assistant.Instance.Settings.botName, response);
             }
 
-            currentInput = "";
             inputHistoryIndex = -1;
             inputHistoryBuffer = "";
             GUI.FocusControl("ChatInput");

@@ -6,6 +6,7 @@ namespace T2G
 
         #region Project 
         public const string create_project = "create_project";
+        public const string generate_from = "generate_from";
         public const string init_project = "init_project";
         public const string open_project = "open_project";
         #endregion Project
@@ -31,7 +32,6 @@ namespace T2G
         public const string select_object = "select_object";
         public const string delete_object = "delete_object";
         public const string place_on_ground = "place_on_ground";
-        public const string create_from = "create_from";
         public const string attach_to = "attach_to";
         public const string detach_from = "detach_from";
         public const string set_property = "set_property";

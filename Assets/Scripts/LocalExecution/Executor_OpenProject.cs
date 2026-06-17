@@ -1,8 +1,8 @@
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.IO;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace T2G.Assistant
@@ -10,95 +10,67 @@ namespace T2G.Assistant
     [LocalExecutor(T2G.Actions.open_project)]
     public class Executor_OpenProject : ExecutorBase
     {
-        private string _projectPath;
-        private string _projectName;
-        private string _projectPathName;
-
-        private static bool _connected = false;
-
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string unityEditorPath = Assistant.Instance.Settings.UnityEditorPath;
             if (string.IsNullOrEmpty(unityEditorPath) || !File.Exists(unityEditorPath))
             {
-                return (false, "Please setup Unity Editor path before openning a project.", null);
+                return (false, "Please setup Unity Editor path before opening a project.", null);
             }
 
-            _projectPath = instruction.parameters.GetString("path");
-            _projectName = instruction.parameters.GetString("projectName");
-            _projectPathName = Path.Combine(_projectPath, _projectName);
+            string projectPath = instruction.parameters.GetString("path");
+            string projectName = instruction.parameters.GetString("projectName");
+            string projectPathName = Path.Combine(projectPath, projectName);
 
-            if (!Directory.Exists(_projectPathName))
+            if (!Directory.Exists(projectPathName))
             {
-                return (false, $"Project {_projectPathName} was not found.", null);
+                return (false, $"Project {projectPathName} was not found.", null);
             }
 
-            var arguments = $"-projectPath {_projectPathName}";
-            var editorTask = Task.Run(() => StartOpenProjectAsync(arguments, unityEditorPath));
-            var editorStarted = await Task.WhenAny(editorTask, Task.Delay(60000)) == editorTask;
+            var arguments = $"-projectPath {projectPathName}";
 
-            if (!editorStarted)
+            try
             {
-                return (false, "Timeout waiting for Unity Editor to start.", null);
+                using var process = new Process();
+                process.StartInfo.FileName = unityEditorPath;
+                process.StartInfo.Arguments = arguments;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.Start();
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError(e.Message);
+                return (false, "Failed to start Unity Editor process.", null);
             }
 
-            _connected = await WaitForConnected();
+            bool connected = await WaitForConnected();
 
-            if (_connected)
+            if (connected)
             {
-                Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
+                Assistant.Instance.Settings.DefaultUnityProject = projectPathName;
                 ChatBotUI.Instance.SaveSettings();
 
-                return (true, $"Project is openned!", null);
+                return (true, "Project is opened!", null);
             }
             else
             {
-                return (true, $"Failed to open the project!", null);
+                return (false, "Failed to open the project!", null);
             }
         }
 
-        static async Task<bool> StartOpenProjectAsync(string args, string unityEditorPath)
-        {
-            return await Task.Run(() =>
-            {
-                Process process = new Process();
-                process.StartInfo.FileName = unityEditorPath;
-                process.StartInfo.Arguments = args;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-
-                try
-                {
-                    process.Start();
-
-                    // Don't wait for exit here - just start it. Return immediately so we can check connection
-                    return true;
-                }
-                catch (Exception e)
-                {
-                    UnityEngine.Debug.LogError(e.Message);
-                    process?.Dispose();
-                    return false;
-                }
-            });
-        }
-
-
         static async Awaitable<bool> WaitForConnected(float delaySeconds = 120.0f)
         {
-            bool timeout = false;
             DateTime startDT = DateTime.Now;
             while (!CommunicatorClient.Instance.IsConnected)
             {
                 if ((DateTime.Now - startDT).TotalSeconds > delaySeconds)
                 {
-                    timeout = true;
-                    break;
+                    return false;
                 }
                 await Task.Delay(1000);
             }
-            return !timeout;
+            return true;
         }
-
     }
 }

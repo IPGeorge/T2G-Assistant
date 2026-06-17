@@ -12,7 +12,7 @@ namespace T2G.Assistant
             List<Instruction> instructions = new List<Instruction>();
 
             Instruction instruction = new Instruction();
-            instruction.action = GetType().GetCustomAttribute<CommandTranslatorAttribute>()?.Action;
+            instruction.action = GetActionName(); 
             instruction.state = Instruction.eState.Local;
             instruction.parameters = new List<ValuePair>();
 

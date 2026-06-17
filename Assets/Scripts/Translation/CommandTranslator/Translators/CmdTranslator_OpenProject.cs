@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator("open_project")]
+    [CommandTranslator(T2G.Actions.open_project)]
     public class CmdTranslator_OpenProject : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)

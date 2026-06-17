@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using T2G;
+using System.Linq;
 
 namespace T2G.Assistant
 {
@@ -12,7 +13,7 @@ namespace T2G.Assistant
     /// Manages GameDesc design snapshots: create, save, load, list, and edit.
     /// Snapshot is the domain model (design-state), not runtime state.
     /// </summary>
-    public sealed class GameDescManager
+    public sealed partial class GameDescManager
     {
         // -------------------------
         // Singleton
@@ -761,7 +762,8 @@ namespace T2G.Assistant
                 Type = componentType,                   //file, component, asset
                 Description = instruction.desc,
                 BehaviorScript = string.Empty,
-                Properties = new List<PropertyDesc>()
+                Properties = new List<PropertyDesc>(),
+                Assets = instruction.assets
             };
 
             if(string.Compare(comp.Type, "file", true) == 0 && File.Exists(comp.Description))
@@ -770,7 +772,18 @@ namespace T2G.Assistant
             }
             else if (string.Compare(comp.Type, "script asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
             {
-                comp.Description = instruction.assets[0];
+                comp.Assets = instruction.assets;
+            }
+
+            // Remove existing component with same type and assets before adding
+            int existingIdx = obj.Components.FindIndex(c =>
+                c != null &&
+                string.Equals(c.Type, comp.Type, StringComparison.OrdinalIgnoreCase) &&
+                ((c.Assets == null && comp.Assets == null) ||
+                 (c.Assets != null && comp.Assets != null && c.Assets.SequenceEqual(comp.Assets))));
+            if (existingIdx >= 0)
+            {
+                obj.Components.RemoveAt(existingIdx);
             }
 
             obj.Components.Add(comp);
@@ -1062,130 +1075,306 @@ namespace T2G.Assistant
     }
 
     /// <summary>
-    /// Parses a GameDesc for instructions
+    /// Parses a GameDesc into flat instruction lists for batch execution.
+    /// Generates create_object, set_property, add_component, and attach_to
+    /// instructions that can recreate any space from its hierarchical data.
     /// </summary>
     public class GameDescParser
     {
+        // ============================================================
+        // Entry points
+        // ============================================================
+
+        /// <summary>
+        /// Parse all spaces in a GameDesc into a flat instruction array.
+        /// </summary>
         public static bool ParseForInstructions(GameDesc gameDesc, out Instruction[] instructions)
         {
-            if(gameDesc == null)
-            {
-                instructions = null;
-                return false;
-            }
-            
-            List<Instruction> instructionList = new List<Instruction>();
-
-            foreach(var space in gameDesc.Spaces)
-            {
-                var spaceInstruction = ParseSpaceForInstruction(space);
-                if (spaceInstruction != null)
-                {
-                    instructionList.Add(spaceInstruction);
-                }
-            }
-            instructions = instructionList.ToArray();
-
-            return true;
-
+            instructions = ParseForInstructions(gameDesc);
+            return instructions != null;
         }
 
-
-        private static Instruction ParseSpaceForInstruction(T2G.Assistant.Space space)
+        /// <summary>
+        /// Parse all spaces in a GameDesc into a flat instruction array.
+        /// </summary>
+        public static Instruction[] ParseForInstructions(GameDesc gameDesc)
         {
-            if (space == null)
-            {
+            if (gameDesc == null)
                 return null;
-            }
 
-            Instruction instruction = new Instruction();
-            instruction.action = T2G.Actions.create_space;
-            instruction.parameters.Add(new ValuePair("Name", space.Name));
-
-            List<Instruction> objInstructions = new List<Instruction>();
-            foreach(T2G.Assistant.Object obj in space.Objects)
+            var result = new List<Instruction>();
+            foreach (var space in gameDesc.Spaces)
             {
-                var objInstruction = ParseObjectForInstruction(obj);
-                if(objInstruction != null)
-                {
-                    objInstructions.Add(objInstruction);
-                }
+                if (space == null) continue;
+                var spaceInstructions = ParseSpaceForInstructions(space);
+                if (spaceInstructions != null)
+                    result.AddRange(spaceInstructions);
             }
-            instruction.instructions = objInstructions.ToArray();
-            return instruction;
+            return result.ToArray();
         }
 
-        // -------------------------
-        //Recursively parse objects. Has overflow risk.  
-        // -------------------------
-        private static Instruction ParseObjectForInstruction(T2G.Assistant.Object gameDescObject)
+        // ============================================================
+        // Space → flat Instruction[]
+        // ============================================================
+
+        /// <summary>
+        /// Parse a single space into a flat instruction list.
+        /// Order: create_space, then each root object's subtree (DFS),
+        /// then space-level components.
+        /// </summary>
+        public static Instruction[] ParseSpaceForInstructions(T2G.Assistant.Space space)
         {
-            if(gameDescObject == null)
+            if (space == null) return null;
+
+            var result = new List<Instruction>();
+
+            // 1. create_space
+            var spaceInstr = new Instruction
             {
-                return null;
+                action = T2G.Actions.create_space,
+                state = Instruction.eState.Resolved
+            };
+            spaceInstr.parameters = new List<ValuePair>
+            {
+                new ValuePair("SpaceName", space.Name)
+            };
+            result.Add(spaceInstr);
+
+            // 2. Each root object's subtree
+            foreach (var obj in space.Objects)
+            {
+                if (obj == null) continue;
+                result.AddRange(ParseObjectForInstructions(obj));
             }
 
-            Instruction instruction = new Instruction();
-            instruction.action = T2G.Actions.create_object;
-            instruction.parameters.Add(new ValuePair("Name", gameDescObject.Name));
-            instruction.desc = gameDescObject.Desc;
-
-            if(string.IsNullOrEmpty(gameDescObject.Parent.Name))
+            // 3. Space-level components
+            foreach (var comp in space.Components)
             {
-                instruction.parameters.Add(new ValuePair("Parent", gameDescObject.Parent.Name));
+                if (comp == null) continue;
+                result.Add(ParseSpaceComponentForInstructions(comp, space.Name));
             }
 
-            List<Instruction> instructionList = new List<Instruction>();
-
-
-            foreach(var component in gameDescObject.Components)
-            {
-                if(component == null)
-                {
-                    continue;
-                }
-                var componentInstruction = ParseComponentForInstruction(component);
-                if(componentInstruction != null)
-                {
-                    instructionList.Add(componentInstruction);
-                }
-            }
-
-            foreach (var child in gameDescObject.Children)
-            {
-                if(child == null)
-                {
-                    continue;
-                }
-                var childInstruction = ParseObjectForInstruction(child);
-                if (childInstruction != null)
-                {
-                    instructionList.Add(childInstruction);
-                }
-            }
-
-            instruction.instructions = instructionList.ToArray();
-
-            return instruction;
+            return result.ToArray();
         }
 
-        private static Instruction ParseComponentForInstruction(T2G.Assistant.Component component)
+        // ============================================================
+        // Object → flat Instruction[] (subtree)
+        // ============================================================
+
+        /// <summary>
+        /// Parse an object and its entire subtree into flat instructions.
+        /// Order: create_object, set_property for each obj property,
+        /// add_component for each component, then recursively for children,
+        /// then attach_to for each child.
+        /// </summary>
+        public static Instruction[] ParseObjectForInstructions(T2G.Assistant.Object obj)
         {
-            if(component == null)
+            if (obj == null) return null;
+
+            var result = new List<Instruction>();
+
+            // 1. create_object (no Parent param — hierarchy built via attach_to)
+            var createInstr = new Instruction
             {
-                return null;
+                action = T2G.Actions.create_object,
+                state = Instruction.eState.Resolved,
+                desc = obj.Desc ?? string.Empty,
+            };
+            createInstr.parameters = new List<ValuePair>
+            {
+                new ValuePair("Name", obj.Name)
+            };
+            // Assets
+            if (obj.Assets != null && obj.Assets.Count > 0)
+            {
+                createInstr.assets = new List<string>(obj.Assets);
             }
-            Instruction instruction = new Instruction();
-            instruction.action = T2G.Actions.add_component;
+            result.Add(createInstr);
 
-            //TODO
-            //component.Type;
-            //component.Properties
-            //component.BehaviorScript
-            //component.Assets
+            // 2. Object-level properties → set_property
+            if (obj.Properties != null)
+            {
+                foreach (var prop in obj.Properties)
+                {
+                    if (prop == null || string.IsNullOrWhiteSpace(prop.name))
+                        continue;
 
-            
-            return instruction;
+                    var setProp = new Instruction
+                    {
+                        action = T2G.Actions.set_property,
+                        state = Instruction.eState.Resolved
+                    };
+                    setProp.parameters = new List<ValuePair>
+                    {
+                        new ValuePair("objName", obj.Name),
+                        new ValuePair("Property", prop.name),
+                        new ValuePair("Value", prop.value)
+                    };
+                    result.Add(setProp);
+                }
+            }
+
+            // 3. Object-level components
+            if (obj.Components != null)
+            {
+                foreach (var comp in obj.Components)
+                {
+                    if (comp == null) continue;
+                    result.Add(ParseComponentForInstructions(comp, obj.Name));
+                }
+            }
+
+            // 4. Children (recursive, depth-first)
+            for (int i = 0; i < (obj.Children?.Count ?? 0); i++)
+            {
+                var child = obj.Children[i];
+                if (child == null) continue;
+
+                // Child's own instructions (create_object, set_property, components, grandchildren)
+                var childInstructions = ParseObjectForInstructions(child);
+                if (childInstructions != null)
+                    result.AddRange(childInstructions);
+
+                // attach_to: link child to this parent
+                var attachInstr = new Instruction
+                {
+                    action = T2G.Actions.attach_to,
+                    state = Instruction.eState.Resolved
+                };
+                attachInstr.parameters = new List<ValuePair>
+                {
+                    new ValuePair("source", child.Name),
+                    new ValuePair("target", obj.Name)
+                };
+                // Check for bone property on child
+                if (child.Properties != null)
+                {
+                    var boneProp = child.Properties.Find(p =>
+                        p != null && string.Equals(p.name, "bone", StringComparison.OrdinalIgnoreCase));
+                    if (boneProp != null && boneProp.value != null)
+                    {
+                        attachInstr.parameters.Add(new ValuePair("bone", boneProp.value.ToString()));
+                    }
+                }
+                result.Add(attachInstr);
+            }
+
+            return result.ToArray();
+        }
+
+        // ============================================================
+        // Component → Instruction (add_component with nested set_property)
+        // ============================================================
+
+        /// <summary>
+        /// Parse an object-level component into an add_component instruction
+        /// with nested set_property sub-instructions for each property.
+        /// </summary>
+        public static Instruction ParseComponentForInstructions(T2G.Assistant.Component component, string objectName)
+        {
+            if (component == null) return null;
+
+            var instr = new Instruction
+            {
+                action = T2G.Actions.add_component,
+                state = Instruction.eState.Resolved,
+                assets = component.Assets
+            };
+            instr.parameters = new List<ValuePair>
+            {
+                new ValuePair("objName", objectName),
+                new ValuePair("type", component.Type ?? string.Empty)
+            };
+            if (!string.IsNullOrWhiteSpace(component.Description))
+            {
+                instr.desc = component.Description;
+            }
+
+            // Properties → nested set_property instructions
+            var subInstructions = new List<Instruction>();
+            if (component.Properties != null)
+            {
+                foreach (var prop in component.Properties)
+                {
+                    if (prop == null || string.IsNullOrWhiteSpace(prop.Name))
+                        continue;
+
+                    var setProp = new Instruction
+                    {
+                        action = T2G.Actions.set_property,
+                        state = Instruction.eState.Resolved
+                    };
+                    setProp.parameters = new List<ValuePair>
+                    {
+                        new ValuePair("Name", objectName),
+                        // Use "ComponentType.PropertyName" format — handles component-qualified properties
+                        new ValuePair("Property", $"{component.Type}.{prop.Name}"),
+                        new ValuePair("Value", prop.Value)
+                    };
+                    subInstructions.Add(setProp);
+                }
+            }
+
+            if (subInstructions.Count > 0)
+                instr.instructions = subInstructions.ToArray();
+
+            return instr;
+        }
+
+        // ============================================================
+        // Space-level component → Instruction
+        // ============================================================
+
+        /// <summary>
+        /// Parse a space-level component (targets the space itself).
+        /// </summary>
+        public static Instruction ParseSpaceComponentForInstructions(T2G.Assistant.Component component, string spaceName)
+        {
+            if (component == null) return null;
+
+            var instr = new Instruction
+            {
+                action = T2G.Actions.add_component,
+                state = Instruction.eState.Resolved
+            };
+            instr.parameters = new List<ValuePair>
+            {
+                new ValuePair("objName", spaceName),
+                new ValuePair("type", component.Type ?? string.Empty)
+            };
+            if (!string.IsNullOrWhiteSpace(component.Description))
+            {
+                instr.desc = component.Description;
+            }
+
+            // Properties → nested set_property
+            var subInstructions = new List<Instruction>();
+            if (component.Properties != null)
+            {
+                foreach (var prop in component.Properties)
+                {
+                    if (prop == null || string.IsNullOrWhiteSpace(prop.Name))
+                        continue;
+
+                    var setProp = new Instruction
+                    {
+                        action = T2G.Actions.set_property,
+                        state = Instruction.eState.Resolved
+                    };
+                    setProp.parameters = new List<ValuePair>
+                    {
+                        new ValuePair("Name", spaceName),
+                        new ValuePair("Property", $"{component.Type}.{prop.Name}"),
+                        new ValuePair("Value", prop.Value)
+                    };
+                    subInstructions.Add(setProp);
+                }
+            }
+
+            if (subInstructions.Count > 0)
+                instr.instructions = subInstructions.ToArray();
+
+            return instr;
         }
     }
 }

@@ -10,28 +10,19 @@ namespace T2G.Assistant
     public class Executor_CreateProject : ExecutorBase
     {
         private Process _process;
-        private EventHandler _eventHandler;
         private string _projectPath;
         private string _projectName; 
         private string _projectPathName;
 
-        public override Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            _tcs = new TaskCompletionSource<(bool, string, List<Instruction>)>();
-
             string unityEditorPath = Assistant.Instance.Settings.UnityEditorPath;
             if (string.IsNullOrEmpty(unityEditorPath) || !File.Exists(unityEditorPath))
-            {
-                _tcs.SetResult((false, "Please setup Unity Editor path before creating a new project.", null));
-                return _tcs.Task;
-            }
+                return (false, "Please setup Unity Editor path before creating a new project.", null);
 
             string pluginPath = Assistant.Instance.Settings.T2G_UnityPluginPath;
             if (string.IsNullOrEmpty(pluginPath))
-            {
-                _tcs.SetResult((false, "Please setup the T2G plugin path for Unity before creating a new project.", null));
-                return _tcs.Task;
-            }
+                return (false, "Please setup the T2G plugin path for Unity before creating a new project.", null);
 
             _projectPath = instruction.parameters.GetString("path");
             _projectName = instruction.parameters.GetString("projectName");
@@ -40,62 +31,55 @@ namespace T2G.Assistant
             try
             {
                 if (Directory.Exists(_projectPathName))
-                {
-                    Directory.Delete(_projectPathName, true);  //delete the old project
-                }
+                    Directory.Delete(_projectPathName, true);
 
                 if (!Directory.Exists(_projectPath))
-                {
                     Directory.CreateDirectory(_projectPath);
-                }
 
                 var arguments = $"-batchMode -createproject {_projectPathName} -quit";
 
-                _eventHandler = new EventHandler(ProcessExitedHandler);
                 _process = new Process();
-                _process.Exited += _eventHandler;
                 _process.StartInfo.FileName = unityEditorPath;
                 _process.StartInfo.Arguments = arguments;
-                _process.EnableRaisingEvents = true;
                 _process.Start();
                 _process.WaitForExit();
-                _process.Close();
-                _process.Exited -= _eventHandler;
+
+                // Wait for OS to fully release file handles from the exited Unity process
+                await Task.Delay(3000);
+
+                if (_process.ExitCode == 0)
+                {
+                    var additionals = new List<Instruction>
+                    {
+                        new Instruction
+                        {
+                            action = "init_project",
+                            state = Instruction.eState.Local,
+                            parameters = new List<ValuePair>
+                            {
+                                new ValuePair("path", _projectPath),
+                                new ValuePair("projectName", _projectName)
+                            }
+                        }
+                    };
+
+                    Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
+                    ChatBotUI.Instance.SaveSettings();
+
+                    return (true, $"Project {_projectPathName} was created!", additionals);
+                }
+                else
+                {
+                    return (false, $"Failed to create project! Exit Code: {_process.ExitCode}", null);
+                }
             }
             catch (Exception e)
             {
-                if (_process != null)
-                {
-                    _process.Close();
-                    _process.Exited -= _eventHandler;
-                }
-                _tcs.SetResult((false, "Failed! \n" + e.Message, null));
+                return (false, "Failed to create project: " + e.Message, null);
             }
-
-            return _tcs.Task;
-        }
-
-        void ProcessExitedHandler(object sender, EventArgs args)
-        {
-            if (_process.ExitCode == 0)
+            finally
             {
-                List<Instruction> additionals = new List<Instruction>();
-                Instruction initProjectInstruction = new Instruction();
-                initProjectInstruction.action = "init_project";
-                initProjectInstruction.state = Instruction.eState.Local;
-                initProjectInstruction.parameters = new List<ValuePair>();
-                initProjectInstruction.parameters.Add(new ValuePair("path", _projectPath));
-                initProjectInstruction.parameters.Add(new ValuePair("projectName", _projectName));
-                additionals.Add(initProjectInstruction);
-
-                Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
-                ChatBotUI.Instance.SaveSettings();
-
-                _tcs.SetResult((true, $"Project {_projectPathName} was created!", additionals));
-            }
-            else
-            {
-                _tcs.SetResult((false, $"Failed! Exit Code: {_process.ExitCode}", null));
+                _process?.Close();
             }
         }
     }

@@ -16,7 +16,7 @@ namespace T2G.Assistant
             instruction.parameters = new List<ValuePair>();
 
             string spaceName = Utils.GetParamFromArguments(args, "name");
-            instruction.parameters.Add(new ValuePair("spaceName", spaceName));
+            instruction.parameters.Add(new ValuePair("SpaceName", spaceName));
 
             instructions.Add(instruction);
             return (true, instructions);
