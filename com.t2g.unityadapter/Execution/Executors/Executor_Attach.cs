@@ -69,7 +69,11 @@ namespace T2G
             string message = isSocketTarget 
                 ? $"{sourceObjName} was attached to {targetObjName} at {socketName}."
                 : $"{sourceObjName} was attached to {targetObjName}.";
-            
+
+            message += $"\nlocalPosition={sourceObject.transform.localPosition};" + 
+                $"localRotation={sourceObject.transform.localRotation.eulerAngles};" + 
+                $"localScale={sourceObject.transform.localScale}";
+
             return (true, message, null);
         }
 

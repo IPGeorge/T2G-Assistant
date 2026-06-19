@@ -23,7 +23,7 @@ namespace T2G
             // Parse position if provided (format: "(x, y, z)")
             if (!string.IsNullOrEmpty(positionStr))
             {
-                position = T2G.Utils.ParsePosition(positionStr);
+                position = T2G.Utils.ParseVector3(positionStr);
             }
 
             _newObj = null;
@@ -122,7 +122,7 @@ namespace T2G
                 }
                 else
                 {
-                    Vector3? pos =  T2G.Utils.ParsePosition(objPrefab.position);
+                    Vector3? pos =  T2G.Utils.ParseVector3(objPrefab.position);
                     if (pos.HasValue)
                     {
                         _newObj.transform.position = pos.Value;

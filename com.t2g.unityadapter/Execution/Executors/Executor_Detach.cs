@@ -20,10 +20,14 @@ namespace T2G
                 return (false, $"Couldn't find {objName}!", null);
             }
             obj.transform.parent = null;
-            obj.transform.localScale = Vector3.one;
             Utils.UpdateEditorViews();
             await Task.Yield();
-            return (true, $"{objName} was dettached.", null);
+
+            string message = $"{objName} was dettached.";
+            message += $"\nposition={obj.transform.localPosition};" +
+                $"rotation={obj.transform.localRotation.eulerAngles};" +
+                $"scale={obj.transform.localScale}";
+            return (true, message, null);
         }
     }
 }

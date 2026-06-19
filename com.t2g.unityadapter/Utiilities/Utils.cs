@@ -312,19 +312,57 @@ namespace T2G
             }
         }
 
-        public static Vector3? ParsePosition(string positionStr)
+        public static Vector3? ParseVector3(string vector3Str)
         {
             try
             {
                 // Remove parentheses and parse
-                positionStr = positionStr.Trim('(', ')', ' ');
-                var parts = positionStr.Split(',');
+                vector3Str = vector3Str.Trim('(', ')', ' ');
+                var parts = vector3Str.Split(',');
                 if (parts.Length == 3)
                 {
                     float x = float.Parse(parts[0].Trim());
                     float y = float.Parse(parts[1].Trim());
                     float z = float.Parse(parts[2].Trim());
                     return new Vector3(x, y, z);
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public static Vector2? ParseVector2(string vector2Str)
+        {
+            try
+            {
+                // Remove parentheses and parse
+                vector2Str = vector2Str.Trim('(', ')', ' ');
+                var parts = vector2Str.Split(',');
+                if (parts.Length == 2)
+                {
+                    float x = float.Parse(parts[0].Trim());
+                    float y = float.Parse(parts[1].Trim());
+                    return new Vector2(x, y);
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public static Quaternion? ParseQuaternion(string quaternionStr)
+        {
+            try
+            {
+                // Remove parentheses and parse
+                quaternionStr = quaternionStr.Trim('(', ')', ' ');
+                var parts = quaternionStr.Split(',');
+                if (parts.Length == 4)
+                {
+                    float x = float.Parse(parts[0].Trim());
+                    float y = float.Parse(parts[1].Trim());
+                    float z = float.Parse(parts[2].Trim());
+                    float w = float.Parse(parts[3].Trim());
+                    return new Quaternion(x, y, z, w);
                 }
             }
             catch { }

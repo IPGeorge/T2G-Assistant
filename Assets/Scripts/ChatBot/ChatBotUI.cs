@@ -146,7 +146,7 @@ namespace T2G.Assistant
                 Vector2 size = style.CalcSize(content);
                 size.x = Mathf.Min(size.x + 20, width * 0.7f);
                 size.y = style.CalcHeight(content, size.x - 20);
-                totalHeight += 20 + size.y + 25;
+                totalHeight += 22 + size.y + 3;
             }
             
             return Mathf.Max(totalHeight, chatWindowHeight - 20);

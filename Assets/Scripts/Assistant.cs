@@ -227,13 +227,25 @@ namespace T2G.Assistant
                     string jsonInstruction = JsonConvert.SerializeObject(instruction); 
                     Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
                     var response = await WaitForResponse();
-                    _completed &= response.responded;
-                    _sb.AppendLine(response.message);
 
                     if (response.responded)
                     {
-                        GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message));
+                        int paramIndex = response.message.IndexOf("\n");
+
+                        if (paramIndex >= 0)
+                        {
+                            string[] responseParams = response.message.Substring(paramIndex + 1).Split(';');
+                            //response.message = response.message.Substring(0, paramIndex);
+                            GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), responseParams);
+                        }
+                        else
+                        {
+                            GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), null);
+                        }
                     }
+
+                    _completed &= response.responded;
+                    _sb.AppendLine(response.message);
                 }
                 else
                 {
