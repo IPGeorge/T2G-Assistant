@@ -1,4 +1,4 @@
-
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -14,12 +14,16 @@ namespace T2G
     {
         public static readonly string AssetsToImportListFileName = "ImportAssetList.txt";
         public static readonly string GameObjectsToCreateListFileName = "CreateGameObjectsList.txt";
+        public static readonly string PackagesToImportListFileName = "ImportPackagesList.txt";
+
 
         static List<(string sourcePath, string targetRelPath)> _importAssetList = new List<(string, string)>();
         static List<(string name, string targetRelPath, string position)> _createObjectsList = new List<(string, string, string)>();
 
         public static List<(string sourcePath, string targetRelPath)> ImportAssetList => _importAssetList;
         public static List<(string name, string targetRelPath, string position)> CreateObjectsList => _createObjectsList;
+
+        static List<string> _importPackagesList = new List<string>();
 
         public static async Awaitable ImportAssets(string objName, List<string> assets, Vector3? position)
         {
@@ -36,6 +40,117 @@ namespace T2G
             _importAssetList.Add((assets[0], assets[1]));
             SaveLists();
             await SimImportAssetsImpl();
+        }
+
+        static void SaveImportPackagesList()
+        {
+            string json;
+            string path = Path.Combine(Application.persistentDataPath, PackagesToImportListFileName);
+            json = JsonConvert.SerializeObject(_importPackagesList);
+            File.WriteAllText(path, json);
+        }
+
+        static void LoadImportPackagesList()
+        {
+            string path = Path.Combine(Application.persistentDataPath, PackagesToImportListFileName);
+            if (File.Exists(path))
+            {
+                string json = File.ReadAllText(path);
+                var tmp = JsonConvert.DeserializeObject<List<string>>(json);
+                _importPackagesList = tmp ?? _importPackagesList;
+            }
+            else
+            {
+                _importPackagesList.Clear();
+            }
+        }
+
+        public static async Awaitable<int> BeginImportAssets(List<string> assets)
+        {
+            int importCount = 0;
+
+            _importPackagesList.Clear();
+
+            EditorApplication.LockReloadAssemblies();
+            try
+            {
+                foreach (var asset in assets)
+                {
+                    if (string.IsNullOrWhiteSpace(asset))
+                    {
+                        continue;
+                    }
+
+                    string[] assetArray = asset.Split(",");
+                    foreach (var assetSource in assetArray)
+                    {
+                        if (string.IsNullOrWhiteSpace(assetSource) ||
+                            assetSource.IndexOf(".prefab", System.StringComparison.OrdinalIgnoreCase) > 0)
+                        {
+                            continue;
+                        }
+
+                        string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetSource);
+
+                        if (assetSource.IndexOf(".unitypackage", System.StringComparison.OrdinalIgnoreCase) > 0)
+                        {
+                            _importPackagesList.Add(sourcePath);
+                            importCount++;
+                            continue;
+                        }
+                        
+                        string target = Path.Combine(Application.dataPath, asset);
+                        string targetDir = Path.GetDirectoryName(target);
+                        if (File.Exists(sourcePath))
+                        {
+                            if (!Directory.Exists(targetDir))
+                            {
+                                Directory.CreateDirectory(targetDir);
+                            }
+                            File.Copy(sourcePath, target, true);
+                            CommunicatorServerEditor.AddConsoleText($"Imported {Path.GetFileName(target)}.");
+                            importCount++;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                EditorApplication.UnlockReloadAssemblies();
+            }
+
+            await Task.Yield();
+            return importCount;
+        }
+
+        public static async Awaitable EndImportAssets()
+        {
+            SaveImportPackagesList();
+            EditorApplication.UnlockReloadAssemblies();
+            CompilationPipeline.RequestScriptCompilation();
+            AssetDatabase.Refresh();
+            await Utils.WaitForUnityIdle();
+            await ProcessPackageImportsImpl();
+        }
+
+        [InitializeOnLoadMethod]
+        static async Awaitable ProcessPackageImportsImpl()
+        {
+            LoadImportPackagesList();
+
+            while (_importPackagesList.Count > 0)
+            {
+                string packagePath = _importPackagesList[0];
+                _importPackagesList.RemoveAt(0);
+                SaveImportPackagesList();
+                CommunicatorServerEditor.AddConsoleText($"Importing {Path.GetFileName(packagePath)} ...");
+                await ImportUnityPackage(packagePath);
+            }
+
+            Response response = new Response();
+            response.Succeeded = true;
+            response.Message = $"importing assets finished.";
+            Execution.Instance.SendExecutionResponse(response);
         }
 
         public static async Awaitable<int> BeginImportScripts(List<string> scriptPaths)
@@ -81,9 +196,8 @@ namespace T2G
 
         public static void SaveLists()
         {
-            string json;
             string path = Path.Combine(Application.persistentDataPath, AssetsToImportListFileName);
-            json = JsonConvert.SerializeObject(_importAssetList);
+            string json = JsonConvert.SerializeObject(_importAssetList);
             File.WriteAllText(path, json);
             path = Path.Combine(Application.persistentDataPath, GameObjectsToCreateListFileName);
             json = JsonConvert.SerializeObject(_createObjectsList);
@@ -126,6 +240,10 @@ namespace T2G
                 var assetPaths = _importAssetList[0];
                 var editorAssetsPath = Application.dataPath;
                 string targetPath = Path.Combine(editorAssetsPath, assetPaths.targetRelPath);
+
+                _importAssetList.RemoveAt(0);
+                SaveLists();
+
                 if (!File.Exists(targetPath) &&
                     Execution.Instance.Settings.AssetLibraryRootPath != null)  //TODO: version number to override
                 {
@@ -138,21 +256,9 @@ namespace T2G
                         if (string.Compare(extension, ".unitypackage", true) == 0 ||
                             extension.IndexOf("unitypackage") > 0)
                         {
-                            bool isCompleted = false;
-                            AssetDatabase.importPackageCompleted += (packageName) => { isCompleted = true; };
-
-                            AssetDatabase.ImportPackage(sourcePath, false);
-
-                            int maxAttempts = 3000; // 300 seconds (3000 * 100ms)
-                            int attempts = 0;
-
-                            while (!isCompleted && attempts < maxAttempts)
-                            {
-                                await Task.Delay(100); // 100ms delay
-                                attempts++;
-                            }
-
-                            await Task.Delay(500);
+                            EditorApplication.UnlockReloadAssemblies();
+                            await ImportUnityPackage(sourcePath);
+                            EditorApplication.LockReloadAssemblies();
                             AssetDatabase.Refresh();
                         }
                         else
@@ -169,8 +275,40 @@ namespace T2G
                         CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
                     }
                 }
-                _importAssetList.RemoveAt(0);
-                SaveLists();
+            }
+        }
+
+        private static async Awaitable<bool> ImportUnityPackage(string sourcePath)
+        {
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+
+            AssetDatabase.ImportPackageCallback onCompleted = null;
+            AssetDatabase.ImportPackageFailedCallback onFailed = null;
+            AssetDatabase.ImportPackageCallback onCancelled = null;
+
+            onCompleted = (name) => { Unsubscribe(); tcs.TrySetResult(true); };
+            onFailed = (name, err) => { Unsubscribe(); tcs.TrySetResult(false); };
+            onCancelled = (name) => { Unsubscribe(); tcs.TrySetResult(false); };
+
+            void Unsubscribe()
+            {
+                AssetDatabase.importPackageCompleted -= onCompleted;
+                AssetDatabase.importPackageFailed -= onFailed;
+                AssetDatabase.importPackageCancelled -= onCancelled;
+            }
+
+            AssetDatabase.importPackageCompleted += onCompleted;
+            AssetDatabase.importPackageFailed += onFailed;
+            AssetDatabase.importPackageCancelled += onCancelled;
+
+            try
+            {
+                AssetDatabase.ImportPackage(sourcePath, false);
+                return await tcs.Task;
+            }
+            finally
+            {
+                Unsubscribe();
             }
         }
     }

@@ -240,7 +240,7 @@ namespace T2G
             };
         }
 
-        static void AddConsoleText(string textToAdd)
+        public static void AddConsoleText(string textToAdd)
         {
             _text += textToAdd + "\n";
             _repaintText = true;
@@ -300,6 +300,9 @@ namespace T2G
             if (GUILayout.Button("Clear"))
             {
                 _text = string.Empty;
+                _repaintText = true;
+                Repaint();
+                GUI.FocusControl(null);
             }
 
             if (GUILayout.Button("Persistent"))

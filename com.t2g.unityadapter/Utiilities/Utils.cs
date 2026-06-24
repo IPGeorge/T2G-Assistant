@@ -7,9 +7,12 @@ using System.Reflection;
 using System.IO;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.Compilation;
 #endif
 
 namespace T2G
@@ -55,6 +58,27 @@ namespace T2G
             return gameObject;
         }
 
+        public static async Awaitable WaitForUnityIdle()
+        {
+            // Wait for Unity script compilation to finish
+            if (EditorApplication.isCompiling)
+            {
+                var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+                void OnCompilationFinished(object obj)
+                {
+                    CompilationPipeline.compilationFinished -= OnCompilationFinished;
+                    tcs.TrySetResult(true);
+                }
+                CompilationPipeline.compilationFinished += OnCompilationFinished;
+                await tcs.Task;
+            }
+
+            // Wait for asset database to finish updating
+            while (EditorApplication.isUpdating)
+            {
+                await Task.Yield();
+            }
+        }
 #endif
 
         /// <summary>
@@ -395,6 +419,37 @@ namespace T2G
             }
 
             return canvas;
+        }
+
+        public static int CollectAllAssets(Instruction[] instructions, ref List<string> assetList)
+        {
+            if(instructions == null || instructions.Length <= 0 || assetList == null)
+            {
+                return 0;
+            }
+
+            int cnt = 0;
+
+            foreach (var instruction in instructions)
+            {
+                if(instruction == null || instruction.assets == null || instruction.assets.Count <= 0)
+                {
+                    continue;
+                }
+
+                foreach (var asset in instruction.assets)
+                {
+                    assetList.Add(asset);
+                    cnt++;
+                }
+
+                if (instruction.instructions != null)
+                {
+                    cnt += CollectAllAssets(instruction.instructions, ref assetList);
+                }
+            }
+
+            return cnt;
         }
     }
 }

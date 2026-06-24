@@ -272,7 +272,7 @@ namespace T2G.Assistant
         /// add_component for each component, then recursively for children,
         /// then attach_to for each child.
         /// </summary>
-        public static Instruction[] ParseObjectForInstructions(T2G.Assistant.Object obj)
+        public static Instruction[] ParseObjectForInstructions(T2G.Assistant.Object obj, string parentName = null, string socketName = null)
         {
             if (obj == null) return null;
 
@@ -296,7 +296,26 @@ namespace T2G.Assistant
             }
             result.Add(createInstr);
 
-            // 2. Object-level properties → set_property
+            if (!string.IsNullOrEmpty(parentName))
+            {
+                var attachInstr = ParseAttachParentInstruction(obj, parentName);
+                if (attachInstr != null)
+                {
+                    result.Add(attachInstr);
+                }
+            }
+
+            // 2. Object-level components
+            if (obj.Components != null)
+            {
+                foreach (var comp in obj.Components)
+                {
+                    if (comp == null) continue;
+                    result.Add(ParseComponentForInstructions(comp, obj.Name));
+                }
+            }
+
+            // 3. Object-level properties → set_property
             if (obj.Properties != null)
             {
                 foreach (var prop in obj.Properties)
@@ -319,47 +338,16 @@ namespace T2G.Assistant
                 }
             }
 
-            // 3. Object-level components
-            if (obj.Components != null)
-            {
-                foreach (var comp in obj.Components)
-                {
-                    if (comp == null) continue;
-                    result.Add(ParseComponentForInstructions(comp, obj.Name));
-                }
-            }
-
             // 4. Children (recursive, depth-first)
             for (int i = 0; i < (obj.Children?.Count ?? 0); i++)
             {
                 var child = obj.Children[i];
-                if (child == null) continue;
-
-                // attach_to: link child to this parent
-                var attachInstr = new Instruction
+                if (child == null)
                 {
-                    action = T2G.Actions.attach_to,
-                    state = Instruction.eState.Resolved
-                };
-                attachInstr.parameters = new List<ValuePair>
-                {
-                    new ValuePair("source", child.Name),
-                    new ValuePair("target", obj.Name)
-                };
-                // Check for bone property on child
-                if (child.Properties != null)
-                {
-                    var boneProp = child.Properties.Find(p =>
-                        p != null && string.Equals(p.name, "bone", StringComparison.OrdinalIgnoreCase));
-                    if (boneProp != null && boneProp.value != null)
-                    {
-                        attachInstr.parameters.Add(new ValuePair("bone", boneProp.value.ToString()));
-                    }
+                    continue;
                 }
-                result.Add(attachInstr);
 
-                // Child's own instructions (create_object, set_property, components, grandchildren)
-                var childInstructions = ParseObjectForInstructions(child);
+                var childInstructions = ParseObjectForInstructions(child, obj.Name);
                 if (childInstructions != null)
                 {
                     result.AddRange(childInstructions);
@@ -368,6 +356,29 @@ namespace T2G.Assistant
 
             return result.ToArray();
         }
+
+        static Instruction ParseAttachParentInstruction(T2G.Assistant.Object obj, string parentName)
+        {
+            var attachInstr = new Instruction
+            {
+                action = T2G.Actions.attach_to,
+                state = Instruction.eState.Resolved
+            };
+
+            attachInstr.parameters = new List<ValuePair>
+            {
+                new ValuePair("source", obj.Name),
+                new ValuePair("target", parentName)
+            };
+
+            if (!string.IsNullOrEmpty(obj.Socket))
+            {
+                attachInstr.parameters.Add(new ValuePair("socket", obj.Socket));
+            }
+
+            return attachInstr;
+        }
+
 
         // ============================================================
         // Component → Instruction (add_component with nested set_property)

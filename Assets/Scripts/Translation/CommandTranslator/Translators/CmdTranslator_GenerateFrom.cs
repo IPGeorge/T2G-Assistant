@@ -24,16 +24,40 @@ namespace T2G.Assistant
                 state = Instruction.eState.Batch
             };
 
-            instruction.instructions = GameDescManager.Instance.GetInstructionsForSpaces(gameDescPathFile, spacesStr);
+            var genInstructions = GameDescManager.Instance.GetInstructionsForSpaces(gameDescPathFile, spacesStr);
 
-            var saveInst = new Instruction()
-            {
-                action = T2G.Actions.save_space,
-                state = Instruction.eState.Resolved
-            };
+            List<Instruction> instructions = new List<Instruction>();
             
-            List<Instruction> instructions = new List<Instruction>() { instruction, saveInst };
-            return (true, instructions);
+            if(genInstructions != null && genInstructions.Length > 0)
+            {
+                List<Instruction> batchInstructions = new List<Instruction>(genInstructions);
+
+                var importAssetsInstruction = new Instruction()
+                {
+                    action = T2G.Actions.import_assets,
+                    state = Instruction.eState.Resolved,
+                    assets = new List<string>()
+                };
+                
+                T2G.Utils.CollectAllAssets(genInstructions, ref importAssetsInstruction.assets);
+                Debug.Log($"{importAssetsInstruction.assets.Count} assets need to be imported.");
+
+                batchInstructions.Insert(0, importAssetsInstruction);
+
+                batchInstructions.Add(new Instruction()
+                {
+                    action = T2G.Actions.save_space,
+                    state = Instruction.eState.Resolved
+                });
+
+                instruction.instructions = batchInstructions.ToArray();
+                
+
+                instructions.Add(instruction);
+                return (true, instructions);
+            }
+
+            return (false, null);
         }
     }
 }

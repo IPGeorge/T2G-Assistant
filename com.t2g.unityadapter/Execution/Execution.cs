@@ -148,7 +148,7 @@ namespace T2G
         {
             while(!CommunicatorServer.Instance.IsConnected)
             {
-                await Task.Yield();
+                await Task.Delay(100);
             }
             string responseJson = JsonConvert.SerializeObject(response);
             CommunicatorServer.Instance.SendMessage(CommunicatorBase.eMessageType.Response, responseJson);

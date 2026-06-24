@@ -272,6 +272,16 @@ namespace T2G.Assistant
             }
         }
 
+        public void UpdateLastBotMessage(string message)
+        {
+            if (chatHistory.Count > 0 &&
+                string.Equals(chatHistory[chatHistory.Count - 1].sender, Assistant.Instance.Settings.botName))
+            {
+                chatHistory[chatHistory.Count - 1] = new ChatMessage(Assistant.Instance.Settings.botName, message);
+                gotoBottom = true;
+            }
+        }
+
         private void NavigateInputHistory(int direction)
         {
             if (inputHistory.Count == 0) return;
@@ -573,5 +583,4 @@ namespace T2G.Assistant
             isExpanded = false;
         }
     }
-
 }

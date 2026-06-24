@@ -448,13 +448,8 @@ namespace T2G.Assistant
                         // Add child to new parent's Children list
                         parent.Children ??= new List<Object>();
                         child.Parent = parent;
+                        child.Socket = socketName;
                         parent.Children.Add(child);
-
-                        // If bone is specified, store it as a property on the child
-                        if (!string.IsNullOrWhiteSpace(socketName))
-                        {
-                            AddOrSetProperty(child, "scoket", socketName);
-                        }
 
                         if (responseParams != null)
                         {
@@ -512,16 +507,11 @@ namespace T2G.Assistant
 
                         // Set Parent to null and add to root (space.Objects)
                         obj.Parent = null;
+                        obj.Socket = string.Empty;
                         space.Objects ??= new List<Object>();
                         if (!space.Objects.Contains(obj))
                         {
                             space.Objects.Add(obj);
-                        }
-
-                        // Remove bone property if exists
-                        if (obj.Properties != null)
-                        {
-                            obj.Properties.RemoveAll(p => string.Equals(p.name, "bone", StringComparison.OrdinalIgnoreCase));
                         }
 
                         if (responseParams != null)
@@ -1064,7 +1054,6 @@ namespace T2G.Assistant
             foreach (var child in parent.Children)
             {
                 if (child == null) continue;
-
                 child.Parent = parent;
                 RebuildParentsRecursive(child);
             }

@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.Compilation;
 
 namespace T2G
 {
@@ -157,14 +158,35 @@ namespace T2G
                 {
                     response.Succeeded = true;
                     response.Message = $"{objPrefab.name} was created.";
-                    Execution.Instance.SendExecutionResponse(response);
                 }
                 else
                 {
                     response.Succeeded = false;
                     response.Message = $"Failed to create {objPrefab.name}!";
-                    Execution.Instance.SendExecutionResponse(response);
                 }
+
+                // Wait for Unity script compilation to finish
+                if (EditorApplication.isCompiling)
+                {
+                    var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+                    void OnCompilationFinished(object obj)
+                    {
+                        CompilationPipeline.compilationFinished -= OnCompilationFinished;
+                        tcs.TrySetResult(true);
+                    }
+                    CompilationPipeline.compilationFinished += OnCompilationFinished;
+                    await tcs.Task;
+                }
+
+                // Wait for asset database to finish updating
+                while (EditorApplication.isUpdating)
+                {
+                    await Task.Yield();
+                }
+
+                //Send response
+                Execution.Instance.SendExecutionResponse(response);
+
                 AssetImporter.CreateObjectsList.RemoveAt(0);
                 AssetImporter.SaveLists();
             }

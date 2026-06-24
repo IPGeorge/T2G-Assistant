@@ -18,6 +18,7 @@ namespace T2G
 
         #region Misc
         public const string clear = "clear";
+        public const string import_assets = "import_assets";
         #endregion Misc
 
         #region Space

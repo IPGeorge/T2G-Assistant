@@ -34,6 +34,7 @@ namespace T2G.Assistant
         {
             // Pattern that handles both cases
             (@"^(generate|create)\s+from\s+(?<gamedesc>[A-Za-z]:\\[^\s]+)(?:\s+spaces\s*=\s*""?(?<spaces>[^""\s]*)""?)?\s*$", T2G.Actions.generate_from),
+            (@"^import\s+assets\s+(?<assets>(?:""[^""]+""|[^\s,]+)(?:\s*,\s*(?:""[^""]+""|[^\s,]+))*)\s*$", T2G.Actions.import_assets),
             (@"^create\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?!\s+from\b)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.create_project),
             (@"^(init|initialize)\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.init_project),
             (@"^open\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.open_project),
@@ -58,10 +59,7 @@ namespace T2G.Assistant
 
             (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
 
-            (@"^create\s+from\s+(?:game\s+)?(?:from\s+)?(?<path>[a-zA-Z]:[\\/][^\s]+(?:[\\/][^\s]+)*)?(?:\.)?$", "create_from"),
             (@"^call\s+(?<name>""[^""]+""|'[^']+'|[\w\-]+)\s+method\s+(?<method>""[^""]+""|'[^']+'|[\w\.]+)(?:\s+(?:with\s+)?parameters?\s+(?<parameters>.+))?$", T2G.Actions.call_method),
-
-
 
             (@"^spin(?:\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))?(?:\s+(?<speed>[+-]?\d+(?:\.\d+)?))?$", "spin_object"),
             (@"^font\s+(?<attrib>\w+)\s+(?<value>-?\d+(?:\.\d+)?|#[0-9a-fA-F]{3,6}|\w+)\s*$", "set_font"),

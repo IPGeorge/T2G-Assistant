@@ -40,11 +40,6 @@ namespace T2G.Assistant
 
         private void Start()
         {
-            //Instruction instruction = new Instruction();
-            //string json1 = JsonConvert.SerializeObject(instruction, Formatting.Indented);
-            //GameDesc gameDesc = new GameDesc();
-            //string json2 = JsonConvert.SerializeObject(gameDesc, Formatting.Indented);
-
             _chatBot = ChatBotUI.Instance;
             GameDescManager = GameDescManager.Instance;
             Init();
@@ -209,7 +204,8 @@ namespace T2G.Assistant
             }
             else if (instruction.state == Instruction.eState.Batch)
             {
-                _sb.AppendLine($"Start executing {instruction.instructions.Length} instructions:");
+                ExponentialBackoffFocusRestorer.NeedFocus = true;
+                _sb.AppendLine($"Start batching {instruction.instructions.Length} instructions:");
                 _completed = true;
             }
             else
@@ -235,7 +231,6 @@ namespace T2G.Assistant
                         if (paramIndex >= 0)
                         {
                             string[] responseParams = response.message.Substring(paramIndex + 1).Split(';');
-                            //response.message = response.message.Substring(0, paramIndex);
                             GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), responseParams);
                         }
                         else
@@ -258,6 +253,9 @@ namespace T2G.Assistant
             {
                 InsertAdditionalInstructions(i, new List<Instruction>(instruction.instructions));
             }
+
+
+
             return _completed;
         }
 
@@ -276,6 +274,8 @@ namespace T2G.Assistant
             for (int i = 0; i < _instructions.Count && _completed; ++i)
             {
                 _completed &= await ProcessInstruction(i);
+                _chatBot?.UpdateLastBotMessage(_sb.ToString());
+                await Task.Delay(100);
             }
 
             TranslationLogger.Append(new TranslationRecord()
