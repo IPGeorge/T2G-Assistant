@@ -43,27 +43,27 @@ namespace T2G
         void TestCommonNames()
         {
             string[] testNames = {
-            "rigidbody", "rb", "body",
-            "box collider", "box", "boxcol",
-            "transform", "tr", "t",
-            "camera", "cam",
-            "light", "l",
-            "audio source", "audio",
-            "animator", "anim",
-            "canvas", "ui",
-            "button", "btn",
-            "text", "txt",
-            "image", "img",
-            "slider",
-            "toggle", "tog",
-            "input field", "input",
-            "dropdown", "drop",
-            "nav mesh agent", "agent", "navagent",
-            "rigidbody2d", "rb2d",
-            "box collider2d",
-            "sphere collider2d",
-            "particle system", "particle", "ps"
-        };
+                "rigidbody", "rb", "body",
+                "box collider", "box", "boxcol",
+                "transform", "tr", "t",
+                "camera", "cam",
+                "light", "l",
+                "audio source", "audio",
+                "animator", "anim",
+                "canvas", "ui",
+                "button", "btn",
+                "text", "txt",
+                "image", "img",
+                "slider",
+                "toggle", "tog",
+                "input field", "input",
+                "dropdown", "drop",
+                "nav mesh agent", "agent", "navagent",
+                "rigidbody2d", "rb2d",
+                "box collider2d",
+                "sphere collider2d",
+                "particle system", "particle", "ps"
+            };
 
             foreach (string name in testNames)
             {
@@ -79,5 +79,6 @@ namespace T2G
             }
         }
     }
-#endif
 }
+
+#endif

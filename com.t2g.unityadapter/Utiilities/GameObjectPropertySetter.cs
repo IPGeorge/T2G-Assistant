@@ -1,3 +1,5 @@
+#if UNITY_EDITOR
+
 using UnityEngine;
 using System;
 using System.Reflection;
@@ -428,3 +430,5 @@ public static class GameObjectPropertySetter
         return null;
     }
 }
+
+#endif

@@ -57,8 +57,8 @@ namespace T2G.Assistant
         [SerializeField] private Color inputFieldColor = new Color(0.2f, 0.2f, 0.2f, 1f);
 
         [Header("Layout")]
-        [SerializeField] private readonly int fontSize = 12;
-        [SerializeField] private readonly float inputFieldHeight = 42f;
+        [SerializeField] private readonly int fontSize = 24;
+        [SerializeField] private readonly float inputFieldHeight = 65f;
 
         private string[] botResponses = {
             "Sorry, I don't understand!",
@@ -108,7 +108,7 @@ namespace T2G.Assistant
             float windowWidth = Screen.width * 0.8f;
             float windowX = Screen.width * 0.1f;
             float windowY = 20f;
-            chatWindowHeight = Screen.height - 120.0f;
+            chatWindowHeight = Screen.height - 150.0f;
 
             GUI.backgroundColor = backgroundColor;
             GUI.Box(new Rect(windowX, windowY, windowWidth, chatWindowHeight), "");
@@ -144,9 +144,9 @@ namespace T2G.Assistant
             {
                 GUIContent content = new GUIContent(message.message);
                 Vector2 size = style.CalcSize(content);
-                size.x = Mathf.Min(size.x + 20, width * 0.7f);
-                size.y = style.CalcHeight(content, size.x - 20);
-                totalHeight += 22 + size.y + 3;
+                size.x = Mathf.Min(size.x + 25, width * 0.7f);
+                size.y = style.CalcHeight(content, size.x - 25);
+                totalHeight += 30 + size.y + 4;
             }
             
             return Mathf.Max(totalHeight, chatWindowHeight - 20);
@@ -174,15 +174,15 @@ namespace T2G.Assistant
             Rect senderRect;
             if (isUser)
             {
-                senderRect = new Rect(width - labelSize.x - 1.0f, yPos, size.x, 20);
+                senderRect = new Rect(width - labelSize.x - 1.0f, yPos, size.x, 28);
             }
             else
             {
-                senderRect = new Rect(xPos, yPos, size.x, 20);
+                senderRect = new Rect(xPos, yPos, size.x, 28);
             }
             GUI.color = messageColor;
             GUI.Label(senderRect, senderLabel);
-            yPos += 22;
+            yPos += 30;
 
             Rect messageRect = new Rect(xPos, yPos, size.x, size.y);
             GUI.color = messageColor;
@@ -192,8 +192,8 @@ namespace T2G.Assistant
             GUI.Box(messageRect, message.message, messageStyle);
             GUI.color = Color.white;
 
-            yPos += size.y + 3;
-            messageLineHeight = 20 + size.y + 5;
+            yPos += size.y + 4;
+            messageLineHeight = 28 + size.y + 6;
             GUI.FocusControl("ChatInput");
         }
 
@@ -201,7 +201,7 @@ namespace T2G.Assistant
         {
             float windowWidth = Screen.width * 0.8f;
             float windowX = Screen.width * 0.1f;
-            float inputY = 20f + chatWindowHeight + 10f;
+            float inputY = 20f + chatWindowHeight + 15f;
 
             GUI.backgroundColor = inputFieldColor;
             GUI.Box(new Rect(windowX, inputY, windowWidth, inputFieldHeight), "");
@@ -234,7 +234,7 @@ namespace T2G.Assistant
             //GUI.SetNextControlName("ChatInput");
 
             float textFieldX = windowX + 10;
-            float textFieldWidth = windowWidth - 130;
+            float textFieldWidth = windowWidth - 190;
             
             Rect inputRect = new Rect(textFieldX, inputY + 10, textFieldWidth, inputFieldHeight - 20);
             
@@ -263,7 +263,7 @@ namespace T2G.Assistant
                 }
             }
 
-            if (GUI.Button(new Rect(windowX + windowWidth - 100, inputY + 8, 90, inputFieldHeight - 16), "Send") ||
+            if (GUI.Button(new Rect(windowX + windowWidth - 160, inputY + 12, 150, inputFieldHeight - 24), "Send") ||
                 (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return &&
                  GUI.GetNameOfFocusedControl() == "ChatInput"))
             {
@@ -316,11 +316,11 @@ namespace T2G.Assistant
         {
             float windowWidth = Screen.width * 0.8f;
             float windowX = Screen.width * 0.1f;
-            float buttonsY = 20f + chatWindowHeight + inputFieldHeight + 16f;
+            float buttonsY = 20f + chatWindowHeight + inputFieldHeight + 20f;
 
-            float buttonWidth = 100f;
-            float buttonHeight = 32f;
-            float spacing = 10f;
+            float buttonWidth = 150f;
+            float buttonHeight = 40f;
+            float spacing = 12f;
 
             if (GUI.Button(new Rect(windowX, buttonsY, buttonWidth, buttonHeight), "Clear"))
             {

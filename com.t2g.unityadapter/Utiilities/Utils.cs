@@ -79,6 +79,69 @@ namespace T2G
                 await Task.Yield();
             }
         }
+
+        public static Camera GetEditorCamera()
+        {
+            SceneView sceneView = SceneView.lastActiveSceneView;
+            return sceneView?.camera;
+        }
+
+        static MethodInfo _repaintAllMethod = null;
+        public static void UpdateEditorViews()
+        {
+
+            if (_repaintAllMethod == null)
+            {
+                var viewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.View");
+                if (viewType != null)
+                {
+                    _repaintAllMethod = viewType.GetMethod("RepaintAll", BindingFlags.Static | BindingFlags.NonPublic);
+                }
+            }
+
+            EditorApplication.QueuePlayerLoopUpdate();
+
+            foreach (SceneView sceneView in SceneView.sceneViews)
+            {
+                sceneView.Repaint();
+            }
+
+            foreach (EditorWindow window in Resources.FindObjectsOfTypeAll<EditorWindow>())
+            {
+                window.Repaint();
+            }
+
+            EditorApplication.DirtyHierarchyWindowSorting();
+
+            _repaintAllMethod?.Invoke(null, null);
+
+            //GUIUtility.ExitGUI();
+
+            foreach (SceneView sceneView in SceneView.sceneViews)
+            {
+                if (sceneView != null && sceneView.camera != null)
+                {
+                    sceneView.camera.Render();
+                }
+            }
+        }
+
+        public static void PlaceInFrontOfCamera(GameObject gameObject,
+            float distance = 5.0f,
+            bool alignToGround = false, float groundHeight = 0.0f)
+        {
+            var camera = GetEditorCamera();
+
+            // Calculate base position
+            gameObject.transform.position = camera.transform.position + (camera.transform.forward * distance);
+
+            // Adjust for ground if needed
+            if (alignToGround)
+            {
+                PlaceOnGround(gameObject, groundHeight);
+            }
+        }
+
 #endif
 
         /// <summary>
@@ -184,21 +247,6 @@ namespace T2G
             return (string.Compare(desc.Trim(), "object", true) == 0);
         }
 
-        public static void PlaceInFrontOfCamera(GameObject gameObject,
-            float distance = 5.0f, 
-            bool alignToGround = false, float groundHeight = 0.0f)
-        {
-            var camera = GetEditorCamera();
-
-            // Calculate base position
-            gameObject.transform.position = camera.transform.position + (camera.transform.forward * distance);
-
-            // Adjust for ground if needed
-            if (alignToGround)
-            {
-                PlaceOnGround(gameObject, groundHeight);
-            }
-        }
 
         public static void PlaceOnGround(GameObject obj, float groundHeight = 0.0f)
         {
@@ -256,52 +304,7 @@ namespace T2G
             return new Bounds(obj.transform.position, Vector3.one);
         }
 
-        public static Camera GetEditorCamera()
-        {
-            SceneView sceneView = SceneView.lastActiveSceneView;
-            return sceneView?.camera;
-        }
 
-
-        static MethodInfo _repaintAllMethod = null;
-        public static void UpdateEditorViews()
-        {
-
-            if (_repaintAllMethod == null)
-            {
-                var viewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.View");
-                if (viewType != null)
-                {
-                    _repaintAllMethod = viewType.GetMethod("RepaintAll", BindingFlags.Static | BindingFlags.NonPublic);
-                }
-            }
-
-            EditorApplication.QueuePlayerLoopUpdate();
-
-            foreach (SceneView sceneView in SceneView.sceneViews)
-            {
-                sceneView.Repaint();
-            }
-
-            foreach (EditorWindow window in Resources.FindObjectsOfTypeAll<EditorWindow>())
-            {
-                window.Repaint();
-            }
-
-            EditorApplication.DirtyHierarchyWindowSorting();
-
-            _repaintAllMethod?.Invoke(null, null);
-
-            //GUIUtility.ExitGUI();
-
-            foreach (SceneView sceneView in SceneView.sceneViews)
-            {
-                if (sceneView != null && sceneView.camera != null)
-                {
-                    sceneView.camera.Render();
-                }
-            }
-        }
 
         public static string GetProjectName()
         {

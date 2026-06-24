@@ -1,3 +1,5 @@
+#if UNITY_EDITOR
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,7 +8,6 @@ using Newtonsoft.Json;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
-
 
 namespace T2G
 {
@@ -313,3 +314,5 @@ namespace T2G
         }
     }
 }
+
+#endif
