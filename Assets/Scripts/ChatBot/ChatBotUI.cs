@@ -361,15 +361,8 @@ namespace T2G.Assistant
             var result = await Assistant.Instance.ProcessEnteredIntent(input);
 
             Debug.Log($"[ChatBotUI] ProcessEnteredIntent result: succeeded={result.succeeded}, response='{result.response}'");
-            if (result.succeeded)
-            {
-                AddMessage(Assistant.Instance.Settings.botName, result.response);
-            }
-            else
-            {
-                string response = result.response ?? GenerateBotResponse();
-                AddMessage(Assistant.Instance.Settings.botName, response);
-            }
+            string response = result.response ?? GenerateBotResponse();
+            UpdateLastBotMessage(response);
 
             inputHistoryIndex = -1;
             inputHistoryBuffer = "";

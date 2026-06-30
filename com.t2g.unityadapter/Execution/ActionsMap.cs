@@ -46,9 +46,4 @@ namespace T2G
         #endregion Component
     }
 
-    public static class Components
-    {
-
-    }
-
 }
