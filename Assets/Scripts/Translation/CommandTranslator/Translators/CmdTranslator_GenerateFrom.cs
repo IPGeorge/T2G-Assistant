@@ -18,10 +18,10 @@ namespace T2G.Assistant
                 return (false, null);
             }
 
-            var instruction = new Instruction
+            var instruction = new Instruction()
             {
+                type = Instruction.k_TypeInstructionList,
                 action = GetActionName(),
-                state = Instruction.eState.Batch
             };
 
             var genInstructions = GameDescManager.Instance.GetInstructionsForSpaces(gameDescPathFile, spacesStr);

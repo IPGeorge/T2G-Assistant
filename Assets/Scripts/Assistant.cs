@@ -19,8 +19,8 @@ namespace T2G.Assistant
         public string PersistentDataPath { get; private set; }
 
         private ChatBotUI _chatBot;
-        private Translation _tanslation = new Translation();
-        private Resolution _resolution = new Resolution();
+        private Translation _tanslation = Translation.Instance;
+        private Resolution _resolution = Resolution.Instance;
 
         public CommunicatorClient Communicator { get; private set; }
 
@@ -187,22 +187,8 @@ namespace T2G.Assistant
         async Awaitable<bool> ProcessInstruction(int i)
         {
             var instruction = _instructions[i];
-            if (instruction.state == Instruction.eState.Local)
-            {
-                var result = await LocalExecution.Instance.Execute(instruction);
-                _completed = result.succeeded;
 
-                if (!string.IsNullOrWhiteSpace(result.message))
-                {
-                    _sb.AppendLine(result.message);
-                }
-
-                if (result.additionalInstructions != null && result.additionalInstructions.Count > 0)
-                {
-                    InsertAdditionalInstructions(i, result.additionalInstructions);
-                }
-            }
-            else if (instruction.state == Instruction.eState.Batch)
+            if (instruction.type == Instruction.k_TypeInstructionList)
             {
                 ExponentialBackoffFocusRestorer.NeedFocus = true;
                 _sb.AppendLine($"Start batching {instruction.instructions.Length} instructions:");
@@ -210,42 +196,60 @@ namespace T2G.Assistant
             }
             else
             {
-                if (instruction.state == Instruction.eState.Raw)
+                if (instruction.state == Instruction.eState.Local)
                 {
-                    instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved
-                }
+                    var result = await LocalExecution.Instance.Execute(instruction);
+                    _completed = result.succeeded;
 
-                ExponentialBackoffFocusRestorer.NeedFocus = true;
-
-                if (instruction.state == Instruction.eState.Resolved)
-                {
-                    Communicator.EmptyReceiveBuffer();
-                    string jsonInstruction = JsonConvert.SerializeObject(instruction); 
-                    Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
-                    var response = await WaitForResponse();
-
-                    if (response.responded)
+                    if (!string.IsNullOrWhiteSpace(result.message))
                     {
-                        int paramIndex = response.message.IndexOf("\n");
-
-                        if (paramIndex >= 0)
-                        {
-                            string[] responseParams = response.message.Substring(paramIndex + 1).Split(';');
-                            GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), responseParams);
-                        }
-                        else
-                        {
-                            GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), null);
-                        }
+                        _sb.AppendLine(result.message);
                     }
 
-                    _completed &= response.responded;
-                    _sb.AppendLine(response.message);
+                    if (result.additionalInstructions != null && result.additionalInstructions.Count > 0)
+                    {
+                        InsertAdditionalInstructions(i, result.additionalInstructions);
+                    }
                 }
                 else
                 {
-                    _completed = false;
-                    _sb.AppendLine($"Failed to resolve the '{instruction.action}' instruction!");
+                    if (instruction.state == Instruction.eState.Raw)
+                    {
+                        instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved
+                    }
+
+                    ExponentialBackoffFocusRestorer.NeedFocus = true;
+
+                    if (instruction.state == Instruction.eState.Resolved)
+                    {
+                        Communicator.EmptyReceiveBuffer();
+                        string jsonInstruction = JsonConvert.SerializeObject(instruction);
+                        Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
+                        var response = await WaitForResponse();
+
+                        if (response.responded)
+                        {
+                            int paramIndex = response.message.IndexOf("\n");
+
+                            if (paramIndex >= 0)
+                            {
+                                string[] responseParams = response.message.Substring(paramIndex + 1).Split(';');
+                                GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), responseParams);
+                            }
+                            else
+                            {
+                                GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), null);
+                            }
+                        }
+
+                        _completed &= response.responded;
+                        _sb.AppendLine(response.message);
+                    }
+                    else
+                    {
+                        _completed = false;
+                        _sb.AppendLine($"Failed to resolve the '{instruction.action}' instruction!");
+                    }
                 }
             }
 
@@ -253,8 +257,6 @@ namespace T2G.Assistant
             {
                 InsertAdditionalInstructions(i, new List<Instruction>(instruction.instructions));
             }
-
-
 
             return _completed;
         }
@@ -279,12 +281,11 @@ namespace T2G.Assistant
             }
 
             TranslationLogger.Append(new TranslationRecord()
-                {
-                    prompt = intent,
-                    success = _completed,
-                    instructionList = new InstructionList() { instructions = _instructions }
-                }
-            );
+            {
+                prompt = intent,
+                success = _completed,
+                instructionList = _instructions
+            }); 
 
             return (_completed, _sb.ToString());
         }

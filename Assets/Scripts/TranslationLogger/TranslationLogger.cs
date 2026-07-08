@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -11,7 +12,7 @@ namespace T2G.Assistant
         public string timestampUtc;     // ISO 8601
         public string prompt;
         public bool success;
-        public InstructionList instructionList;
+        public List<Instruction> instructionList;
     }
 
     /// <summary>

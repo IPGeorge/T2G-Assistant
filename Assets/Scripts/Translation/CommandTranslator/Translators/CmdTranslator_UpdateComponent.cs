@@ -19,8 +19,8 @@ namespace T2G.Assistant
 
             List<Instruction> instructions = new List<Instruction>();
             Instruction instruction = new Instruction();
+            instruction.type = Instruction.k_TypeInstructionList;
             instruction.action = GetActionName();
-            instruction.state = Instruction.eState.Batch;
 
             instruction.instructions = new Instruction[2];
             instruction.instructions[0] = new Instruction();

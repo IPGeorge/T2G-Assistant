@@ -8,6 +8,22 @@ namespace T2G.Assistant
 {
     public class Resolution
     {
+
+        static Resolution _instance = null;
+
+        public static Resolution Instance
+        {
+            get
+            {
+                if(_instance == null)
+                {
+                    _instance = new Resolution();
+                }
+                return _instance;
+            }
+        }
+
+
         public async Awaitable<Instruction> Resolve(Instruction instruction)
         {
             switch (instruction.state)

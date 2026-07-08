@@ -20,6 +20,14 @@ namespace T2G.Assistant
 
             string projectPath = instruction.parameters.GetString("path");
             string projectName = instruction.parameters.GetString("projectName");
+
+            if (string.IsNullOrEmpty(projectPath) && string.IsNullOrEmpty(projectName) &&
+                !string.IsNullOrEmpty(Assistant.Instance.Settings.DefaultUnityProject))
+            {
+                projectName = Path.GetFileName(Assistant.Instance.Settings.DefaultUnityProject);
+                projectPath = Path.GetDirectoryName(Assistant.Instance.Settings.DefaultUnityProject);
+            }
+
             string projectPathName = Path.Combine(projectPath, projectName);
 
             if (!Directory.Exists(projectPathName))

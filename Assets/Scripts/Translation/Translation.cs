@@ -7,6 +7,19 @@ namespace T2G.Assistant
 {
     public class Translation
     {
+        static Translation _instance = null;
+        public static Translation Instance
+        {
+            get
+            {
+                if(_instance == null)
+                {
+                    _instance = new Translation();
+                }
+                return _instance;
+            }
+        }
+
          List<TranslatorBase> _translators = new List<TranslatorBase>();
 
         public Translation()
@@ -17,7 +30,7 @@ namespace T2G.Assistant
         public void RegisterTranslators()
         {
             _translators.Add(new CommandTranslator());
-            _translators.Add(new LMStudioTranslator());
+            _translators.Add(new LLMTranslator());
         }
 
         public async Awaitable<List<Instruction>> Translate(string text)

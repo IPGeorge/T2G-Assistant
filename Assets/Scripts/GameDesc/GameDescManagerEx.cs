@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using T2G;
+using UnityEngine;
 
 namespace T2G.Assistant
 {
@@ -40,9 +41,14 @@ namespace T2G.Assistant
         public Instruction[] GetInstructionsForSpaces(string filePath, string[] spaceNames)
         {
             if (string.IsNullOrWhiteSpace(filePath))
+            {
                 throw new ArgumentException("filePath is empty.");
+            }
+
             if (!File.Exists(filePath))
+            {
                 throw new FileNotFoundException("GameDesc file not found.", filePath);
+            }
 
             var gd = DeserializeGameDescFile(filePath);
             if (gd == null) return null;
@@ -73,19 +79,21 @@ namespace T2G.Assistant
         /// Parses a comma-separated space list string.
         /// If null or empty, returns null (meaning "all spaces").
         /// </summary>
-        public Instruction[] GetInstructionsForSpaces(string filePath, string spaceList = null)
+        public Instruction[] GetInstructionsForSpaces(string filePath, string spaceList = null, int tempreture = 0)
         {
-            if (string.IsNullOrWhiteSpace(spaceList))
+            string[] names = null;
+
+            if (!string.IsNullOrWhiteSpace(spaceList))
             {
-                return GetInstructionsForSpaces(filePath);
+                names = spaceList.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < names.Length; i++)
+                {
+                    names[i] = names[i].Trim();
+                }
             }
 
-            var names = spaceList.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < names.Length; i++)
-            {
-                names[i] = names[i].Trim();
-            }
-            return GetInstructionsForSpaces(filePath, names);
+            var instructions = GetInstructionsForSpaces(filePath, names);
+            return instructions;
         }
 
         // ============================================================
@@ -210,10 +218,15 @@ namespace T2G.Assistant
             var result = new List<Instruction>();
             foreach (var space in gameDesc.Spaces)
             {
-                if (space == null) continue;
+                if (space == null)
+                {
+                    continue;
+                }
                 var spaceInstructions = ParseSpaceForInstructions(space);
                 if (spaceInstructions != null)
+                {
                     result.AddRange(spaceInstructions);
+                }
             }
             return result.ToArray();
         }

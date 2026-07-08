@@ -18,29 +18,27 @@ namespace T2G
         {
             Invalid = -1,
             Init = 0,
-            Local,
-            Raw,
-            Resolved,
-            Batch
+            Local,          //Is a local executed instruction
+            Raw,            //An instruction without assets information
+            Resolved        //A resolved instruction with assets inforamtion
         }
 
         public const int k_TypeInstruction = 0;
-        public const int k_TypeInstructionList = 1;
+        public const int k_TypeInstructionList = 1;  //No action instruction only contains sub-instructions
 
         public int type = k_TypeInstruction;
         public string action;
         public eState state = eState.Init;
-        public string desc;
+        public string desc;          //Description. (e.g., a swat soldier character)
         
         [JsonProperty("parameters")] // Model may output "params" or "parameters" → accept both.
         public List<ValuePair> parameters;
-
-        
-        [JsonProperty("assets")] // Model may output "assets", "Assets" → accept both (case-insensitive is the default).
-        public List<string> assets;
+       
+        [JsonProperty("assets")]     //Model may output "assets", "Assets" → accept both (case-insensitive is the default).
+        public List<string> assets;  //resolved assets needs for this instruction (e.g., swat.unitypackage, SwatController.cs)   
 
         [SerializeReference]
-        public Instruction[] instructions;
+        public Instruction[] instructions;  //sub instructions
 
         public Instruction CloneWithoutSubInstructions()
         {
@@ -71,12 +69,6 @@ namespace T2G
             name = keyName;
             value = keyValue;
         }
-    }
-
-    public class InstructionList
-    {
-        public int type = Instruction.k_TypeInstructionList;
-        public List<Instruction> instructions;
     }
 
     #endregion Instruction models
