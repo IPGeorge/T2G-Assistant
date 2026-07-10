@@ -2,8 +2,8 @@ using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator(T2G.Actions.add_component)]
-    public class CmdTranslator_AddComponent : CmdTranslatorBase
+    [CommandTranslator(T2G.Actions.add_script)]
+    public class CmdTranslator_AddScript : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {

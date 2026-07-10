@@ -17,7 +17,7 @@ namespace T2G
         private bool _isSpaceOpened;
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string spaceName = instruction.parameters.GetString("spaceName");
+            string spaceName = instruction.parameters.GetString("SpaceName");
             string spacesPath = Path.Combine(Application.dataPath, k_SpacesDirectory);
             string spaceFile = Path.Combine(spacesPath, spaceName + ".unity");
             string space = Path.Combine(k_Assets, k_SpacesDirectory, spaceName + ".unity");

@@ -30,8 +30,8 @@ namespace T2G.Assistant
             if (string.IsNullOrEmpty(pluginPath) || pluginPath.IndexOf(k_T2G_UnityAdapter_Package, StringComparison.OrdinalIgnoreCase) < 0)
                 return (false, "Please setup the T2G plugin path for Unity before initializing a project.", null);
 
-            _projectPath = instruction.parameters.GetString("path");
-            _projectName = instruction.parameters.GetString("projectName");
+            _projectPath = instruction.parameters.GetString("Path");
+            _projectName = instruction.parameters.GetString("ProjectName");
             _projectPathName = Path.Combine(_projectPath, _projectName);
 
             if (!Directory.Exists(_projectPathName))

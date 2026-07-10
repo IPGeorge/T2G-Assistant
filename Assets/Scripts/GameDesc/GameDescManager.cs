@@ -250,7 +250,7 @@ namespace T2G.Assistant
                     Debug.LogWarning($"[GameDescManager] create_object skipped - objectName or CurrentSpaceName is empty");
                 }
             }
-            else if (action == T2G.Actions.add_component)
+            else if (action == T2G.Actions.add_script)
             {
                 string objectName = instruction.parameters.GetString("objName");
                 string componentType = instruction.parameters.GetString("type");
@@ -470,7 +470,7 @@ namespace T2G.Assistant
                     catch { }
                 }
             }
-            else if (action == T2G.Actions.remove_component)
+            else if (action == T2G.Actions.remove_script)
             {
                 string objectName = instruction.parameters.GetString("Name");
                 string componentType = instruction.parameters.GetString("Type");

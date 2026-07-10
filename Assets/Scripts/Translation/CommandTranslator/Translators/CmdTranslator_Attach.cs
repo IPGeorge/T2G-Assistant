@@ -22,12 +22,12 @@ namespace T2G.Assistant
             }
             
             instruction.parameters = new List<ValuePair>();
-            instruction.parameters.Add(new ValuePair("source", source));
-            instruction.parameters.Add(new ValuePair("target", target));
+            instruction.parameters.Add(new ValuePair("Source", source));
+            instruction.parameters.Add(new ValuePair("Target", target));
             
             if (!string.IsNullOrEmpty(socket))
             {
-                instruction.parameters.Add(new ValuePair("socket", socket));
+                instruction.parameters.Add(new ValuePair("Socket", socket));
             }
             
             instructions.Add(instruction);

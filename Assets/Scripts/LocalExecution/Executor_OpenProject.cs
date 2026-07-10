@@ -18,8 +18,8 @@ namespace T2G.Assistant
                 return (false, "Please setup Unity Editor path before opening a project.", null);
             }
 
-            string projectPath = instruction.parameters.GetString("path");
-            string projectName = instruction.parameters.GetString("projectName");
+            string projectPath = instruction.parameters.GetString("Path");
+            string projectName = instruction.parameters.GetString("ProjectName");
 
             if (string.IsNullOrEmpty(projectPath) && string.IsNullOrEmpty(projectName) &&
                 !string.IsNullOrEmpty(Assistant.Instance.Settings.DefaultUnityProject))

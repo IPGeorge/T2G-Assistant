@@ -3,8 +3,8 @@ using System.IO;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator(T2G.Actions.update_component)]
-    public class CmdTranslator_UpdateComponent : CmdTranslatorBase
+    [CommandTranslator(T2G.Actions.update_script)]
+    public class CmdTranslator_UpdateScript : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
@@ -24,14 +24,14 @@ namespace T2G.Assistant
 
             instruction.instructions = new Instruction[2];
             instruction.instructions[0] = new Instruction();
-            instruction.instructions[0].action = T2G.Actions.remove_component;
+            instruction.instructions[0].action = T2G.Actions.remove_script;
             instruction.instructions[0].state = Instruction.eState.Resolved;
             instruction.instructions[0].parameters = new List<ValuePair>();
             instruction.instructions[0].parameters.Add(new ValuePair("objName", objName));
             instruction.instructions[0].parameters.Add(new ValuePair("componentType", component));
 
             instruction.instructions[1] = new Instruction();
-            instruction.instructions[1].action = T2G.Actions.add_component;
+            instruction.instructions[1].action = T2G.Actions.add_script;
             if (PathValidator.IsValidFilePath(newComponent, true))
             {
                 instruction.instructions[1].state = Instruction.eState.Resolved;

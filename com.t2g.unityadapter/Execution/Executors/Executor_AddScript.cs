@@ -11,8 +11,8 @@ using UnityEngine.SceneManagement;
 
 namespace T2G
 {
-    [Executor(Actions.add_component)]
-    public class Executor_Addcomponent : ExecutorBase
+    [Executor(Actions.add_script)]
+    public class Executor_AddScript : ExecutorBase
     {
         static readonly string k_InitOnLoadAddComponentKey = "AddComponentTask";
 

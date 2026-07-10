@@ -53,9 +53,9 @@ namespace T2G.Assistant
             (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", T2G.Actions.detach_from),
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=|to)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", T2G.Actions.set_property),
             (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", T2G.Actions.call_method),
-            (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.add_component),
-            (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.remove_component),
-            (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", T2G.Actions.update_component),
+            (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.add_script),
+            (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.remove_script),
+            (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", T2G.Actions.update_script),
 
             (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
             (@"^call\s+(?<name>""[^""]+""|'[^']+'|[\w\-]+)\s+method\s+(?<method>""[^""]+""|'[^']+'|[\w\.]+)(?:\s+(?:with\s+)?parameters?\s+(?<parameters>.+))?$", T2G.Actions.call_method),

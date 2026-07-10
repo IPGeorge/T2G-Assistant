@@ -18,7 +18,7 @@ namespace T2G
         {
             string name = instruction.parameters.GetString("Name");
             string desc = instruction.desc;
-            string positionStr = instruction.parameters.GetString("position");
+            string positionStr = instruction.parameters.GetString("Position");
             Vector3? position = null;
 
             // Parse position if provided (format: "(x, y, z)")

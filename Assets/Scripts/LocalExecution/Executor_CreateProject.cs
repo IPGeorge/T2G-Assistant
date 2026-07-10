@@ -24,8 +24,8 @@ namespace T2G.Assistant
             if (string.IsNullOrEmpty(pluginPath))
                 return (false, "Please setup the T2G plugin path for Unity before creating a new project.", null);
 
-            _projectPath = instruction.parameters.GetString("path");
-            _projectName = instruction.parameters.GetString("projectName");
+            _projectPath = instruction.parameters.GetString("Path");
+            _projectName = instruction.parameters.GetString("ProjectName");
             _projectPathName = Path.Combine(_projectPath, _projectName);
 
             try

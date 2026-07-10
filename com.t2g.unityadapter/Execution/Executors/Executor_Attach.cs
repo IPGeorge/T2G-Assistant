@@ -13,9 +13,9 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string sourceObjName = instruction.parameters.GetString("source");
-            string targetObjName = instruction.parameters.GetString("target");
-            string socketName = instruction.parameters.GetString("socket");
+            string sourceObjName = instruction.parameters.GetString("Source");
+            string targetObjName = instruction.parameters.GetString("Target");
+            string socketName = instruction.parameters.GetString("Socket");
 
             var sourceObject = Utils.FindObjectByName(sourceObjName);
             if(sourceObject == null)

@@ -407,7 +407,7 @@ namespace T2G.Assistant
 
             var instr = new Instruction
             {
-                action = T2G.Actions.add_component,
+                action = T2G.Actions.add_script,
                 state = Instruction.eState.Resolved,
                 assets = component.Assets
             };
@@ -465,7 +465,7 @@ namespace T2G.Assistant
 
             var instr = new Instruction
             {
-                action = T2G.Actions.add_component,
+                action = T2G.Actions.add_script,
                 state = Instruction.eState.Resolved
             };
             instr.parameters = new List<ValuePair>

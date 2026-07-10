@@ -9,8 +9,8 @@ using UnityEngine.SceneManagement;
 
 namespace T2G
 {
-    [Executor(Actions.remove_component)]
-    public class Executor_RemoveComponent : ExecutorBase
+    [Executor(Actions.remove_script)]
+    public class Executor_RemoveScript : ExecutorBase
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {

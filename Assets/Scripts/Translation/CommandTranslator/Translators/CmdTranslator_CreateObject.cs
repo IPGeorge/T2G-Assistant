@@ -29,7 +29,7 @@ namespace T2G.Assistant
             string z = Utils.GetParamFromArguments(args, "z");
             if (!string.IsNullOrEmpty(x) && !string.IsNullOrEmpty(y) && !string.IsNullOrEmpty(z))
             {
-                instruction.parameters.Add(new ValuePair("position", $"({x}, {y}, {z})"));
+                instruction.parameters.Add(new ValuePair("Position", $"({x}, {y}, {z})"));
             }
 
             string countString = Utils.GetParamFromArguments(args, "count").Trim();

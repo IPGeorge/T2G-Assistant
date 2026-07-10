@@ -36,8 +36,8 @@ namespace T2G.Assistant
                 prjName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
                 path = Path.GetDirectoryName(path);
             }
-            instruction.parameters.Add(new ValuePair("path", path));
-            instruction.parameters.Add(new ValuePair("projectName", prjName));
+            instruction.parameters.Add(new ValuePair("Path", path));
+            instruction.parameters.Add(new ValuePair("ProjectName", prjName));
             instructions.Add(instruction);
             return (true, instructions);
         }
