@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace T2G.Assistant
 {
-    [CommandTranslator(T2G.Actions.generate_from)]
-    public class CmdTranslator_GenerateFrom : CmdTranslatorBase
+    [CommandTranslator(T2G.Actions.create_from)]
+    public class CmdTranslator_CreateFrom : CmdTranslatorBase
     {
         public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
         {
@@ -51,7 +51,6 @@ namespace T2G.Assistant
                 });
 
                 instruction.instructions = batchInstructions.ToArray();
-                
 
                 instructions.Add(instruction);
                 return (true, instructions);

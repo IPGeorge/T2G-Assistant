@@ -33,7 +33,7 @@ namespace T2G.Assistant
         private (string pattern, string key)[] _RBP_Rules = 
         {
             // Pattern that handles both cases
-            (@"^(generate|create)\s+from\s+(?<gamedesc>[A-Za-z]:\\[^\s]+)(?:\s+spaces\s*=\s*""?(?<spaces>[^""\s]*)""?)?\s*$", T2G.Actions.generate_from),
+            (@"^(generate|create)\s+from\s+(?<gamedesc>[A-Za-z]:\\[^\s]+)(?:\s+spaces\s*=\s*""?(?<spaces>[^""\s]*)""?)?\s*$", T2G.Actions.create_from),
             (@"^import\s+assets\s+(?<assets>(?:""[^""]+""|[^\s,]+)(?:\s*,\s*(?:""[^""]+""|[^\s,]+))*)\s*$", T2G.Actions.import_assets),
             (@"^create\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?!\s+from\b)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.create_project),
             (@"^(init|initialize)\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.init_project),

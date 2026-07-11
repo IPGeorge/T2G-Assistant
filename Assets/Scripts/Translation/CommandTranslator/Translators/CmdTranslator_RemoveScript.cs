@@ -20,8 +20,8 @@ namespace T2G.Assistant
             instruction.action = GetActionName();
             instruction.state = Instruction.eState.Resolved;
             instruction.parameters = new List<ValuePair>();
-            instruction.parameters.Add(new ValuePair("objName", objName));
-            instruction.parameters.Add(new ValuePair("componentType", componentType));
+            instruction.parameters.Add(new ValuePair("ObjName", objName));
+            instruction.parameters.Add(new ValuePair("ScriptType", componentType));
             instructions.Add(instruction);
 
             return (true, instructions);

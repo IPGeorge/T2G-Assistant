@@ -6,7 +6,7 @@ namespace T2G
 
         #region Project 
         public const string create_project = "create_project";
-        public const string generate_from = "generate_from";
+        public const string create_from = "create_from";
         public const string init_project = "init_project";
         public const string open_project = "open_project";
         #endregion Project

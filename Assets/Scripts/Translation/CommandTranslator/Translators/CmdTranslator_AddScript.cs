@@ -19,13 +19,13 @@ namespace T2G.Assistant
             Instruction instruction = new Instruction();
             instruction.action = GetActionName();
             instruction.parameters = new List<ValuePair>();
-            instruction.parameters.Add(new ValuePair("objName", objName));
+            instruction.parameters.Add(new ValuePair("ObjName", objName));
             instruction.desc = component;
 
             if (PathValidator.IsValidFilePath(component, true))
             {
                 instruction.state = Instruction.eState.Resolved;
-                instruction.parameters.Add(new ValuePair("type", "file"));
+                instruction.parameters.Add(new ValuePair("Type", "file"));
             }
             else
             {
@@ -33,12 +33,12 @@ namespace T2G.Assistant
                 if (IsKnownUnityComponent(lower))
                 {
                     instruction.state = Instruction.eState.Resolved;
-                    instruction.parameters.Add(new ValuePair("type", "component")); 
+                    instruction.parameters.Add(new ValuePair("Type", "component")); 
                 }
                 else
                 {
                     instruction.state = Instruction.eState.Raw;
-                    instruction.parameters.Add(new ValuePair("type", "script asset"));
+                    instruction.parameters.Add(new ValuePair("Type", "asset"));
                 }
             }
             instructions.Add(instruction);
