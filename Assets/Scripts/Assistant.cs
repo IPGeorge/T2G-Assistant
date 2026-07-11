@@ -194,6 +194,15 @@ namespace T2G.Assistant
                 _sb.AppendLine($"Start batching {instruction.instructions.Length} instructions:");
                 _completed = true;
             }
+            else if(instruction.type == Instruction.k_TypeFailed)
+            {
+                _sb.AppendLine("Sorry, I don't know how to accomplish this task!");
+                _completed = false;
+            }
+            else if(instruction.type == Instruction.k_TypeQuestion)
+            {
+                //Support it later
+            }
             else
             {
                 if (instruction.state == Instruction.eState.Local)

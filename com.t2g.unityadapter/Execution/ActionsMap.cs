@@ -3,6 +3,8 @@ namespace T2G
 {
     public static class Actions
     {
+        public const string no_action = "no_action";
+        public const string question = "question";
 
         #region Project 
         public const string create_project = "create_project";

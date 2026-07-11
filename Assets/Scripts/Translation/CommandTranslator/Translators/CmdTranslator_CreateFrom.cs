@@ -18,45 +18,19 @@ namespace T2G.Assistant
                 return (false, null);
             }
 
+            List<Instruction> instructions = new List<Instruction>();
             var instruction = new Instruction()
             {
-                type = Instruction.k_TypeInstructionList,
+                type = Instruction.k_TypeInstruction,
                 action = GetActionName(),
+                state = Instruction.eState.Local
             };
 
-            var genInstructions = GameDescManager.Instance.GetInstructionsForSpaces(gameDescPathFile, spacesStr);
+            instruction.parameters.Add(new ValuePair("GameDesc", gameDescPathFile));
+            instruction.parameters.Add(new ValuePair("Spaces", spacesStr));
 
-            List<Instruction> instructions = new List<Instruction>();
-            
-            if(genInstructions != null && genInstructions.Length > 0)
-            {
-                List<Instruction> batchInstructions = new List<Instruction>(genInstructions);
-
-                var importAssetsInstruction = new Instruction()
-                {
-                    action = T2G.Actions.import_assets,
-                    state = Instruction.eState.Resolved,
-                    assets = new List<string>()
-                };
-                
-                T2G.Utils.CollectAllAssets(genInstructions, ref importAssetsInstruction.assets);
-                Debug.Log($"{importAssetsInstruction.assets.Count} assets need to be imported.");
-
-                batchInstructions.Insert(0, importAssetsInstruction);
-
-                batchInstructions.Add(new Instruction()
-                {
-                    action = T2G.Actions.save_space,
-                    state = Instruction.eState.Resolved
-                });
-
-                instruction.instructions = batchInstructions.ToArray();
-
-                instructions.Add(instruction);
-                return (true, instructions);
-            }
-
-            return (false, null);
+            instructions.Add(instruction);
+            return (true, instructions);
         }
     }
 }

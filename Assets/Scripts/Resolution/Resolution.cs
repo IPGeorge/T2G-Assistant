@@ -23,7 +23,6 @@ namespace T2G.Assistant
             }
         }
 
-
         public async Awaitable<Instruction> Resolve(Instruction instruction)
         {
             switch (instruction.state)

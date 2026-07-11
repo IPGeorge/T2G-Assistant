@@ -23,8 +23,10 @@ namespace T2G
             Resolved        //A resolved instruction with assets inforamtion
         }
 
-        public const int k_TypeInstruction = 0;
+        public const int k_TypeInstruction = 0;      //A normal instruction that may contain sub-instructions
         public const int k_TypeInstructionList = 1;  //No action instruction only contains sub-instructions
+        public const int k_TypeQuestion = 2;         //Ask for critical information
+        public const int k_TypeFailed = -1;          //Failed to generate the instruction
 
         public int type = k_TypeInstruction;
         public string action;

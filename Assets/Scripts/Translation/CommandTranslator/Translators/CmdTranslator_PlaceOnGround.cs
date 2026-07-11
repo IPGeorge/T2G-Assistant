@@ -15,7 +15,7 @@ namespace T2G.Assistant
             instruction.state = Instruction.eState.Resolved;
             instruction.parameters = new List<ValuePair>();
             string objectName = Utils.GetParamFromArguments(args, "name");
-            instruction.parameters.Add(new ValuePair("objectName", objectName));
+            instruction.parameters.Add(new ValuePair("Name", objectName));
             instructions.Add(instruction);
             return (true, instructions);
         }
