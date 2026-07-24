@@ -38,6 +38,7 @@ namespace T2G
         public const string attach_to = "attach_to";
         public const string detach_from = "detach_from";
         public const string set_property = "set_property";
+        public const string set_relationship = "set_relationship";
         #endregion Object
 
         #region Component

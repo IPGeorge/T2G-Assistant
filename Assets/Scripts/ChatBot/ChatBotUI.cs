@@ -338,7 +338,36 @@ namespace T2G.Assistant
                 System.Diagnostics.Process.Start("explorer.exe", persistantPath);
             }
 
-            GUI.Label(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth * 3, buttonHeight),
+            if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth, buttonHeight), "Export"))
+            {
+                if (GameDescManager.Instance?.Snapshot == null)
+                {
+                    AddMessage(Assistant.Instance.Settings.botName, "No game description data is available!");
+                }
+                else
+                {
+                    string defaultName = $"{GameDescManager.Instance.Snapshot.ProjectName ?? "GameDesc"}_export.json";
+#if UNITY_EDITOR
+                    string folder = EditorUtility.OpenFolderPanel("Select export folder", Application.persistentDataPath, "");
+                    if (!string.IsNullOrWhiteSpace(folder))
+                    {
+                        string path = Path.Combine(folder, defaultName);
+                        GameDescManager.Instance.SaveHumanGameDesc(path);
+                        Debug.Log($"[ChatBotUI] Exported GameDesc to: {path}");
+                        System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + path.Replace("/", "\\") + "\"");
+                    }
+#else
+                    string path = Path.Combine(
+                        System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop),
+                        defaultName);
+                    GameDescManager.Instance.SaveHumanGameDesc(path);
+                    Debug.Log($"[ChatBotUI] Exported GameDesc to: {path}");
+                    System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + path.Replace("/", "\\") + "\"");
+#endif
+                }
+            }
+
+            GUI.Label(new Rect(windowX + (buttonWidth + spacing) * 4, buttonsY, buttonWidth * 3, buttonHeight),
                 Assistant.Instance.Settings.DefaultUnityProject);
         }
 

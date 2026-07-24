@@ -27,20 +27,59 @@ namespace T2G.Assistant
     {
         public string Name;
         public List<T2G.Assistant.Component> Components = new List<Component>();
-        public List<T2G.Assistant.Object> Objects = new List<Object>();
+
+        /// <summary>
+        /// Objects keyed by their GUID Id for O(1) lookup.
+        /// </summary>
+        public Dictionary<string, T2G.Assistant.Object> Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Name → GUID index for resolving instructions (which use names) to internal IDs.
+        /// Rebuilt by RebuildNameIndex() after any mutation or deserialization.
+        /// </summary>
+        [NonSerialized]
+        public Dictionary<string, string> _nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        public void RebuildNameIndex()
+        {
+            _nameToId.Clear();
+            if (Objects == null) return;
+            foreach (var kvp in Objects)
+            {
+                if (kvp.Value != null && !string.IsNullOrWhiteSpace(kvp.Value.Name))
+                    _nameToId[kvp.Value.Name] = kvp.Key;
+            }
+        }
     }
 
     [Serializable]
     public class Object
     {
+        public string Id;
         public string Name;
         public string Desc;
+        public List<string> Tags = new List<string>();
+        public List<string> Roles = new List<string>();
+        public List<Relationship> Relationships = new List<Relationship>();
         public List<ValuePair> Properties = new List<ValuePair>();
         public List<string> Assets = new List<string>();
         public List<T2G.Assistant.Component> Components = new List<Component>();
-        public List<T2G.Assistant.Object> Children = new List<Object>();
-        [NonSerialized] public T2G.Assistant.Object Parent;
-        public string Socket;
+    }
+
+    /// <summary>
+    /// Represents a named connection between two objects.
+    /// Type defines the kind of relationship (e.g. "attached_to", "contains").
+    /// Target is the GUID of the target object (not the display name).
+    /// Slot is an optional named connection point on the target — for example,
+    /// the socket name when Type is "attached_to", or an inventory slot when
+    /// used with container-type relationships.
+    /// </summary>
+    [Serializable]
+    public class Relationship
+    {
+        public string Type;
+        public string Target;
+        public string Slot;
     }
 
     [Serializable]
@@ -116,12 +155,11 @@ namespace T2G.Assistant
         }
     }
 
-
     [Serializable]
     public class PropertyDesc
     {
         public string Name;
-        public string Type;     //Keep this field for explicit validation, documentation, and training examples.
+        public string Type;
         public JToken Value;    //Examples: Value = JToken.FromObject(1.0f);
                                 //          Value = JToken.FromObject(new float[] { 0,0,0 });
                                 //          Value = JToken.FromObject(true);
@@ -158,17 +196,12 @@ namespace T2G.Assistant
                     return IsArrayOfLength(prop.Value, 4);
 
                 case "Color":
-                    // Support RGB or RGBA
                     return IsArrayOfLength(prop.Value, 3)
                         || IsArrayOfLength(prop.Value, 4);
 
                 case "ObjectRef":
-                    // Keep simple: reference by string (name/path/guid)
-                    // Avoid nested structures
-                    // Keeps JSON generation simple for the LLM
                     return prop.Value.Type == JTokenType.String;
                 default:
-                    // Unknown type � allow flexible fallback
                     return true;
             }
         }
@@ -188,4 +221,36 @@ namespace T2G.Assistant
         }
     }
 
+    public static class GameDescTags
+    {
+        public const string ThirdPerson = "third_person";
+        public const string Interactive = "interactive";
+        public const string Environment = "environment";
+        public const string ShootingRange = "shooting_range";
+        public const string Spawnable = "spawnable";
+        public const string Decorative = "decorative";
+        public const string MainCamera = "main_camera";
+    }
+
+    public static class GameDescRoles
+    {
+        public const string PlayerViewCamera = "player_view_camera";
+        public const string PrimaryWeapon = "primary_weapon";
+        public const string Projectile = "projectile";
+        public const string Target = "target";
+        public const string TargetSpawner = "target_spawner";
+        public const string GameUI = "game_ui";
+    }
+
+    public static class GameDescRelationTypes
+    {
+        public const string AttachedTo = "attached_to";
+        public const string Contains = "contains";
+        public const string ProvidesViewFor = "provides_view_for";
+        public const string EquippedBy = "equipped_by";
+        public const string SpawnedBy = "spawned_by";
+        public const string Controls = "controls";
+        public const string Targets = "targets";
+        public const string UsesAmmunitionFrom = "uses_ammunition_from";
+    }
 }

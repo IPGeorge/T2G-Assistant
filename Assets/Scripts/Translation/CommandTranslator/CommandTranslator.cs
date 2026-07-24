@@ -50,6 +50,7 @@ namespace T2G.Assistant
             (@"^(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
             (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
             (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:at|on)\s+(?<socket>[\w\-]+))?\s*$", T2G.Actions.attach_to),
+            (@"^set\s+relationship\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+as\s+(?<type>[\w_]+))?(?:\s+(?:at|on|slot)\s+(?<slot>[\w\-]+))?\s*$", T2G.Actions.set_relationship),
             (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", T2G.Actions.detach_from),
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=|to)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", T2G.Actions.set_property),
             (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", T2G.Actions.call_method),

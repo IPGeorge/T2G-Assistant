@@ -150,99 +150,67 @@ namespace T2G.Assistant
             else if (action == T2G.Actions.create_object)
             {
                 string objectName = instruction.parameters.GetString("Name");
-                string desc = instruction.desc;
-                Debug.Log($"[GameDescManager] create_object: objectName={objectName}, desc={desc}, CurrentSpaceName={CurrentSpaceName}");
-                
+                Debug.Log($"[GameDescManager] create_object: objectName={objectName}, CurrentSpaceName={CurrentSpaceName}");
+
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
                 {
-                    // Auto-create space if it doesn't exist in GameDesc
                     if (FindSpace(CurrentSpaceName) == null)
-                    {
                         AddSpace(CurrentSpaceName);
-                    }
-                    
-                    // Add object to the space
+
                     try
                     {
-                        string parentName = instruction.parameters.GetString("Parent");
-                        AddObject(CurrentSpaceName, objectName, instruction.desc, parentName);
-                        Debug.Log($"[GameDescManager] Created object: {objectName} with desc: {instruction?.desc}");
+                        var obj = AddObject(CurrentSpaceName, objectName, instruction.desc);
+                        Debug.Log($"[GameDescManager] Created object: {objectName}");
 
-                        // Verify object was added
-                        var space = FindSpace(CurrentSpaceName);
-                        var obj = FindObjectInSpace(space, objectName);
-                        Debug.Log($"[GameDescManager] Object added: {objectName}, space.Objects count: {space?.Objects?.Count ?? 0}");
-
-                        // Populate Assets from instruction.assets
-                        var instrAssets = instruction.assets;
-                        if (instrAssets != null && instrAssets.Count > 0)
+                        // Tags
+                        string tagsStr = instruction.parameters.GetString("Tags");
+                        if (!string.IsNullOrWhiteSpace(tagsStr))
                         {
-                            var spaceName = FindSpace(CurrentSpaceName);
-                            var gameobj = FindObjectInSpace(spaceName, objectName);
-                            if (gameobj != null)
+                            foreach (var tag in tagsStr.Split(','))
                             {
-                                gameobj.Assets ??= new List<string>();
-                                foreach (var path in instrAssets)
-                                {
-                                    if (!gameobj.Assets.Contains(path))
-                                        gameobj.Assets.Add(path);
-                                }
+                                var trimmed = tag.Trim();
+                                if (!string.IsNullOrWhiteSpace(trimmed) && !obj.Tags.Contains(trimmed))
+                                    obj.Tags.Add(trimmed);
                             }
                         }
 
-                        // Populate position from instruction.parameters
+                        // Roles
+                        string rolesStr = instruction.parameters.GetString("Roles");
+                        if (!string.IsNullOrWhiteSpace(rolesStr))
+                        {
+                            foreach (var role in rolesStr.Split(','))
+                            {
+                                var trimmed = role.Trim();
+                                if (!string.IsNullOrWhiteSpace(trimmed) && !obj.Roles.Contains(trimmed))
+                                    obj.Roles.Add(trimmed);
+                            }
+                        }
+
+                        // Assets
+                        if (instruction.assets != null)
+                        {
+                            obj.Assets ??= new List<string>();
+                            foreach (var path in instruction.assets)
+                            {
+                                if (!obj.Assets.Contains(path))
+                                    obj.Assets.Add(path);
+                            }
+                        }
+
+                        // Position from parameters
                         string positionStr = instruction.parameters.GetString("position");
                         if (!string.IsNullOrWhiteSpace(positionStr))
                         {
-                            var spaceName = FindSpace(CurrentSpaceName);
-                            var gameObj = FindObjectInSpace(spaceName, objectName);
-                            if (gameObj != null)
-                            {
-                                gameObj.Properties ??= new List<ValuePair>();
-                                var posProp = gameObj.Properties.Find(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase));
-                                if (posProp != null) posProp.value = positionStr;
-                                else gameObj.Properties.Add(new ValuePair("position", positionStr));
-                            }
+                            obj.Properties ??= new List<ValuePair>();
+                            var posProp = obj.Properties.Find(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase));
+                            if (posProp != null) posProp.value = positionStr;
+                            else obj.Properties.Add(new ValuePair("position", positionStr));
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}\n{ex.StackTrace}");
-                        AddObject(CurrentSpaceName, objectName, instruction.desc, null);
-
-                        // Populate Assets from instruction.assets
-                        var instrAssets = instruction.assets;
-                        if (instrAssets != null && instrAssets.Count > 0)
-                        {
-                            var space = FindSpace(CurrentSpaceName);
-                            var obj = FindObjectInSpace(space, objectName);
-                            if (obj != null)
-                            {
-                                obj.Assets ??= new List<string>();
-                                foreach (var path in instrAssets)
-                                {
-                                    if (!obj.Assets.Contains(path))
-                                        obj.Assets.Add(path);
-                                }
-                            }
-                        }
-
-                        // Populate position from instruction.parameters
-                        string positionStr = instruction.parameters.GetString("position");
-                        if (!string.IsNullOrWhiteSpace(positionStr))
-                        {
-                            var space = FindSpace(CurrentSpaceName);
-                            var obj = FindObjectInSpace(space, objectName);
-                            if (obj != null)
-                            {
-                                obj.Properties ??= new List<ValuePair>();
-                                var posProp = obj.Properties.Find(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase));
-                                if (posProp != null) 
-                                    posProp.value = positionStr;
-                                else 
-                                    obj.Properties.Add(new ValuePair("position", positionStr));
-                            }
-                        }
+                        Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}");
+                        AddObject(CurrentSpaceName, objectName, instruction.desc);
                     }
                 }
                 else
@@ -257,10 +225,7 @@ namespace T2G.Assistant
 
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
                 {
-                    try
-                    {
-                        AddComponent(CurrentSpaceName, objectName, componentType, instruction);
-                    }
+                    try { AddComponent(CurrentSpaceName, objectName, componentType, instruction); }
                     catch { }
                 }
             }
@@ -269,11 +234,11 @@ namespace T2G.Assistant
                 string objectName = instruction.parameters.GetString("Name");
                 if (string.IsNullOrWhiteSpace(objectName))
                     objectName = instruction.parameters.GetString("objName");
-                
+
                 string propertyName = instruction.parameters.GetString("Property");
                 if (string.IsNullOrWhiteSpace(propertyName))
                     propertyName = instruction.parameters.GetString("property");
-                
+
                 string valueStr = instruction.parameters.GetString("Value");
                 if (string.IsNullOrWhiteSpace(valueStr))
                     valueStr = instruction.parameters.GetString("value");
@@ -281,10 +246,9 @@ namespace T2G.Assistant
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) &&
                     !string.IsNullOrWhiteSpace(propertyName))
                 {
-                    // Parse property to check for component prefix (e.g., "Light.Color")
                     string componentName = null;
                     string actualPropertyName = propertyName;
-                    
+
                     int dotIndex = propertyName.IndexOf('.');
                     if (dotIndex > 0 && dotIndex < propertyName.Length - 1)
                     {
@@ -292,73 +256,46 @@ namespace T2G.Assistant
                         actualPropertyName = propertyName.Substring(dotIndex + 1);
                     }
 
-                    // Auto-create space if it doesn't exist
                     if (FindSpace(CurrentSpaceName) == null)
-                    {
                         AddSpace(CurrentSpaceName);
-                    }
 
-                    // Auto-create object if it doesn't exist
                     var space = FindSpace(CurrentSpaceName);
                     var obj = FindObjectInSpace(space, objectName);
                     if (obj == null)
-                    {
                         obj = AddObject(CurrentSpaceName, objectName, null);
-                    }
 
-                    // Parse value
                     JToken tokenValue = null;
                     if (!string.IsNullOrWhiteSpace(valueStr))
                     {
-                        try {
-                            tokenValue = JToken.Parse(valueStr);
-                        } catch {
-                            tokenValue = valueStr;
-                        }
+                        try { tokenValue = JToken.Parse(valueStr); }
+                        catch { tokenValue = valueStr; }
                     }
 
-                    // If component is specified (via "Component.Property" format), set on component
                     if (!string.IsNullOrWhiteSpace(componentName))
                     {
-                        var comp = obj.Components?.Find(c => 
+                        var comp = obj.Components?.Find(c =>
                             string.Equals(c.Description, componentName, StringComparison.OrdinalIgnoreCase));
-                        
+
                         if (comp != null)
                         {
                             AddOrSetPropertyValue(comp, actualPropertyName, "", tokenValue);
                         }
                         else
                         {
-                            // Component not found - set on object's properties as fallback
                             obj.Properties ??= new List<ValuePair>();
-                            var existingProp = obj.Properties.Find(p => 
+                            var existingProp = obj.Properties.Find(p =>
                                 string.Equals(p.name, propertyName, StringComparison.OrdinalIgnoreCase));
-                            
-                            if (existingProp != null)
-                            {
-                                existingProp.value = tokenValue;
-                            }
-                            else
-                            {
-                                obj.Properties.Add(new ValuePair(propertyName, tokenValue));
-                            }
+                            if (existingProp != null) existingProp.value = tokenValue;
+                            else obj.Properties.Add(new ValuePair(propertyName, tokenValue));
                         }
                     }
                     else
                     {
-                        // No component specified - set on object's properties
                         obj.Properties ??= new List<ValuePair>();
-                        var existingProp = obj.Properties.Find(p => 
+                        var existingProp = obj.Properties.Find(p =>
                             string.Equals(p.name, actualPropertyName, StringComparison.OrdinalIgnoreCase));
-                        
-                        if (existingProp != null)
-                        {
-                            existingProp.value = tokenValue;
-                        }
-                        else
-                        {
-                            obj.Properties.Add(new ValuePair(actualPropertyName, tokenValue));
-                        }
+                        if (existingProp != null) existingProp.value = tokenValue;
+                        else obj.Properties.Add(new ValuePair(actualPropertyName, tokenValue));
                     }
                 }
             }
@@ -369,6 +306,19 @@ namespace T2G.Assistant
                 {
                     try
                     {
+                        var space = FindSpace(CurrentSpaceName);
+                        if (space == null) return;
+
+                        space._nameToId.TryGetValue(objectName, out var targetId);
+
+                        foreach (var obj in space.Objects.Values)
+                        {
+                            if (obj?.Relationships == null) continue;
+                            if (targetId != null)
+                                obj.Relationships.RemoveAll(r =>
+                                    string.Equals(r.Target, targetId, StringComparison.OrdinalIgnoreCase));
+                        }
+
                         RemoveObject(CurrentSpaceName, objectName);
                     }
                     catch { }
@@ -378,9 +328,7 @@ namespace T2G.Assistant
             {
                 string spaceName = instruction.parameters.GetString("spaceName");
                 if (!string.IsNullOrWhiteSpace(spaceName))
-                {
                     CurrentSpaceName = spaceName;
-                }
             }
             else if (action == T2G.Actions.rename_space)
             {
@@ -393,16 +341,13 @@ namespace T2G.Assistant
                         string oldName = space.Name;
                         space.Name = newSpaceName;
                         if (string.Equals(CurrentSpaceName, oldName, StringComparison.OrdinalIgnoreCase))
-                        {
                             CurrentSpaceName = newSpaceName;
-                        }
                         Debug.Log($"[GameDescManager] Renamed space: {oldName} -> {newSpaceName}");
                     }
                 }
             }
             else if (action == T2G.Actions.attach_to)
             {
-                // Support multiple parameter naming conventions
                 string childName = instruction.parameters.GetString("source");
                 string parentName = instruction.parameters.GetString("target");
                 string socketName = instruction.parameters.GetString("socket");
@@ -411,45 +356,35 @@ namespace T2G.Assistant
                 {
                     try
                     {
-                        // Auto-create space if it doesn't exist
                         if (FindSpace(CurrentSpaceName) == null)
-                        {
                             AddSpace(CurrentSpaceName);
-                        }
 
                         var space = FindSpace(CurrentSpaceName);
                         if (space == null) return;
 
-                        // Find or create child object
                         var child = FindObjectInSpace(space, childName);
                         if (child == null)
-                        {
                             child = AddObject(CurrentSpaceName, childName, null);
-                        }
 
-                        // Find or create parent object
                         var parent = FindObjectInSpace(space, parentName);
                         if (parent == null)
-                        {
                             parent = AddObject(CurrentSpaceName, parentName, null);
-                        }
 
-                        // Remove child from its current parent (if any)
-                        if (child.Parent != null && child.Parent.Children != null)
-                        {
-                            child.Parent.Children.Remove(child);
-                        }
-                        else
-                        {
-                            // Child might be at root level (space.Objects), remove from there
-                            space.Objects?.Remove(child);
-                        }
+                        // Remove any existing containment/attachment relationship from this child
+                        child.Relationships ??= new List<Relationship>();
+                        child.Relationships.RemoveAll(r =>
+                            string.Equals(r.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(r.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase));
 
-                        // Add child to new parent's Children list
-                        parent.Children ??= new List<Object>();
-                        child.Parent = parent;
-                        child.Socket = socketName;
-                        parent.Children.Add(child);
+                        // Add new relationship with parent's GUID
+                        child.Relationships.Add(new Relationship
+                        {
+                            Type = string.IsNullOrWhiteSpace(socketName)
+                                ? GameDescRelationTypes.Contains
+                                : GameDescRelationTypes.AttachedTo,
+                            Target = parent.Id,
+                            Slot = socketName ?? string.Empty
+                        });
 
                         if (responseParams != null)
                         {
@@ -457,9 +392,7 @@ namespace T2G.Assistant
                             {
                                 string[] valuePaire = responseParam.Split(new char[] { '=' }, 2);
                                 if (valuePaire.Length == 2)
-                                {
                                     AddOrSetProperty(child, valuePaire[0], valuePaire[1]);
-                                }
                             }
 
                             child.Properties?.RemoveAll(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase)
@@ -470,16 +403,65 @@ namespace T2G.Assistant
                     catch { }
                 }
             }
+            else if (action == T2G.Actions.set_relationship)
+            {
+                string sourceName = instruction.parameters.GetString("source");
+                string relType = instruction.parameters.GetString("type");
+                string targetName = instruction.parameters.GetString("target");
+                string slotName = instruction.parameters.GetString("slot");
+
+                if (!string.IsNullOrWhiteSpace(sourceName) && !string.IsNullOrWhiteSpace(relType) &&
+                    !string.IsNullOrWhiteSpace(CurrentSpaceName))
+                {
+                    try
+                    {
+                        if (FindSpace(CurrentSpaceName) == null)
+                            AddSpace(CurrentSpaceName);
+
+                        var space = FindSpace(CurrentSpaceName);
+                        if (space == null) return;
+
+                        var source = FindObjectInSpace(space, sourceName);
+                        if (source == null)
+                            source = AddObject(CurrentSpaceName, sourceName, null);
+
+                        source.Relationships ??= new List<Relationship>();
+
+                        // Resolve target name to GUID
+                        string targetId = string.Empty;
+                        if (!string.IsNullOrWhiteSpace(targetName))
+                        {
+                            if (space._nameToId.TryGetValue(targetName, out var tid))
+                                targetId = tid;
+                            else
+                            {
+                                var targetObj = AddObject(CurrentSpaceName, targetName, null);
+                                targetId = targetObj.Id;
+                            }
+                        }
+
+                        // Remove existing relationship of the same type targeting the same object
+                        source.Relationships.RemoveAll(r =>
+                            string.Equals(r.Type, relType, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(r.Target, targetId, StringComparison.OrdinalIgnoreCase));
+
+                        source.Relationships.Add(new Relationship
+                        {
+                            Type = relType,
+                            Target = targetId,
+                            Slot = slotName ?? string.Empty
+                        });
+                    }
+                    catch { }
+                }
+            }
             else if (action == T2G.Actions.remove_script)
             {
                 string objectName = instruction.parameters.GetString("Name");
                 string componentType = instruction.parameters.GetString("Type");
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
                 {
-                    try
-                    {
-                        RemoveComponent(CurrentSpaceName, objectName, componentType);
-                    }
+                    try { RemoveComponent(CurrentSpaceName, objectName, componentType); }
                     catch { }
                 }
             }
@@ -499,20 +481,11 @@ namespace T2G.Assistant
                         var obj = FindObjectInSpace(space, objectName);
                         if (obj == null) return;
 
-                        // If object has a parent, remove from parent's Children
-                        if (obj.Parent != null)
-                        {
-                            obj.Parent.Children?.Remove(obj);
-                        }
-
-                        // Set Parent to null and add to root (space.Objects)
-                        obj.Parent = null;
-                        obj.Socket = string.Empty;
-                        space.Objects ??= new List<Object>();
-                        if (!space.Objects.Contains(obj))
-                        {
-                            space.Objects.Add(obj);
-                        }
+                        // Remove containment/attachment relationships
+                        obj.Relationships ??= new List<Relationship>();
+                        obj.Relationships.RemoveAll(r =>
+                            string.Equals(r.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(r.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase));
 
                         if (responseParams != null)
                         {
@@ -520,9 +493,7 @@ namespace T2G.Assistant
                             {
                                 string[] valuePaire = responseParam.Split(new char[] { '=' }, 2);
                                 if (valuePaire.Length == 2)
-                                {
                                     AddOrSetProperty(obj, valuePaire[0], valuePaire[1]);
-                                }
                             }
 
                             obj.Properties?.RemoveAll(p => string.Equals(p.name, "localPosition", StringComparison.OrdinalIgnoreCase)
@@ -544,44 +515,6 @@ namespace T2G.Assistant
                 existing.value = value;
             else
                 obj.Properties.Add(new ValuePair(name, value));
-        }
-
-        public bool CreateFromGameDesc(string filePath)
-        {
-            if (string.IsNullOrWhiteSpace(filePath))
-                throw new ArgumentException("filePath is empty.");
-
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("GameDesc file not found.", filePath);
-
-            if (!LoadGameDesc(filePath))
-                return false;
-
-            if (GameDescParser.ParseForInstructions(Snapshot, out var instructions))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        public T2G.Instruction[] GetInstructionsFromGameDesc(string filePath)
-        {
-            if (string.IsNullOrWhiteSpace(filePath))
-                throw new ArgumentException("filePath is empty.");
-
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("GameDesc file not found.", filePath);
-
-            if (!LoadGameDesc(filePath))
-                return null;
-
-            if (GameDescParser.ParseForInstructions(Snapshot, out var instructions))
-            {
-                return instructions;
-            }
-
-            return null;
         }
 
         // ============================================================
@@ -607,6 +540,7 @@ namespace T2G.Assistant
 
             var wrapper = new GameDescFile
             {
+                SchemaVersion = 1,
                 Context = Assistant.Instance.GameProject,
                 GameDesc = Snapshot
             };
@@ -617,7 +551,7 @@ namespace T2G.Assistant
             {
                 fileName = MakeSafeFileName(Snapshot.Title);
             }
-            
+
             if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
                 fileName += ".json";
@@ -625,7 +559,7 @@ namespace T2G.Assistant
 
             string fullPath = Path.Combine(_saveGameDescFolder, fileName);
             File.WriteAllText(fullPath, json);
-            
+
             return fullPath;
         }
 
@@ -639,6 +573,7 @@ namespace T2G.Assistant
 
             string json = File.ReadAllText(filePath);
 
+            // Try new flat format first (SchemaVersion >= 1)
             GameDescFile wrapper;
             try
             {
@@ -652,12 +587,24 @@ namespace T2G.Assistant
             if (wrapper?.GameDesc == null)
                 throw new InvalidOperationException("Invalid file: GameDesc missing.");
 
-            Snapshot = wrapper.GameDesc;
+            if (wrapper.SchemaVersion == null || wrapper.SchemaVersion < 1)
+            {
+                // Legacy hierarchical format — migrate
+                var legacyWrapper = JsonConvert.DeserializeObject<LegacyGameDescFile>(json, _jsonSettings);
+                if (legacyWrapper?.GameDesc == null)
+                    throw new InvalidOperationException("Invalid file: cannot migrate legacy GameDesc.");
 
-            // Rebuild parent pointers for hierarchy correctness.
-            RebuildParents(Snapshot);
+                Snapshot = MigrateFromLegacy(legacyWrapper.GameDesc);
+                Debug.Log("[GameDescManager] Migrated legacy hierarchical GameDesc to flat format.");
 
-            // Normalize lists/caches.
+                // Re-save in new format immediately
+                SaveGameDesc(Path.GetFileName(filePath));
+            }
+            else
+            {
+                Snapshot = wrapper.GameDesc;
+            }
+
             Normalize(Snapshot);
 
             return true;
@@ -683,6 +630,52 @@ namespace T2G.Assistant
         // Domain: Snapshot edits
         // ============================================================
 
+        // ============================================================
+        // Export / Import (human-oriented format)
+        // ============================================================
+
+        /// <summary>
+        /// Exports the current Snapshot as a hierarchical HumanGameDesc.
+        /// </summary>
+        public HumanGameDesc ExportToHumanGameDesc()
+        {
+            EnsureSnapshot();
+            return GameDescConverter.ToHuman(Snapshot);
+        }
+
+        /// <summary>
+        /// Saves the current Snapshot as a human-oriented JSON file.
+        /// </summary>
+        public string SaveHumanGameDesc(string filePath)
+        {
+            EnsureSnapshot();
+            var human = ExportToHumanGameDesc();
+            string json = JsonConvert.SerializeObject(human, _jsonSettings);
+            File.WriteAllText(filePath, json);
+            return filePath;
+        }
+
+        /// <summary>
+        /// Loads a human-oriented (hierarchical) GameDesc JSON file
+        /// and converts it to the internal flat model.
+        /// </summary>
+        public void ImportFromHumanGameDesc(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath is empty.");
+
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("File not found.", filePath);
+
+            string json = File.ReadAllText(filePath);
+            var human = JsonConvert.DeserializeObject<HumanGameDesc>(json, _jsonSettings);
+            if (human == null)
+                throw new InvalidOperationException("Failed to deserialize HumanGameDesc.");
+
+            Snapshot = GameDescConverter.FromHuman(human);
+            Normalize(Snapshot);
+        }
+
         public Space AddSpace(string spaceName)
         {
             EnsureSnapshot();
@@ -695,14 +688,14 @@ namespace T2G.Assistant
             {
                 Name = spaceName,
                 Components = new List<Component>(),
-                Objects = new List<Object>()
+                Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase)
             };
 
             Snapshot.Spaces.Add(space);
             return space;
         }
 
-        public Object AddObject(string spaceName, string objectName, string desc = null, string parentName = null)
+        public Object AddObject(string spaceName, string objectName, string desc = null)
         {
             EnsureSnapshot();
 
@@ -711,27 +704,14 @@ namespace T2G.Assistant
 
             var newObj = new Object
             {
+                Id = Guid.NewGuid().ToString(),
                 Name = objectName,
                 Desc = desc ?? string.Empty,
-                Components = new List<Component>(),
-                Children = new List<Object>()
+                Components = new List<Component>()
             };
 
-            if (string.IsNullOrWhiteSpace(parentName))
-            {
-                space.Objects ??= new List<Object>();
-                newObj.Parent = null;
-                space.Objects.Add(newObj);
-            }
-            else
-            {
-                var parent = FindObjectInSpace(space, parentName)
-                             ?? throw new InvalidOperationException($"Parent '{parentName}' not found in space '{spaceName}'.");
-
-                parent.Children ??= new List<Object>();
-                newObj.Parent = parent;
-                parent.Children.Add(newObj);
-            }
+            space.Objects[newObj.Id] = newObj;
+            space._nameToId[objectName] = newObj.Id;
 
             return newObj;
         }
@@ -743,30 +723,13 @@ namespace T2G.Assistant
             var space = FindSpace(spaceName);
             if (space == null) return false;
 
-            // Check if it's the space itself
-            if (string.Equals(space.Name, objectName, StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            // First search in space.Objects (top-level objects)
-            if (space.Objects != null)
+            if (space._nameToId.TryGetValue(objectName, out var id))
             {
-                var target = space.Objects.Find(o => 
-                    o != null && string.Equals(o.Name, objectName, StringComparison.OrdinalIgnoreCase));
-                if (target != null)
-                {
-                    space.Objects.Remove(target);
-                    return true;
-                }
+                space.Objects.Remove(id);
+                space._nameToId.Remove(objectName);
+                return true;
             }
-
-            // Then search recursively (children)
-            var found = FindObjectInSpace(space, objectName);
-            if (found == null) return false;
-
-            var parent = found.Parent;
-            if (parent?.Children == null) return false;
-
-            return parent.Children.Remove(found);
+            return false;
         }
 
         public Component AddComponent(string spaceName, string objectName, string componentType, Instruction instruction)
@@ -949,44 +912,9 @@ namespace T2G.Assistant
             if (space == null || string.IsNullOrWhiteSpace(objectName))
                 return null;
 
-            // First search top-level objects in space
-            if (space.Objects != null)
-            {
-                foreach (var obj in space.Objects)
-                {
-                    if (obj != null && string.Equals(obj.Name, objectName, StringComparison.OrdinalIgnoreCase))
-                        return obj;
-                }
-            }
-
-            // Then search in children (recursive)
-            var stack = new Stack<Object>();
-            if (space.Objects != null)
-            {
-                foreach (var obj in space.Objects)
-                {
-                    if (obj?.Children != null)
-                    {
-                        for (int i = obj.Children.Count - 1; i >= 0; i--)
-                            stack.Push(obj.Children[i]);
-                    }
-                }
-            }
-
-            while (stack.Count > 0)
-            {
-                var cur = stack.Pop();
-                if (cur == null) continue;
-
-                if (string.Equals(cur.Name, objectName, StringComparison.OrdinalIgnoreCase))
-                    return cur;
-
-                if (cur.Children != null)
-                {
-                    for (int i = cur.Children.Count - 1; i >= 0; i--)
-                        stack.Push(cur.Children[i]);
-                }
-            }
+            if (space._nameToId.TryGetValue(objectName, out var id) &&
+                space.Objects.TryGetValue(id, out var obj))
+                return obj;
 
             return null;
         }
@@ -1000,62 +928,27 @@ namespace T2G.Assistant
             {
                 if (space == null) continue;
 
-                space.Objects ??= new List<Object>();
+                space.Objects ??= new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
                 space.Components ??= new List<Component>();
+                space.RebuildNameIndex();
 
-                foreach (var obj in space.Objects)
+                foreach (var obj in space.Objects.Values)
                 {
-                    NormalizeObjectRecursive(obj);
+                    if (obj == null) continue;
+
+                    obj.Tags ??= new List<string>();
+                    obj.Roles ??= new List<string>();
+                    obj.Relationships ??= new List<Relationship>();
+                    obj.Components ??= new List<Component>();
+                    obj.Assets ??= new List<string>();
+
+                    foreach (var c in obj.Components)
+                    {
+                        if (c == null) continue;
+                        c.Properties ??= new List<PropertyDesc>();
+                        c.RebuildPropertyMapIfExists();
+                    }
                 }
-            }
-        }
-
-        private static void NormalizeObjectRecursive(T2G.Assistant.Object obj)
-        {
-            if (obj == null) return;
-
-            obj.Children ??= new List<Object>();
-            obj.Components ??= new List<Component>();
-            obj.Assets ??= new List<string>();
-
-            foreach (var c in obj.Components)
-            {
-                if (c == null) continue;
-                c.Properties ??= new List<PropertyDesc>();
-                c.RebuildPropertyMapIfExists();
-            }
-
-            foreach (var child in obj.Children)
-            {
-                NormalizeObjectRecursive(child);
-            }
-        }
-
-        private static void RebuildParents(GameDesc gd)
-        {
-            if (gd?.Spaces == null) return;
-
-            foreach (var space in gd.Spaces)
-            {
-                if (space == null || space.Objects == null) continue;
-
-                foreach (var obj in space.Objects)
-                {
-                    obj.Parent = null;
-                    RebuildParentsRecursive(obj);
-                }
-            }
-        }
-
-        private static void RebuildParentsRecursive(Object parent)
-        {
-            if (parent?.Children == null) return;
-
-            foreach (var child in parent.Children)
-            {
-                if (child == null) continue;
-                child.Parent = parent;
-                RebuildParentsRecursive(child);
             }
         }
 
@@ -1076,8 +969,124 @@ namespace T2G.Assistant
         [Serializable]
         private class GameDescFile
         {
+            public int? SchemaVersion;
             public ProjectContext Context;
             public GameDesc GameDesc;
+        }
+
+        // ============================================================
+        // Legacy migration DTOs (old hierarchical format, schema v0)
+        // ============================================================
+
+        [Serializable]
+        private class LegacyGameDescFile
+        {
+            public ProjectContext Context;
+            public LegacyGameDesc GameDesc;
+        }
+
+        [Serializable]
+        private class LegacyGameDesc
+        {
+            public string ProjectName;
+            public string Title;
+            public List<LegacySpace> Spaces;
+            public List<InstructionRecord> InstructionHistory;
+        }
+
+        [Serializable]
+        private class LegacySpace
+        {
+            public string Name;
+            public List<Component> Components;
+            public List<LegacyObject> Objects;
+        }
+
+        [Serializable]
+        private class LegacyObject
+        {
+            public string Name;
+            public string Desc;
+            public List<ValuePair> Properties;
+            public List<string> Assets;
+            public List<Component> Components;
+            public List<LegacyObject> Children;
+            public string Socket;
+        }
+
+        private static GameDesc MigrateFromLegacy(LegacyGameDesc legacy)
+        {
+            var flat = new GameDesc
+            {
+                ProjectName = legacy.ProjectName,
+                Title = legacy.Title,
+                InstructionHistory = legacy.InstructionHistory ?? new List<InstructionRecord>(),
+                Spaces = new List<Space>()
+            };
+
+            if (legacy.Spaces == null) return flat;
+
+            foreach (var legacySpace in legacy.Spaces)
+            {
+                if (legacySpace == null) continue;
+
+                var space = new Space
+                {
+                    Name = legacySpace.Name,
+                    Components = legacySpace.Components ?? new List<Component>(),
+                    Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                FlattenLegacyObjects(legacySpace.Objects, null, space);
+
+                flat.Spaces.Add(space);
+            }
+
+            return flat;
+        }
+
+        private static void FlattenLegacyObjects(List<LegacyObject> legacyObjects, string parentName, Space space)
+        {
+            if (legacyObjects == null) return;
+
+            foreach (var legacyObj in legacyObjects)
+            {
+                if (legacyObj == null) continue;
+
+                var objId = Guid.NewGuid().ToString();
+                var obj = new Object
+                {
+                    Id = objId,
+                    Name = legacyObj.Name,
+                    Desc = legacyObj.Desc ?? string.Empty,
+                    Tags = new List<string>(),
+                    Roles = new List<string>(),
+                    Relationships = new List<Relationship>(),
+                    Properties = legacyObj.Properties ?? new List<ValuePair>(),
+                    Assets = legacyObj.Assets ?? new List<string>(),
+                    Components = legacyObj.Components ?? new List<Component>()
+                };
+
+                if (!string.IsNullOrWhiteSpace(parentName))
+                {
+                    string parentId = space._nameToId.TryGetValue(parentName, out var pid)
+                        ? pid : parentName;
+                    obj.Relationships.Add(new Relationship
+                    {
+                        Type = GameDescRelationTypes.Contains,
+                        Target = parentId,
+                        Slot = legacyObj.Socket ?? string.Empty
+                    });
+                }
+
+                space.Objects[objId] = obj;
+                space._nameToId[obj.Name] = objId;
+
+                if (legacyObj.Children != null && legacyObj.Children.Count > 0)
+                {
+                    FlattenLegacyObjects(legacyObj.Children, legacyObj.Name, space);
+                }
+            }
         }
     }
 
