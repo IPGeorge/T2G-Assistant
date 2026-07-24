@@ -40,6 +40,13 @@ namespace T2G.Assistant
         [NonSerialized]
         public Dictionary<string, string> _nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Assets referenced by objects in this space.
+        /// Key = download URL or absolute source path.
+        /// Value = resolved load info (project-relative path + type hint).
+        /// </summary>
+        public Dictionary<string, AssetInfo> Assets = new Dictionary<string, AssetInfo>();
+
         public void RebuildNameIndex()
         {
             _nameToId.Clear();
@@ -62,6 +69,10 @@ namespace T2G.Assistant
         public List<string> Roles = new List<string>();
         public List<Relationship> Relationships = new List<Relationship>();
         public List<ValuePair> Properties = new List<ValuePair>();
+        /// <summary>
+        /// Keys into Space.Assets dictionary. Retrieve the full AssetInfo via space.Assets[key].
+        /// Legacy format "url/path,LoadPath" is migrated during Normalize / MigrateFromLegacy.
+        /// </summary>
         public List<string> Assets = new List<string>();
         public List<T2G.Assistant.Component> Components = new List<Component>();
     }
@@ -153,6 +164,20 @@ namespace T2G.Assistant
             if (c == null) return;
             c.RebuildPropertyMap();
         }
+    }
+
+    [Serializable]
+    public class AssetInfo
+    {
+        /// <summary>
+        /// Unity project-relative path used to load the asset (e.g. "Assets/Models/chair.fbx").
+        /// </summary>
+        public string LoadPath;
+
+        /// <summary>
+        /// Asset type hint: prefab, model, texture, sprite, audio, package, script, etc.
+        /// </summary>
+        public string Type;
     }
 
     [Serializable]

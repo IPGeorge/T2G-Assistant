@@ -23,6 +23,11 @@ namespace T2G.Assistant
         public string Name;
         public List<Component> Components = new List<Component>();
         public List<HumanObject> Objects = new List<HumanObject>();
+
+        /// <summary>
+        /// Asset library for this space. Key = download URL or absolute path, Value = load info.
+        /// </summary>
+        public Dictionary<string, AssetInfo> Assets = new Dictionary<string, AssetInfo>();
     }
 
     [Serializable]
@@ -80,7 +85,10 @@ namespace T2G.Assistant
                     Components = space.Components != null
                         ? new List<Component>(space.Components)
                         : new List<Component>(),
-                    Objects = new List<HumanObject>()
+                    Objects = new List<HumanObject>(),
+                    Assets = space.Assets != null
+                        ? new Dictionary<string, AssetInfo>(space.Assets)
+                        : new Dictionary<string, AssetInfo>()
                 };
 
                 // Build GUID → Name lookup for resolving relationship targets
@@ -199,7 +207,10 @@ namespace T2G.Assistant
                     Components = humanSpace.Components != null
                         ? new List<Component>(humanSpace.Components)
                         : new List<Component>(),
-                    Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase)
+                    Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase),
+                    Assets = humanSpace.Assets != null
+                        ? new Dictionary<string, AssetInfo>(humanSpace.Assets)
+                        : new Dictionary<string, AssetInfo>()
                 };
 
                 var nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -213,6 +224,45 @@ namespace T2G.Assistant
                     {
                         if (rel != null && !string.IsNullOrWhiteSpace(rel.Target) && nameToId.TryGetValue(rel.Target, out var gid))
                             rel.Target = gid;
+                    }
+                }
+
+                // Migrate any legacy comma-delimited or unresolvable object assets into Space.Assets
+                foreach (var obj in space.Objects.Values)
+                {
+                    if (obj?.Assets == null || obj.Assets.Count == 0) continue;
+                    for (int i = 0; i < obj.Assets.Count; i++)
+                    {
+                        var assetStr = obj.Assets[i];
+                        if (string.IsNullOrWhiteSpace(assetStr))
+                        {
+                            obj.Assets.RemoveAt(i--);
+                            continue;
+                        }
+                        bool needsMigration = assetStr.IndexOf(',') >= 0 || !space.Assets.ContainsKey(assetStr);
+                        if (!needsMigration) continue;
+
+                        var parts = assetStr.Split(new[] { ',' }, 2);
+                        string key = parts[0].Trim();
+                        string loadPath = parts.Length > 1 ? parts[1].Trim() : key;
+
+                        if (!space.Assets.ContainsKey(key))
+                        {
+                            string ext = System.IO.Path.GetExtension(loadPath)?.ToLowerInvariant();
+                            string type = ext switch
+                            {
+                                ".prefab" => "prefab",
+                                ".fbx" or ".obj" or ".blend" or ".dae" or ".3ds" or ".mb" or ".ma" => "model",
+                                ".png" or ".jpg" or ".jpeg" or ".tga" or ".bmp" or ".psd" or ".tiff" => "texture",
+                                ".wav" or ".mp3" or ".ogg" or ".aiff" or ".flac" => "audio",
+                                ".unitypackage" => "package",
+                                ".cs" or ".dll" => "script",
+                                ".asset" or ".mat" or ".physicmaterial" or ".physicsmaterial" or ".guiskin" or ".fontsettings" => "asset",
+                                _ => ""
+                            };
+                            space.Assets[key] = new AssetInfo { LoadPath = loadPath, Type = type };
+                        }
+                        obj.Assets[i] = key;
                     }
                 }
 

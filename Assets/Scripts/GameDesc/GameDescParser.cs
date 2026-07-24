@@ -73,7 +73,7 @@ namespace T2G.Assistant
             foreach (var obj in space.Objects.Values)
             {
                 if (obj == null) continue;
-                result.AddRange(ParseObjectForInstructions(obj, guidToName));
+                result.AddRange(ParseObjectForInstructions(obj, space, guidToName));
             }
 
             // 3. Space-level components
@@ -90,7 +90,7 @@ namespace T2G.Assistant
         // Object → flat Instruction[]
         // ============================================================
 
-        public static Instruction[] ParseObjectForInstructions(T2G.Assistant.Object obj, Dictionary<string, string> guidToName = null)
+        public static Instruction[] ParseObjectForInstructions(T2G.Assistant.Object obj, T2G.Assistant.Space space, Dictionary<string, string> guidToName = null)
         {
             if (obj == null) return null;
 
@@ -120,10 +120,18 @@ namespace T2G.Assistant
                 createInstr.parameters.Add(new ValuePair("Roles", string.Join(",", obj.Roles)));
             }
 
-            // Assets
-            if (obj.Assets != null && obj.Assets.Count > 0)
+            // Assets — resolve keys through Space.Assets, produce "key,LoadPath" pairs
+            if (obj.Assets != null && obj.Assets.Count > 0 && space?.Assets != null)
             {
-                createInstr.assets = new List<string>(obj.Assets);
+                createInstr.assets = new List<string>(obj.Assets.Count);
+                foreach (var key in obj.Assets)
+                {
+                    if (string.IsNullOrWhiteSpace(key)) continue;
+                    if (space.Assets.TryGetValue(key, out var info))
+                        createInstr.assets.Add($"{key},{info.LoadPath}");
+                    else
+                        createInstr.assets.Add(key);
+                }
             }
             result.Add(createInstr);
 

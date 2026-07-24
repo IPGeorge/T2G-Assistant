@@ -189,14 +189,16 @@ namespace T2G.Assistant
                             }
                         }
 
-                        // Assets
+                        // Assets — populate Space.Assets dict, store only keys on object
                         if (instruction.assets != null)
                         {
                             obj.Assets ??= new List<string>();
-                            foreach (var path in instruction.assets)
+                            var space = FindSpace(CurrentSpaceName);
+                            foreach (var assetStr in instruction.assets)
                             {
-                                if (!obj.Assets.Contains(path))
-                                    obj.Assets.Add(path);
+                                string key = AddAssetToSpace(assetStr, space);
+                                if (key != null && !obj.Assets.Contains(key))
+                                    obj.Assets.Add(key);
                             }
                         }
 
@@ -935,6 +937,7 @@ namespace T2G.Assistant
 
                 space.Objects ??= new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
                 space.Components ??= new List<Component>();
+                space.Assets ??= new Dictionary<string, AssetInfo>();
                 space.RebuildNameIndex();
 
                 foreach (var obj in space.Objects.Values)
@@ -946,6 +949,23 @@ namespace T2G.Assistant
                     obj.Relationships ??= new List<Relationship>();
                     obj.Components ??= new List<Component>();
                     obj.Assets ??= new List<string>();
+
+                    // Migrate any legacy comma-delimited asset strings ("key,LoadPath")
+                    // into Space.Assets, so obj.Assets stores only the key.
+                    for (int i = 0; i < obj.Assets.Count; i++)
+                    {
+                        string assetStr = obj.Assets[i];
+                        // If it contains a comma it's still in legacy format, migrate it.
+                        // We also migrate if the key doesn't exist in space.Assets yet.
+                        if (assetStr.IndexOf(',') >= 0 || !space.Assets.ContainsKey(assetStr))
+                        {
+                            string key = AddAssetToSpace(assetStr, space);
+                            if (key != null)
+                                obj.Assets[i] = key;
+                            else
+                                obj.Assets.RemoveAt(i--);
+                        }
+                    }
 
                     foreach (var c in obj.Components)
                     {
@@ -965,6 +985,73 @@ namespace T2G.Assistant
                 name = name.Replace(c, '_');
 
             return name.Trim();
+        }
+
+        /// <summary>
+        /// Infer asset type from its file extension.
+        /// </summary>
+        private static string InferAssetType(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return "";
+            var ext = Path.GetExtension(path)?.ToLowerInvariant();
+            switch (ext)
+            {
+                case ".prefab": return "prefab";
+                case ".fbx":
+                case ".obj":
+                case ".blend":
+                case ".dae":
+                case ".3ds":
+                case ".mb":
+                case ".ma": return "model";
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".tga":
+                case ".bmp":
+                case ".psd":
+                case ".tiff": return "texture";
+                case ".wav":
+                case ".mp3":
+                case ".ogg":
+                case ".aiff":
+                case ".flac": return "audio";
+                case ".unitypackage": return "package";
+                case ".cs":
+                case ".dll": return "script";
+                case ".asset":
+                case ".mat":
+                case ".physicmaterial":
+                case ".physicsmaterial":
+                case ".guiskin":
+                case ".fontsettings": return "asset";
+                default: return "";
+            }
+        }
+
+        /// <summary>
+        /// Parse a single asset string from 'Object.Assets' (legacy format "key,LoadPath") into key and LoadPath.
+        /// If no comma, the entire string is both key and LoadPath.
+        /// Adds or updates the entry in space.Assets and returns just the key.
+        /// </summary>
+        private static string AddAssetToSpace(string assetStr, Space space)
+        {
+            if (string.IsNullOrWhiteSpace(assetStr)) return null;
+
+            var parts = assetStr.Split(new[] { ',' }, 2);
+            string key = parts[0].Trim();
+            string loadPath = parts.Length > 1 ? parts[1].Trim() : key;
+
+            if (!space.Assets.ContainsKey(key))
+            {
+                space.Assets[key] = new AssetInfo
+                {
+                    LoadPath = loadPath,
+                    Type = InferAssetType(loadPath)
+                };
+            }
+
+            return key;
         }
 
         // ============================================================
@@ -1059,6 +1146,14 @@ namespace T2G.Assistant
                 if (legacyObj == null) continue;
 
                 var objId = Guid.NewGuid().ToString();
+                var legacyAssets = legacyObj.Assets ?? new List<string>();
+                var migratedKeys = new List<string>(legacyAssets.Count);
+                foreach (var a in legacyAssets)
+                {
+                    string key = AddAssetToSpace(a, space);
+                    if (key != null) migratedKeys.Add(key);
+                }
+
                 var obj = new Object
                 {
                     Id = objId,
@@ -1068,7 +1163,7 @@ namespace T2G.Assistant
                     Roles = new List<string>(),
                     Relationships = new List<Relationship>(),
                     Properties = legacyObj.Properties ?? new List<ValuePair>(),
-                    Assets = legacyObj.Assets ?? new List<string>(),
+                    Assets = migratedKeys,
                     Components = legacyObj.Components ?? new List<Component>()
                 };
 
