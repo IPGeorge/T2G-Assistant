@@ -118,9 +118,11 @@ namespace T2G
                             bool isBusy = false;
                             if (_executorMap.ContainsKey(instruction.action))
                             {
-                                var result = await _executorMap[instruction.action].Execute(instruction);
+                                var executor = _executorMap[instruction.action];
+                                var result = await executor.Execute(instruction);
                                 response.Succeeded = result.succeeded;
                                 response.Message = result.message;
+                                response.ObjectId = executor.ResultObjectId ?? string.Empty;
                                 isBusy = string.IsNullOrEmpty(result.message);
                             }
                             else

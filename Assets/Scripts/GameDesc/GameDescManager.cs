@@ -123,13 +123,13 @@ namespace T2G.Assistant
 
             if (response?.Succeeded == true)
             {
-                UpdateFromInstruction(instruction, responseParams);
+                UpdateFromInstruction(instruction, response, responseParams);
             }
 
             SaveGameDesc();
         }
 
-        private void UpdateFromInstruction(T2G.Instruction instruction, string[] responseParams)
+        private void UpdateFromInstruction(T2G.Instruction instruction, T2G.Response response, string[] responseParams)
         {
             Debug.Log($"Update game after instruction {instruction.action} execution.");
 
@@ -157,9 +157,12 @@ namespace T2G.Assistant
                     if (FindSpace(CurrentSpaceName) == null)
                         AddSpace(CurrentSpaceName);
 
+                    string remoteId = response?.ObjectId;
                     try
                     {
                         var obj = AddObject(CurrentSpaceName, objectName, instruction.desc);
+                        if (!string.IsNullOrEmpty(remoteId))
+                            obj.Id = remoteId;
                         Debug.Log($"[GameDescManager] Created object: {objectName}");
 
                         // Tags
@@ -210,7 +213,9 @@ namespace T2G.Assistant
                     catch (Exception ex)
                     {
                         Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}");
-                        AddObject(CurrentSpaceName, objectName, instruction.desc);
+                        var obj = AddObject(CurrentSpaceName, objectName, instruction.desc);
+                        if (!string.IsNullOrEmpty(remoteId))
+                            obj.Id = remoteId;
                     }
                 }
                 else

@@ -94,10 +94,13 @@ namespace T2G
                 }
                 else
                 {
-                    Utils.PlaceInFrontOfCamera(_newObj);
-                }
-                Utils.UpdateEditorViews();
-                return (true, $"{name} was created.", null);
+                Utils.PlaceInFrontOfCamera(_newObj);
+            }
+            var identifier = _newObj.AddComponent<T2GIdentifier>();
+            identifier.Id = System.Guid.NewGuid().ToString();
+            ResultObjectId = identifier.Id;
+            Utils.UpdateEditorViews();
+            return (true, $"{name} was created.", null);
             }
         }
 
@@ -134,6 +137,8 @@ namespace T2G
                     }
                 }
                 Utils.UpdateEditorViews();
+                var idComp = _newObj.AddComponent<T2GIdentifier>();
+                idComp.Id = System.Guid.NewGuid().ToString();
                 return true;
             }
             _newObj = null;
@@ -158,6 +163,7 @@ namespace T2G
                 {
                     response.Succeeded = true;
                     response.Message = $"{objPrefab.name} was created.";
+                    response.ObjectId = _newObj?.GetComponent<T2GIdentifier>()?.Id ?? string.Empty;
                 }
                 else
                 {

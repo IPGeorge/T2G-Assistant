@@ -152,7 +152,7 @@ namespace T2G.Assistant
 
  #endregion Communicator event handlers
 
-        async Awaitable<(bool responded, string message)> WaitForResponse()
+        async Awaitable<Response> WaitForResponse()
         {
             int timeoutMiniSeconds = 60000;
             int waitInterval = 100;
@@ -163,12 +163,11 @@ namespace T2G.Assistant
                 timeoutMiniSeconds -= waitInterval;
                 if(timeoutMiniSeconds < 0)
                 {
-                    return (true, "Timeout waiting for the response!");
+                    return new Response(false, "Timeout waiting for the response!");
                 }
             }
             Communicator.RetriveMessageFromReceiveBuffer(out var responseData);
-            var response = JsonConvert.DeserializeObject<Response>(responseData.Message.ToString());
-            return (response.Succeeded, response.Message);
+            return JsonConvert.DeserializeObject<Response>(responseData.Message.ToString());
         }
 
 
@@ -236,23 +235,23 @@ namespace T2G.Assistant
                         Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
                         var response = await WaitForResponse();
 
-                        if (response.responded)
+                        if (response.Succeeded)
                         {
-                            int paramIndex = response.message.IndexOf("\n");
+                            int paramIndex = response.Message.IndexOf("\n");
 
                             if (paramIndex >= 0)
                             {
-                                string[] responseParams = response.message.Substring(paramIndex + 1).Split(';');
-                                GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), responseParams);
+                                string[] responseParams = response.Message.Substring(paramIndex + 1).Split(';');
+                                GameDescManager.RecordInstruction(instruction, response, responseParams);
                             }
                             else
                             {
-                                GameDescManager.RecordInstruction(instruction, new Response(response.responded, response.message), null);
+                                GameDescManager.RecordInstruction(instruction, response, null);
                             }
                         }
 
-                        _completed &= response.responded;
-                        _sb.AppendLine(response.message);
+                        _completed &= response.Succeeded;
+                        _sb.AppendLine(response.Message);
                     }
                     else
                     {
