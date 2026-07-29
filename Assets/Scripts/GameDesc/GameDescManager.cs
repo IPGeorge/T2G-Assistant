@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using T2G;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace T2G.Assistant
 {
@@ -189,14 +190,17 @@ namespace T2G.Assistant
                             }
                         }
 
-                        // Assets — populate Space.Assets dict, store only keys on object
+                        // Assets — instruction.assets is paired: [import0, load0, import1, load1, ...]
                         if (instruction.assets != null)
                         {
                             obj.Assets ??= new List<string>();
                             var space = FindSpace(CurrentSpaceName);
-                            foreach (var assetStr in instruction.assets)
+                            for (int i = 0; i < instruction.assets.Count; i += 2)
                             {
-                                string key = AddAssetToSpace(assetStr, space);
+                                string importPath = instruction.assets[i];
+                                string loadPath = i + 1 < instruction.assets.Count
+                                    ? instruction.assets[i + 1] : importPath;
+                                string key = AddAssetToSpace(importPath, loadPath, space);
                                 if (key != null && !obj.Assets.Contains(key))
                                     obj.Assets.Add(key);
                             }
@@ -228,6 +232,8 @@ namespace T2G.Assistant
             else if (action == T2G.Actions.add_script)
             {
                 string objectName = instruction.parameters.GetString("objName");
+                if (string.IsNullOrWhiteSpace(objectName))
+                    objectName = instruction.parameters.GetString("ObjName");
                 string componentType = instruction.parameters.GetString("type");
 
                 if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
@@ -386,9 +392,7 @@ namespace T2G.Assistant
                         // Add new relationship with parent's GUID
                         child.Relationships.Add(new Relationship
                         {
-                            Type = string.IsNullOrWhiteSpace(socketName)
-                                ? GameDescRelationTypes.Contains
-                                : GameDescRelationTypes.AttachedTo,
+                            Type = GameDescRelationTypes.AttachedTo,
                             Target = parent.Id,
                             Slot = socketName ?? string.Empty
                         });
@@ -749,32 +753,94 @@ namespace T2G.Assistant
 
             var comp = new Component
             {
-                Type = componentType,                   //file, component, asset
+                Type = componentType,
+                SourceType = componentType,
                 Description = instruction.desc,
-                BehaviorScript = string.Empty,
                 Properties = new List<PropertyDesc>(),
                 Assets = instruction.assets
             };
 
-            if(string.Compare(comp.Type, "file", true) == 0 && File.Exists(comp.Description))
+            if(string.Compare(componentType, "file", true) == 0)
             {
-                comp.BehaviorScript = File.ReadAllText(comp.Description);
+                string className = null;
+
+                if (File.Exists(comp.Description))
+                {
+                    string scriptContent = File.ReadAllText(comp.Description);
+                    className = ExtractScriptClassName(scriptContent);
+                }
+
+                className ??= Path.GetFileNameWithoutExtension(comp.Description);
+
+                if (!string.IsNullOrWhiteSpace(className))
+                {
+                    comp.Type = className;
+
+                    string importPath = comp.Description;
+                    var space = FindSpace(spaceName);
+                    if (space != null)
+                    {
+                        space.Assets ??= new Dictionary<string, AssetInfo>();
+                        if (!space.Assets.ContainsKey(importPath))
+                        {
+                            space.Assets[importPath] = new AssetInfo
+                            {
+                                ImportPath = importPath,
+                                LoadPath = className,
+                                Type = "Script"
+                            };
+                        }
+                    }
+                }
             }
-            else if (string.Compare(comp.Type, "script asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
+            else if (string.Compare(componentType, "asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
             {
                 comp.Assets = instruction.assets;
+
+                var space = FindSpace(spaceName);
+                if (space != null)
+                {
+                    space.Assets ??= new Dictionary<string, AssetInfo>();
+                    for (int i = 0; i < instruction.assets.Count; i++)
+                    {
+                        string assetPath = instruction.assets[i];
+                        if (string.IsNullOrWhiteSpace(assetPath)) continue;
+
+                        string className = null;
+                        string fullPath = Path.Combine(Application.dataPath, assetPath);
+                        if (File.Exists(fullPath))
+                        {
+                            string content = File.ReadAllText(fullPath);
+                            className = ExtractScriptClassName(content);
+                        }
+                        className ??= Path.GetFileNameWithoutExtension(assetPath);
+                        if (string.IsNullOrWhiteSpace(className)) continue;
+
+                        if (i == 0)
+                            comp.Type = className;
+
+                        if (!space.Assets.ContainsKey(assetPath))
+                        {
+                            space.Assets[assetPath] = new AssetInfo
+                            {
+                                ImportPath = assetPath,
+                                LoadPath = className,
+                                Type = "Script"
+                            };
+                        }
+                    }
+                }
+            }
+            else
+            {
+                comp.Type = instruction.desc ?? componentType;
             }
 
-            // Remove existing component with same type and assets before adding
-            int existingIdx = obj.Components.FindIndex(c =>
+            // Prevent duplicate component types
+            bool duplicate = obj.Components.Any(c =>
                 c != null &&
-                string.Equals(c.Type, comp.Type, StringComparison.OrdinalIgnoreCase) &&
-                ((c.Assets == null && comp.Assets == null) ||
-                 (c.Assets != null && comp.Assets != null && c.Assets.SequenceEqual(comp.Assets))));
-            if (existingIdx >= 0)
-            {
-                obj.Components.RemoveAt(existingIdx);
-            }
+                string.Equals(c.Type, comp.Type, StringComparison.OrdinalIgnoreCase));
+            if (duplicate) return comp;
 
             obj.Components.Add(comp);
             comp.RebuildPropertyMapIfExists();
@@ -795,14 +861,6 @@ namespace T2G.Assistant
 
             obj.Components.RemoveAt(idx);
             return true;
-        }
-
-        public void SetBehaviorScript(string spaceName, string objectName, string componentType, string behaviorScript)
-        {
-            EnsureSnapshot();
-
-            var comp = RequireComponent(spaceName, objectName, componentType);
-            comp.BehaviorScript = behaviorScript ?? string.Empty;
         }
 
         public void AddOrSetPropertyValue(
@@ -988,70 +1046,60 @@ namespace T2G.Assistant
         }
 
         /// <summary>
-        /// Infer asset type from its file extension.
+        /// Extract the MonoBehaviour class name from a script's source text.
+        /// </summary>
+        private static string ExtractScriptClassName(string scriptContent)
+        {
+            if (string.IsNullOrWhiteSpace(scriptContent)) return null;
+            var match = Regex.Match(scriptContent, @"class\s+(\w+)\s*:\s*MonoBehaviour");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        /// <summary>
+        /// Infer asset type from its file extension (returned without the leading dot).
         /// </summary>
         private static string InferAssetType(string path)
         {
             if (string.IsNullOrEmpty(path)) return "";
             var ext = Path.GetExtension(path)?.ToLowerInvariant();
-            switch (ext)
-            {
-                case ".prefab": return "prefab";
-                case ".fbx":
-                case ".obj":
-                case ".blend":
-                case ".dae":
-                case ".3ds":
-                case ".mb":
-                case ".ma": return "model";
-                case ".png":
-                case ".jpg":
-                case ".jpeg":
-                case ".tga":
-                case ".bmp":
-                case ".psd":
-                case ".tiff": return "texture";
-                case ".wav":
-                case ".mp3":
-                case ".ogg":
-                case ".aiff":
-                case ".flac": return "audio";
-                case ".unitypackage": return "package";
-                case ".cs":
-                case ".dll": return "script";
-                case ".asset":
-                case ".mat":
-                case ".physicmaterial":
-                case ".physicsmaterial":
-                case ".guiskin":
-                case ".fontsettings": return "asset";
-                default: return "";
-            }
+            if (string.IsNullOrEmpty(ext)) return "";
+            return ext.TrimStart('.');
         }
 
         /// <summary>
-        /// Parse a single asset string from 'Object.Assets' (legacy format "key,LoadPath") into key and LoadPath.
-        /// If no comma, the entire string is both key and LoadPath.
-        /// Adds or updates the entry in space.Assets and returns just the key.
+        /// Add an asset entry to Space.Assets or return existing key.
         /// </summary>
-        private static string AddAssetToSpace(string assetStr, Space space)
+        private static string AddAssetToSpace(string importPath, string loadPath, Space space)
         {
-            if (string.IsNullOrWhiteSpace(assetStr)) return null;
+            if (string.IsNullOrWhiteSpace(importPath)) return null;
 
-            var parts = assetStr.Split(new[] { ',' }, 2);
-            string key = parts[0].Trim();
-            string loadPath = parts.Length > 1 ? parts[1].Trim() : key;
+            string key = importPath.Trim();
+            string lp = !string.IsNullOrWhiteSpace(loadPath) ? loadPath.Trim() : key;
 
             if (!space.Assets.ContainsKey(key))
             {
                 space.Assets[key] = new AssetInfo
                 {
-                    LoadPath = loadPath,
-                    Type = InferAssetType(loadPath)
+                    ImportPath = key,
+                    LoadPath = lp,
+                    Type = InferAssetType(key)
                 };
             }
 
             return key;
+        }
+
+        /// <summary>
+        /// Parse a single asset string from 'Object.Assets' (legacy format "import,load") into
+        /// separate import/load paths. If no comma, the entire string is used as both.
+        /// </summary>
+        private static string AddAssetToSpace(string assetStr, Space space)
+        {
+            if (string.IsNullOrWhiteSpace(assetStr)) return null;
+            var parts = assetStr.Split(new[] { ',' }, 2);
+            return AddAssetToSpace(parts[0].Trim(),
+                parts.Length > 1 ? parts[1].Trim() : parts[0].Trim(),
+                space);
         }
 
         // ============================================================

@@ -97,10 +97,10 @@ namespace T2G.Assistant
     public class Component
     {
         public string Type;
+        public string SourceType;
         public List<PropertyDesc> Properties = new List<PropertyDesc>();
         public List<string> Assets = new List<string>();
         public string Description;
-        public string BehaviorScript;
 
         // Snapshot cache (fast lookup). Not serialized.
         [NonSerialized]
@@ -170,12 +170,18 @@ namespace T2G.Assistant
     public class AssetInfo
     {
         /// <summary>
+        /// Source path used to import the asset — download URL or absolute filesystem path.
+        /// Matches the key in Space.Assets.
+        /// </summary>
+        public string ImportPath;
+
+        /// <summary>
         /// Unity project-relative path used to load the asset (e.g. "Assets/Models/chair.fbx").
         /// </summary>
         public string LoadPath;
 
         /// <summary>
-        /// Asset type hint: prefab, model, texture, sprite, audio, package, script, etc.
+        /// File extension without the leading dot: "prefab", "unitypackage", "fbx", "png", etc.
         /// </summary>
         public string Type;
     }

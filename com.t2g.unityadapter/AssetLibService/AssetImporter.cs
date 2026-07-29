@@ -148,10 +148,6 @@ namespace T2G
                 await ImportUnityPackage(packagePath);
             }
 
-            Response response = new Response();
-            response.Succeeded = true;
-            response.Message = $"importing assets finished.";
-            Execution.Instance.SendExecutionResponse(response);
         }
 
         public static async Awaitable<int> BeginImportScripts(List<string> scriptPaths)
@@ -273,7 +269,7 @@ namespace T2G
                         }
 
                         EditorApplication.UnlockReloadAssemblies();
-                        CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+                        AssetDatabase.Refresh();
                     }
                 }
             }

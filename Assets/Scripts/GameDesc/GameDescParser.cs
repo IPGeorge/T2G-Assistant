@@ -120,17 +120,22 @@ namespace T2G.Assistant
                 createInstr.parameters.Add(new ValuePair("Roles", string.Join(",", obj.Roles)));
             }
 
-            // Assets — resolve keys through Space.Assets, produce "key,LoadPath" pairs
+            // Assets — resolve keys through Space.Assets, emit [import, load] pairs
             if (obj.Assets != null && obj.Assets.Count > 0 && space?.Assets != null)
             {
-                createInstr.assets = new List<string>(obj.Assets.Count);
+                createInstr.assets = new List<string>(obj.Assets.Count * 2);
                 foreach (var key in obj.Assets)
                 {
                     if (string.IsNullOrWhiteSpace(key)) continue;
                     if (space.Assets.TryGetValue(key, out var info))
-                        createInstr.assets.Add($"{key},{info.LoadPath}");
+                    {
+                        createInstr.assets.Add(info.ImportPath ?? key);
+                        createInstr.assets.Add(info.LoadPath ?? key);
+                    }
                     else
+                    {
                         createInstr.assets.Add(key);
+                    }
                 }
             }
             result.Add(createInstr);
@@ -240,10 +245,23 @@ namespace T2G.Assistant
                 state = Instruction.eState.Resolved,
                 assets = component.Assets
             };
+            // Read SourceType with heuristic fallback for legacy data
+            string mechanism = component.SourceType;
+            if (string.IsNullOrWhiteSpace(mechanism))
+            {
+                if (component.Assets != null && component.Assets.Count > 0)
+                    mechanism = "asset";
+                else if (!string.IsNullOrWhiteSpace(component.Description) &&
+                         component.Description.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    mechanism = "file";
+                else
+                    mechanism = "component";
+            }
+
             instr.parameters = new List<ValuePair>
             {
                 new ValuePair("objName", objectName),
-                new ValuePair("type", component.Type ?? string.Empty)
+                new ValuePair("type", mechanism)
             };
             if (!string.IsNullOrWhiteSpace(component.Description))
             {
@@ -292,10 +310,23 @@ namespace T2G.Assistant
                 action = T2G.Actions.add_script,
                 state = Instruction.eState.Resolved
             };
+            // Read SourceType with heuristic fallback for legacy data
+            string mechanism = component.SourceType;
+            if (string.IsNullOrWhiteSpace(mechanism))
+            {
+                if (component.Assets != null && component.Assets.Count > 0)
+                    mechanism = "asset";
+                else if (!string.IsNullOrWhiteSpace(component.Description) &&
+                         component.Description.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    mechanism = "file";
+                else
+                    mechanism = "component";
+            }
+
             instr.parameters = new List<ValuePair>
             {
                 new ValuePair("objName", spaceName),
-                new ValuePair("type", component.Type ?? string.Empty)
+                new ValuePair("type", mechanism)
             };
             if (!string.IsNullOrWhiteSpace(component.Description))
             {

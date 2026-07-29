@@ -83,8 +83,26 @@ namespace T2G
             if(_newObj == null)
             {
                 await AssetImporter.ImportAssets(name, instruction.assets, position);
-                CreateObjectImpl();
-                return (false, null, null);
+                await Utils.WaitForUnityIdle();
+
+                // Try to create the object from the queue (may need to wait for package import)
+                for (int retry = 0; retry < 60; retry++)
+                {
+                    AssetImporter.LoadLists();
+                    if (AssetImporter.CreateObjectsList.Count > 0)
+                    {
+                        var objPrefab = AssetImporter.CreateObjectsList[0];
+                        if (CreateObject(objPrefab))
+                        {
+                            ResultObjectId = _newObj?.GetComponent<T2GIdentifier>()?.Id ?? string.Empty;
+                            AssetImporter.CreateObjectsList.RemoveAt(0);
+                            AssetImporter.SaveLists();
+                            return (true, $"{name} was created.", null);
+                        }
+                    }
+                    await Task.Delay(1000);
+                }
+                return (false, $"Failed to create {name}!", null);
             }
             else
             {

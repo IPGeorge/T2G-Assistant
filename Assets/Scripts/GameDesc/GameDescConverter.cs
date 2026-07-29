@@ -248,19 +248,13 @@ namespace T2G.Assistant
 
                         if (!space.Assets.ContainsKey(key))
                         {
-                            string ext = System.IO.Path.GetExtension(loadPath)?.ToLowerInvariant();
-                            string type = ext switch
+                            string ext = System.IO.Path.GetExtension(key)?.ToLowerInvariant()?.TrimStart('.');
+                            space.Assets[key] = new AssetInfo
                             {
-                                ".prefab" => "prefab",
-                                ".fbx" or ".obj" or ".blend" or ".dae" or ".3ds" or ".mb" or ".ma" => "model",
-                                ".png" or ".jpg" or ".jpeg" or ".tga" or ".bmp" or ".psd" or ".tiff" => "texture",
-                                ".wav" or ".mp3" or ".ogg" or ".aiff" or ".flac" => "audio",
-                                ".unitypackage" => "package",
-                                ".cs" or ".dll" => "script",
-                                ".asset" or ".mat" or ".physicmaterial" or ".physicsmaterial" or ".guiskin" or ".fontsettings" => "asset",
-                                _ => ""
+                                ImportPath = key,
+                                LoadPath = loadPath,
+                                Type = ext ?? ""
                             };
-                            space.Assets[key] = new AssetInfo { LoadPath = loadPath, Type = type };
                         }
                         obj.Assets[i] = key;
                     }
