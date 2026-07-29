@@ -39,7 +39,7 @@ namespace T2G.Assistant
         public List<string> Roles = new List<string>();
         public List<Relationship> Relationships = new List<Relationship>();
         public List<ValuePair> Properties = new List<ValuePair>();
-        public List<string> Assets = new List<string>();
+        public List<ObjectAssetRef> Assets = new List<ObjectAssetRef>();
         public List<Component> Components = new List<Component>();
         public List<HumanObject> Children = new List<HumanObject>();
         public string Socket;
@@ -233,30 +233,36 @@ namespace T2G.Assistant
                     if (obj?.Assets == null || obj.Assets.Count == 0) continue;
                     for (int i = 0; i < obj.Assets.Count; i++)
                     {
-                        var assetStr = obj.Assets[i];
-                        if (string.IsNullOrWhiteSpace(assetStr))
-                        {
-                            obj.Assets.RemoveAt(i--);
-                            continue;
-                        }
-                        bool needsMigration = assetStr.IndexOf(',') >= 0 || !space.Assets.ContainsKey(assetStr);
-                        if (!needsMigration) continue;
+                        var assetRef = obj.Assets[i];
+                        if (assetRef == null) { obj.Assets.RemoveAt(i--); continue; }
 
-                        var parts = assetStr.Split(new[] { ',' }, 2);
-                        string key = parts[0].Trim();
-                        string loadPath = parts.Length > 1 ? parts[1].Trim() : key;
-
-                        if (!space.Assets.ContainsKey(key))
+                        // Legacy format: Key contains "import,load"
+                        if (!string.IsNullOrWhiteSpace(assetRef.Key) && assetRef.Key.IndexOf(',') >= 0)
                         {
-                            string ext = System.IO.Path.GetExtension(key)?.ToLowerInvariant()?.TrimStart('.');
-                            space.Assets[key] = new AssetInfo
+                            var parts = assetRef.Key.Split(new[] { ',' }, 2);
+                            string importPath = parts[0].Trim();
+                            string loadPath = parts.Length > 1 ? parts[1].Trim() : importPath;
+
+                            if (!space.Assets.ContainsKey(importPath))
                             {
-                                ImportPath = key,
-                                LoadPath = loadPath,
+                                string ext = System.IO.Path.GetExtension(importPath)?.ToLowerInvariant()?.TrimStart('.');
+                                space.Assets[importPath] = new AssetInfo
+                                {
+                                    ImportPath = importPath,
+                                    Type = ext ?? ""
+                                };
+                            }
+                            obj.Assets[i] = new ObjectAssetRef { Key = importPath, LoadPath = loadPath };
+                        }
+                        else if (!string.IsNullOrWhiteSpace(assetRef.Key) && !space.Assets.ContainsKey(assetRef.Key))
+                        {
+                            string ext = System.IO.Path.GetExtension(assetRef.Key)?.ToLowerInvariant()?.TrimStart('.');
+                            space.Assets[assetRef.Key] = new AssetInfo
+                            {
+                                ImportPath = assetRef.Key,
                                 Type = ext ?? ""
                             };
                         }
-                        obj.Assets[i] = key;
                     }
                 }
 
@@ -287,7 +293,7 @@ namespace T2G.Assistant
                     }).ToList()
                     : new List<Relationship>(),
                 Properties = obj.Properties != null ? new List<ValuePair>(obj.Properties) : new List<ValuePair>(),
-                Assets = obj.Assets != null ? new List<string>(obj.Assets) : new List<string>(),
+                Assets = obj.Assets != null ? obj.Assets.Select(a => new ObjectAssetRef { Key = a.Key, LoadPath = a.LoadPath }).ToList() : new List<ObjectAssetRef>(),
                 Components = obj.Components != null ? new List<Component>(obj.Components) : new List<Component>(),
                 Children = new List<HumanObject>(),
                 Socket = string.Empty
@@ -338,7 +344,7 @@ namespace T2G.Assistant
                         }).ToList()
                         : new List<Relationship>(),
                     Properties = hObj.Properties != null ? new List<ValuePair>(hObj.Properties) : new List<ValuePair>(),
-                    Assets = hObj.Assets != null ? new List<string>(hObj.Assets) : new List<string>(),
+                    Assets = hObj.Assets != null ? hObj.Assets.Select(a => new ObjectAssetRef { Key = a.Key, LoadPath = a.LoadPath }).ToList() : new List<ObjectAssetRef>(),
                     Components = hObj.Components != null ? new List<Component>(hObj.Components) : new List<Component>()
                 };
 

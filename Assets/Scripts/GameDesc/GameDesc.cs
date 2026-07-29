@@ -69,11 +69,7 @@ namespace T2G.Assistant
         public List<string> Roles = new List<string>();
         public List<Relationship> Relationships = new List<Relationship>();
         public List<ValuePair> Properties = new List<ValuePair>();
-        /// <summary>
-        /// Keys into Space.Assets dictionary. Retrieve the full AssetInfo via space.Assets[key].
-        /// Legacy format "url/path,LoadPath" is migrated during Normalize / MigrateFromLegacy.
-        /// </summary>
-        public List<string> Assets = new List<string>();
+        public List<ObjectAssetRef> Assets = new List<ObjectAssetRef>();
         public List<T2G.Assistant.Component> Components = new List<Component>();
     }
 
@@ -99,7 +95,7 @@ namespace T2G.Assistant
         public string Type;
         public string SourceType;
         public List<PropertyDesc> Properties = new List<PropertyDesc>();
-        public List<string> Assets = new List<string>();
+        public List<ComponentAssetRef> Assets = new List<ComponentAssetRef>();
         public string Description;
 
         // Snapshot cache (fast lookup). Not serialized.
@@ -169,20 +165,21 @@ namespace T2G.Assistant
     [Serializable]
     public class AssetInfo
     {
-        /// <summary>
-        /// Source path used to import the asset — download URL or absolute filesystem path.
-        /// Matches the key in Space.Assets.
-        /// </summary>
         public string ImportPath;
+        public string Type;
+    }
 
-        /// <summary>
-        /// Unity project-relative path used to load the asset (e.g. "Assets/Models/chair.fbx").
-        /// </summary>
+    [Serializable]
+    public class ObjectAssetRef
+    {
+        public string Key;
         public string LoadPath;
+    }
 
-        /// <summary>
-        /// File extension without the leading dot: "prefab", "unitypackage", "fbx", "png", etc.
-        /// </summary>
+    [Serializable]
+    public class ComponentAssetRef
+    {
+        public string Key;
         public string Type;
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using T2G;
 
 namespace T2G.Assistant
@@ -120,22 +121,15 @@ namespace T2G.Assistant
                 createInstr.parameters.Add(new ValuePair("Roles", string.Join(",", obj.Roles)));
             }
 
-            // Assets — resolve keys through Space.Assets, emit [import, load] pairs
-            if (obj.Assets != null && obj.Assets.Count > 0 && space?.Assets != null)
+            // Assets — emit [import, load] pairs from ObjectAssetRef
+            if (obj.Assets != null && obj.Assets.Count > 0)
             {
                 createInstr.assets = new List<string>(obj.Assets.Count * 2);
-                foreach (var key in obj.Assets)
+                foreach (var assetRef in obj.Assets)
                 {
-                    if (string.IsNullOrWhiteSpace(key)) continue;
-                    if (space.Assets.TryGetValue(key, out var info))
-                    {
-                        createInstr.assets.Add(info.ImportPath ?? key);
-                        createInstr.assets.Add(info.LoadPath ?? key);
-                    }
-                    else
-                    {
-                        createInstr.assets.Add(key);
-                    }
+                    if (assetRef == null || string.IsNullOrWhiteSpace(assetRef.Key)) continue;
+                    createInstr.assets.Add(assetRef.Key);
+                    createInstr.assets.Add(assetRef.LoadPath ?? assetRef.Key);
                 }
             }
             result.Add(createInstr);
@@ -243,7 +237,7 @@ namespace T2G.Assistant
             {
                 action = T2G.Actions.add_script,
                 state = Instruction.eState.Resolved,
-                assets = component.Assets
+                assets = component.Assets?.Select(a => a.Key).ToList()
             };
             // Read SourceType with heuristic fallback for legacy data
             string mechanism = component.SourceType;

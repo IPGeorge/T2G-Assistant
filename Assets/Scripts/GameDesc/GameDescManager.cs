@@ -193,7 +193,7 @@ namespace T2G.Assistant
                         // Assets — instruction.assets is paired: [import0, load0, import1, load1, ...]
                         if (instruction.assets != null)
                         {
-                            obj.Assets ??= new List<string>();
+                            obj.Assets ??= new List<ObjectAssetRef>();
                             var space = FindSpace(CurrentSpaceName);
                             for (int i = 0; i < instruction.assets.Count; i += 2)
                             {
@@ -201,8 +201,8 @@ namespace T2G.Assistant
                                 string loadPath = i + 1 < instruction.assets.Count
                                     ? instruction.assets[i + 1] : importPath;
                                 string key = AddAssetToSpace(importPath, loadPath, space);
-                                if (key != null && !obj.Assets.Contains(key))
-                                    obj.Assets.Add(key);
+                                if (key != null && !obj.Assets.Any(a => a.Key == key))
+                                    obj.Assets.Add(new ObjectAssetRef { Key = key, LoadPath = loadPath });
                             }
                         }
 
@@ -757,7 +757,11 @@ namespace T2G.Assistant
                 SourceType = componentType,
                 Description = instruction.desc,
                 Properties = new List<PropertyDesc>(),
-                Assets = instruction.assets
+                Assets = instruction.assets != null
+                    ? instruction.assets.Where(a => !string.IsNullOrWhiteSpace(a))
+                        .Select(a => new ComponentAssetRef { Key = a, Type = Path.GetFileNameWithoutExtension(a) })
+                        .ToList()
+                    : new List<ComponentAssetRef>()
             };
 
             if(string.Compare(componentType, "file", true) == 0)
@@ -786,7 +790,6 @@ namespace T2G.Assistant
                             space.Assets[importPath] = new AssetInfo
                             {
                                 ImportPath = importPath,
-                                LoadPath = className,
                                 Type = "Script"
                             };
                         }
@@ -795,7 +798,21 @@ namespace T2G.Assistant
             }
             else if (string.Compare(componentType, "asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
             {
-                comp.Assets = instruction.assets;
+                comp.Assets = instruction.assets
+                    .Where(a => !string.IsNullOrWhiteSpace(a))
+                    .Select(a =>
+                    {
+                        string className = null;
+                        string fullPath = Path.Combine(Application.dataPath, a);
+                        if (File.Exists(fullPath))
+                        {
+                            string content = File.ReadAllText(fullPath);
+                            className = ExtractScriptClassName(content);
+                        }
+                        className ??= Path.GetFileNameWithoutExtension(a);
+                        return new ComponentAssetRef { Key = a, Type = className };
+                    })
+                    .ToList();
 
                 var space = FindSpace(spaceName);
                 if (space != null)
@@ -806,25 +823,14 @@ namespace T2G.Assistant
                         string assetPath = instruction.assets[i];
                         if (string.IsNullOrWhiteSpace(assetPath)) continue;
 
-                        string className = null;
-                        string fullPath = Path.Combine(Application.dataPath, assetPath);
-                        if (File.Exists(fullPath))
-                        {
-                            string content = File.ReadAllText(fullPath);
-                            className = ExtractScriptClassName(content);
-                        }
-                        className ??= Path.GetFileNameWithoutExtension(assetPath);
-                        if (string.IsNullOrWhiteSpace(className)) continue;
-
-                        if (i == 0)
-                            comp.Type = className;
+                        if (i == 0 && comp.Assets.Count > 0)
+                            comp.Type = comp.Assets[0].Type;
 
                         if (!space.Assets.ContainsKey(assetPath))
                         {
                             space.Assets[assetPath] = new AssetInfo
                             {
                                 ImportPath = assetPath,
-                                LoadPath = className,
                                 Type = "Script"
                             };
                         }
@@ -1006,23 +1012,34 @@ namespace T2G.Assistant
                     obj.Roles ??= new List<string>();
                     obj.Relationships ??= new List<Relationship>();
                     obj.Components ??= new List<Component>();
-                    obj.Assets ??= new List<string>();
+                    obj.Assets ??= new List<ObjectAssetRef>();
 
-                    // Migrate any legacy comma-delimited asset strings ("key,LoadPath")
-                    // into Space.Assets, so obj.Assets stores only the key.
+                    // Migrate any legacy comma-delimited asset strings ("import,load")
+                    // into ObjectAssetRef entries with separate Key and LoadPath.
                     for (int i = 0; i < obj.Assets.Count; i++)
                     {
-                        string assetStr = obj.Assets[i];
-                        // If it contains a comma it's still in legacy format, migrate it.
-                        // We also migrate if the key doesn't exist in space.Assets yet.
-                        if (assetStr.IndexOf(',') >= 0 || !space.Assets.ContainsKey(assetStr))
+                        var assetRef = obj.Assets[i];
+                        if (assetRef == null) { obj.Assets.RemoveAt(i--); continue; }
+
+                        // Detect legacy format: Key contains a comma, or the key isn't in space.Assets yet
+                        bool isLegacy = assetRef.Key != null && assetRef.Key.IndexOf(',') >= 0;
+                        if (!isLegacy && !string.IsNullOrWhiteSpace(assetRef.Key) && space.Assets.ContainsKey(assetRef.Key))
+                            continue;
+
+                        if (isLegacy)
                         {
-                            string key = AddAssetToSpace(assetStr, space);
+                            var parts = assetRef.Key.Split(new[] { ',' }, 2);
+                            string importPath = parts[0].Trim();
+                            string loadPath = parts.Length > 1 ? parts[1].Trim() : importPath;
+                            string key = AddAssetToSpace(importPath, loadPath, space);
                             if (key != null)
-                                obj.Assets[i] = key;
-                            else
-                                obj.Assets.RemoveAt(i--);
+                            {
+                                obj.Assets[i] = new ObjectAssetRef { Key = key, LoadPath = loadPath };
+                                continue;
+                            }
                         }
+
+                        obj.Assets.RemoveAt(i--);
                     }
 
                     foreach (var c in obj.Components)
@@ -1074,14 +1091,12 @@ namespace T2G.Assistant
             if (string.IsNullOrWhiteSpace(importPath)) return null;
 
             string key = importPath.Trim();
-            string lp = !string.IsNullOrWhiteSpace(loadPath) ? loadPath.Trim() : key;
 
             if (!space.Assets.ContainsKey(key))
             {
                 space.Assets[key] = new AssetInfo
                 {
                     ImportPath = key,
-                    LoadPath = lp,
                     Type = InferAssetType(key)
                 };
             }
@@ -1195,11 +1210,16 @@ namespace T2G.Assistant
 
                 var objId = Guid.NewGuid().ToString();
                 var legacyAssets = legacyObj.Assets ?? new List<string>();
-                var migratedKeys = new List<string>(legacyAssets.Count);
+                var migratedAssets = new List<ObjectAssetRef>(legacyAssets.Count);
                 foreach (var a in legacyAssets)
                 {
-                    string key = AddAssetToSpace(a, space);
-                    if (key != null) migratedKeys.Add(key);
+                    if (string.IsNullOrWhiteSpace(a)) continue;
+                    var parts = a.Split(new[] { ',' }, 2);
+                    string importPath = parts[0].Trim();
+                    string loadPath = parts.Length > 1 ? parts[1].Trim() : importPath;
+                    string key = AddAssetToSpace(importPath, loadPath, space);
+                    if (key != null)
+                        migratedAssets.Add(new ObjectAssetRef { Key = key, LoadPath = loadPath });
                 }
 
                 var obj = new Object
@@ -1211,7 +1231,7 @@ namespace T2G.Assistant
                     Roles = new List<string>(),
                     Relationships = new List<Relationship>(),
                     Properties = legacyObj.Properties ?? new List<ValuePair>(),
-                    Assets = migratedKeys,
+                    Assets = migratedAssets,
                     Components = legacyObj.Components ?? new List<Component>()
                 };
 
