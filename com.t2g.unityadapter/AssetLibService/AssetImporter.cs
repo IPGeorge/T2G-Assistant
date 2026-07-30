@@ -85,12 +85,6 @@ namespace T2G
                     string[] assetArray = asset.Split(",");
                     foreach (var assetSource in assetArray)
                     {
-                        if (string.IsNullOrWhiteSpace(assetSource) ||
-                            assetSource.IndexOf(".prefab", System.StringComparison.OrdinalIgnoreCase) > 0)
-                        {
-                            continue;
-                        }
-
                         string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetSource);
 
                         if (assetSource.IndexOf(".unitypackage", System.StringComparison.OrdinalIgnoreCase) > 0)
@@ -146,8 +140,13 @@ namespace T2G
                 SaveImportPackagesList();
                 CommunicatorServerEditor.AddConsoleText($"Importing {Path.GetFileName(packagePath)} ...");
                 await ImportUnityPackage(packagePath);
-            }
 
+                if(_importPackagesList.Count == 0)
+                {
+                    await Utils.WaitForUnityIdle();
+                    Execution.Instance.SendExecutionResponse(true, "Assets were imported!");
+                }
+            }
         }
 
         public static async Awaitable<int> BeginImportScripts(List<string> scriptPaths)

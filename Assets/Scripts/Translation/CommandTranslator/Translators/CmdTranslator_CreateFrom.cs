@@ -23,7 +23,8 @@ namespace T2G.Assistant
             {
                 type = Instruction.k_TypeInstruction,
                 action = GetActionName(),
-                state = Instruction.eState.Local
+                state = Instruction.eState.Local,
+                parameters = new List<ValuePair>()
             };
 
             instruction.parameters.Add(new ValuePair("GameDesc", gameDescPathFile));

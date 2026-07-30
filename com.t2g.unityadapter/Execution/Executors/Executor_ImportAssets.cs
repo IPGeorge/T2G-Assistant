@@ -3,6 +3,7 @@
 using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using UnityEditor;
 
 namespace T2G
 {
@@ -16,12 +17,8 @@ namespace T2G
                 return (false, "0 assets need to be imported.", null);
             }
 
-            Debug.LogError("Call BeginImportAssets.");
             int count = await AssetImporter.BeginImportAssets(instruction.assets);
             await AssetImporter.EndImportAssets();
-            await Utils.WaitForUnityIdle();
-
-            Debug.LogError("after call BeginImportAssets.");
             return (true, $"{count} assets were imported!", null);
         }
     }

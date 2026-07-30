@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using System.IO;
 using System;
-using System.Diagnostics;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace T2G.Assistant
@@ -14,43 +14,87 @@ namespace T2G.Assistant
             string gameDescPathFile = instruction.parameters.GetString("GameDesc");
             string spacesStr = instruction.parameters.GetString("Spaces");
 
-            List<Instruction> instructions = new List<Instruction>();
+            if (string.IsNullOrWhiteSpace(gameDescPathFile) || !File.Exists(gameDescPathFile))
+                return (false, $"GameDesc file not found: {gameDescPathFile}", null);
 
-            Instruction subInstruction = new Instruction()
-            { 
-                type = Instruction.k_TypeInstructionList,
-                state = Instruction.eState.Resolved
-            };
-
-            var genInstructions = GameDescManager.Instance.GetInstructionsForSpaces(gameDescPathFile, spacesStr);
-
-            if (genInstructions != null && genInstructions.Length > 0)
+            string[] spaceNames = null;
+            if (!string.IsNullOrWhiteSpace(spacesStr))
             {
-                List<Instruction> batchInstructions = new List<Instruction>(genInstructions);
-
-                var importAssetsInstruction = new Instruction()
-                {
-                    action = T2G.Actions.import_assets,
-                    state = Instruction.eState.Resolved,
-                    assets = new List<string>()
-                };
-
-                T2G.Utils.CollectAllAssets(genInstructions, ref importAssetsInstruction.assets);
-
-                batchInstructions.Insert(0, importAssetsInstruction);
-
-                batchInstructions.Add(new Instruction()
-                {
-                    action = T2G.Actions.save_space,
-                    state = Instruction.eState.Resolved
-                });
-
-                instruction.instructions = batchInstructions.ToArray();
+                spaceNames = spacesStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < spaceNames.Length; i++)
+                    spaceNames[i] = spaceNames[i].Trim();
             }
 
-            instruction.instructions = new Instruction[1] { subInstruction };
+            var gameDesc = GameDescManager.Instance.DeserializeGameDescFile(gameDescPathFile);
+            if (gameDesc == null)
+                return (false, "Failed to parse GameDesc file.", null);
 
-            return (true, $"{instruction.instructions.Length} instructions are queued to be executed:", null);
+            var importAssetsInstruction = new Instruction
+            {
+                action = T2G.Actions.import_assets,
+                state = Instruction.eState.Resolved,
+                assets = new List<string>()
+            };
+
+            foreach (var space in gameDesc.Spaces)
+            {
+                if (space == null) continue;
+                if (spaceNames != null && !spaceNames.Contains(space.Name, StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                if (space.Assets != null)
+                {
+                    foreach (var key in space.Assets.Keys)
+                    {
+                        if (!string.IsNullOrWhiteSpace(key) && !importAssetsInstruction.assets.Contains(key))
+                            importAssetsInstruction.assets.Add(key);
+                    }
+                }
+            }
+
+            Instruction[] instructions;
+            if (spaceNames != null && spaceNames.Length > 0)
+            {
+                var result = new List<Instruction>();
+                foreach (var name in spaceNames)
+                {
+                    var space = gameDesc.Spaces?.Find(s =>
+                        s != null && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+                    if (space == null)
+                    {
+                        UnityEngine.Debug.LogWarning($"Space '{name}' not found in GameDesc, skipping.");
+                        continue;
+                    }
+                    var spaceInstructions = GameDescParser.ParseSpaceForInstructions(space);
+                    if (spaceInstructions != null)
+                    {
+                        result.AddRange(spaceInstructions);
+                        result.Add(new Instruction
+                        {
+                            action = T2G.Actions.save_space,
+                            state = Instruction.eState.Resolved
+                        });
+
+                    }
+                }
+                instructions = result.ToArray();
+            }
+            else
+            {
+                instructions = GameDescParser.ParseForInstructions(gameDesc);
+            }
+
+            if (instructions == null || instructions.Length == 0)
+                return (false, "No instructions generated from GameDesc.", null);
+
+            var batchInstructions = new List<Instruction>(instructions);
+
+            if (importAssetsInstruction.assets.Count > 0)
+                batchInstructions.Insert(0, importAssetsInstruction);
+
+            //instruction.instructions = batchInstructions.ToArray();
+
+            return (true, $"{batchInstructions.Count} instructions are queued to be executed:", batchInstructions);
         }
     }
 }

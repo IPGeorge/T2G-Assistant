@@ -167,26 +167,39 @@ namespace T2G.Assistant
                 throw new FileNotFoundException("GameDesc file not found.", filePath);
         }
 
-        private GameDesc DeserializeGameDescFile(string filePath)
+        public GameDesc DeserializeGameDescFile(string filePath)
         {
             string json = File.ReadAllText(filePath);
+
+            // Try flat GameDescFile format (SchemaVersion + Context + GameDesc wrapper)
             var wrapper = JsonConvert.DeserializeObject<GameDescFile>(json, _jsonSettings);
-            if (wrapper?.GameDesc == null)
-                throw new InvalidOperationException("Invalid file: GameDesc missing.");
-
-            var gd = wrapper.GameDesc;
-
-            if (wrapper.SchemaVersion == null || wrapper.SchemaVersion < 1)
+            if (wrapper?.GameDesc != null)
             {
-                // Legacy hierarchical format — migrate
-                var legacyWrapper = JsonConvert.DeserializeObject<LegacyGameDescFile>(json, _jsonSettings);
-                if (legacyWrapper?.GameDesc == null)
-                    throw new InvalidOperationException("Invalid file: cannot migrate legacy GameDesc.");
-                gd = MigrateFromLegacy(legacyWrapper.GameDesc);
+                var gd = wrapper.GameDesc;
+
+                if (wrapper.SchemaVersion == null || wrapper.SchemaVersion < 1)
+                {
+                    // Legacy hierarchical format — migrate
+                    var legacyWrapper = JsonConvert.DeserializeObject<LegacyGameDescFile>(json, _jsonSettings);
+                    if (legacyWrapper?.GameDesc == null)
+                        throw new InvalidOperationException("Invalid file: cannot migrate legacy GameDesc.");
+                    gd = MigrateFromLegacy(legacyWrapper.GameDesc);
+                }
+
+                Normalize(gd);
+                return gd;
             }
 
-            Normalize(gd);
-            return gd;
+            // Fall back to HumanGameDesc (hierarchical export) format
+            var human = JsonConvert.DeserializeObject<HumanGameDesc>(json, _jsonSettings);
+            if (human != null)
+            {
+                var gd = GameDescConverter.FromHuman(human);
+                Normalize(gd);
+                return gd;
+            }
+
+            throw new InvalidOperationException("Invalid file: GameDesc missing.");
         }
 
         private static Space FindSpaceInDesc(GameDesc gd, string spaceName)
