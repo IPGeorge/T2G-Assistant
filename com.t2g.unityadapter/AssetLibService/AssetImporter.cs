@@ -192,6 +192,25 @@ namespace T2G
             }
         }
 
+        static bool FileNeedsCompileChange(string sourcePath, string targetPath)
+        {
+            if (!File.Exists(targetPath))
+            {
+                return true;
+            }
+
+            var src = new FileInfo(sourcePath);
+            var dst = new FileInfo(targetPath);
+            if (src.Length != dst.Length)
+            {
+                return true;
+            }
+
+            byte[] srcBytes = File.ReadAllBytes(sourcePath);
+            byte[] dstBytes = File.ReadAllBytes(targetPath);
+            return !srcBytes.AsSpan().SequenceEqual(dstBytes);
+        }
+
         public static void SaveLists()
         {
             string path = Path.Combine(Application.persistentDataPath, AssetsToImportListFileName);
