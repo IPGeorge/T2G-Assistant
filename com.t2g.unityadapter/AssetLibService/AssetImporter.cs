@@ -124,6 +124,7 @@ namespace T2G
             EditorApplication.UnlockReloadAssemblies();
             CompilationPipeline.RequestScriptCompilation();
             AssetDatabase.Refresh();
+
             await Utils.WaitForUnityIdle();
             await ProcessPackageImportsImpl();
         }
@@ -140,13 +141,14 @@ namespace T2G
                 SaveImportPackagesList();
                 CommunicatorServerEditor.AddConsoleText($"Importing {Path.GetFileName(packagePath)} ...");
                 await ImportUnityPackage(packagePath);
-
-                if(_importPackagesList.Count == 0)
-                {
-                    await Utils.WaitForUnityIdle();
-                    Execution.Instance.SendExecutionResponse(true, "Assets were imported!");
-                }
+                CommunicatorServerEditor.AddConsoleText($"{_importPackagesList.Count} packages left ...");
             }
+
+            CommunicatorServerEditor.AddConsoleText("Wait to be ready ...");
+            await Utils.WaitForUnityIdle();
+            await CommunicatorServer.Instance.WaitForConnected();
+            await CommunicatorServer.Instance.WaitForShakeHand();
+            Execution.Instance.SendExecutionResponse(true, "Assets were imported!");
         }
 
         public static async Awaitable<int> BeginImportScripts(List<string> scriptPaths)

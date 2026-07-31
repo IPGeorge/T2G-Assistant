@@ -49,8 +49,6 @@ namespace T2G.Assistant
 
         private Dictionary<string, int> intentFrequency = new Dictionary<string, int>();
         private List<string> frequentIntents = new List<string>();
-        private float comboWidth = 150f;
-        private int selectedIntentIndex = -1;
 
         [Header("Colors")]
         [SerializeField] private Color backgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
@@ -73,6 +71,16 @@ namespace T2G.Assistant
         private void Awake()
         {
             Instance = this;
+
+            CommunicatorClient.Instance.OnSentMessage += (type, message) => {
+                Debug.Log($"Sent> {message}");
+            };
+
+            CommunicatorClient.Instance.OnReceivedMessage += (type, message) =>
+            {
+                Debug.Log($"Received> {message}");
+            };
+
             DontDestroyOnLoad(gameObject);
         }
 

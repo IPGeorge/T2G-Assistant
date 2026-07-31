@@ -168,7 +168,7 @@ namespace T2G
         {
             AssetImporter.LoadLists();
 
-            while(AssetImporter.ImportAssetList.Count > 0 || !Execution.Instance.ShakeHand)
+            while(AssetImporter.ImportAssetList.Count > 0 || !CommunicatorServer.Instance.ShakeHand)
             {
                 await Task.Yield();
             }

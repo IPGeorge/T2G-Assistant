@@ -52,7 +52,7 @@ namespace T2G.Assistant
                 return (false, "Failed to start Unity Editor process.", null);
             }
 
-            bool connected = await WaitForConnected();
+            bool connected = await CommunicatorClient.Instance.WaitForConnected();
 
             if (connected)
             {
@@ -65,20 +65,6 @@ namespace T2G.Assistant
             {
                 return (false, "Failed to open the project!", null);
             }
-        }
-
-        static async Awaitable<bool> WaitForConnected(float delaySeconds = 120.0f)
-        {
-            DateTime startDT = DateTime.Now;
-            while (!CommunicatorClient.Instance.IsConnected)
-            {
-                if ((DateTime.Now - startDT).TotalSeconds > delaySeconds)
-                {
-                    return false;
-                }
-                await Task.Delay(1000);
-            }
-            return true;
         }
     }
 }

@@ -11,7 +11,6 @@ namespace T2G.Assistant
     {
         static public Assistant Instance { get; private set; } = null;
 
-        public bool ShakeHandk { get; private set; } = false;
 
         [Header("UI Settings")]
         [SerializeField] private Settings _settings;
@@ -78,7 +77,7 @@ namespace T2G.Assistant
             Communicator.OnReceivedMessage += OnReceivedMessage;
             Communicator.OnError += OnError;
             await Communicator.StartClient();
-            ShakeHandk = false;
+            CommunicatorClient.Instance.ShakeHand = false;
             ExponentialBackoffFocusRestorer.Initialize();
         }
 
@@ -91,7 +90,7 @@ namespace T2G.Assistant
             Communicator.OnSentMessage -= OnSentMessage;
             Communicator.OnReceivedMessage -= OnReceivedMessage;
             Communicator.OnError -= OnError;
-            ShakeHandk = false;
+            CommunicatorClient.Instance.ShakeHand = false;
         }
 
         #region Communicator event handlers
@@ -129,7 +128,6 @@ namespace T2G.Assistant
         {
             if(type == CommunicatorBase.eMessageType.ProjectInfo)
             {
-                Debug.Log($"Received project info: {message}");
                 var pi = JsonConvert.DeserializeObject<ProjectInfo>(message);
                 if(pi != null && !string.IsNullOrEmpty(pi.ProjectName))
                 {
@@ -141,7 +139,7 @@ namespace T2G.Assistant
                     OpenOrCreateProjectContext(pi);
                 }
                 Communicator.RemoveMessageFromReceiveBuffer();
-                ShakeHandk = true;
+                CommunicatorClient.Instance.ShakeHand = true;
             }
         }
 

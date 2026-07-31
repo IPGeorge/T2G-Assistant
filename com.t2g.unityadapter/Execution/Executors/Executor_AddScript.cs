@@ -174,7 +174,7 @@ namespace T2G
                 return;
             }
 
-            while (!CommunicatorServer.Instance.IsConnected || !Execution.Instance.ShakeHand)
+            while (!CommunicatorServer.Instance.IsConnected || !CommunicatorServer.Instance.ShakeHand)
             {
                 await Task.Yield();
             }

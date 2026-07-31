@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Networking.Transport;
@@ -32,6 +33,7 @@ namespace T2G
 
         public string IPAddress = "127.0.0.1";
         public ushort Port = 7778;
+        public bool ShakeHand = false;
 
         public Action<eMessageType, string> OnSentMessage;
         public Action<eMessageType, string> OnReceivedMessage;
@@ -276,6 +278,34 @@ namespace T2G
         public void EmptyReceiveBuffer()
         {
             _receiveBufferHead = _receiveBufferTail = 0;
+        }
+
+        public async Awaitable<bool> WaitForConnected(float timeoutSeconds = 30.0f)
+        {
+            while(timeoutSeconds > 0.0f)
+            {
+                if (IsConnected)
+                {
+                    return true;
+                }
+                await Task.Delay(100);
+                timeoutSeconds -= 0.1f;
+            }
+            return false;
+        }
+
+        public async Awaitable<bool> WaitForShakeHand(float timeoutSeconds = 30.0f)
+        {
+            while (timeoutSeconds > 0.0f)
+            {
+                if(ShakeHand)
+                {
+                    return true;
+                }
+                await Task.Delay(100);
+                timeoutSeconds -= 0.1f;
+            }
+            return false;
         }
     }
 }
