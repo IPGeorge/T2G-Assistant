@@ -27,9 +27,9 @@ namespace T2G.Assistant
         {
             switch (instruction.state)
             {
-                case Instruction.eState.Resolved:
+                case InstructionState.Resolved:
                     break;
-                case Instruction.eState.Raw:
+                case InstructionState.Raw:
                     {
                         string desc = instruction.desc;
                         if (T2G.Utils.IsObjectDesc(desc) ||
@@ -37,14 +37,14 @@ namespace T2G.Assistant
                             T2G.Utils.IsCameraDesc(desc) ||
                             T2G.Utils.IsLightDesc(desc))
                         {
-                            instruction.state = Instruction.eState.Resolved;
+                            instruction.state = InstructionState.Resolved;
                         }
                         else if(desc.IndexOf("node", StringComparison.OrdinalIgnoreCase) >= 0 ||
                             desc.IndexOf("empty", StringComparison.OrdinalIgnoreCase) >= 0 ||
                             desc.IndexOf("object", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             instruction.desc = "node object";
-                            instruction.state = Instruction.eState.Resolved;
+                            instruction.state = InstructionState.Resolved;
                         }
                         else
                         {
@@ -53,8 +53,17 @@ namespace T2G.Assistant
                             {
                                 string[] seperator = { ",", ", " };
                                 string[] assets = assetsArray[0].Split(seperator, StringSplitOptions.None);
-                                instruction.assets = new List<string>(assets);
-                                instruction.state = Instruction.eState.Resolved;
+                                instruction.assets.Clear();     //TODO:
+                                foreach(var asset in assets)
+                                {
+                                    instruction.assets.Add(new Instruction.Asset() 
+                                    { 
+                                        source = asset, 
+                                        desc = asset, 
+                                        type = AssetType.Unknown 
+                                    });
+                                }
+                                instruction.state = InstructionState.Resolved;
                             }
                         }
                     }
