@@ -12,7 +12,7 @@ namespace T2G.Assistant
         public string timestampUtc;     // ISO 8601
         public string prompt;
         public bool success;
-        public List<Instruction> instructionList;
+        public List<InstructionBase> instructionList;
     }
 
     /// <summary>

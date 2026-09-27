@@ -12,7 +12,7 @@ using UnityEngine.SceneManagement;
 namespace T2G
 {
     [Executor(Actions.add_component)]
-    public class Executor_AddScript : ExecutorBase
+    public class Executor_AddComponent : ExecutorBase
     {
         static readonly string k_InitOnLoadAddComponentKey = "AddComponentTask";
 
@@ -109,7 +109,7 @@ namespace T2G
                         return (false, $"One or some scripts were not imported!", null);
                     }
 
-                    string targetScript = Path.Combine(Application.dataPath, instruction.assets[0]);
+                    string targetScript = Path.Combine(Application.dataPath, instruction.assets[0].source);
                     string script = File.ReadAllText(targetScript);
                     string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
 

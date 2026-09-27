@@ -32,8 +32,6 @@ namespace T2G.Assistant
             var importAssetsInstruction = new Instruction
             {
                 action = T2G.Actions.import_assets,
-                state = Instruction.eState.Resolved,
-                assets = new List<string>()
             };
 
             foreach (var space in gameDesc.Spaces)
@@ -44,10 +42,13 @@ namespace T2G.Assistant
 
                 if (space.Assets != null)
                 {
-                    foreach (var key in space.Assets.Keys)
+                    foreach (var assetPair in space.Assets)
                     {
-                        if (!string.IsNullOrWhiteSpace(key) && !importAssetsInstruction.assets.Contains(key))
-                            importAssetsInstruction.assets.Add(key);
+                        if (string.IsNullOrWhiteSpace(assetPair.Value.source) ||
+                            importAssetsInstruction.HasAssetSource(assetPair.Value))
+                            continue;
+
+                        importAssetsInstruction.assets.Add(assetPair.Value);
                     }
                 }
             }
@@ -72,7 +73,6 @@ namespace T2G.Assistant
                         result.Add(new Instruction
                         {
                             action = T2G.Actions.save_space,
-                            state = Instruction.eState.Resolved
                         });
 
                     }
@@ -92,7 +92,7 @@ namespace T2G.Assistant
             if (importAssetsInstruction.assets.Count > 0)
                 batchInstructions.Insert(0, importAssetsInstruction);
 
-            //instruction.instructions = batchInstructions.ToArray();
+            await Task.Yield();
 
             return (true, $"{batchInstructions.Count} instructions are queued to be executed:", batchInstructions);
         }

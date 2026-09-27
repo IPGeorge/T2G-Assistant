@@ -54,11 +54,11 @@ namespace T2G.Assistant
             var spaceInstr = new Instruction
             {
                 action = T2G.Actions.create_space,
-                state = Instruction.eState.Resolved
+                state = InstructionState.Resolved
             };
-            spaceInstr.parameters = new List<ValuePair>
+            spaceInstr.parameters = new List<Instruction.Parameter>()
             {
-                new ValuePair("SpaceName", space.Name)
+                new Instruction.Parameter("SpaceName", space.Name)
             };
             result.Add(spaceInstr);
 
@@ -101,35 +101,41 @@ namespace T2G.Assistant
             var createInstr = new Instruction
             {
                 action = T2G.Actions.create_object,
-                state = Instruction.eState.Resolved,
+                state = InstructionState.Resolved,
                 desc = obj.Desc ?? string.Empty
             };
-            createInstr.parameters = new List<ValuePair>
+            createInstr.parameters = new List<Instruction.Parameter>
             {
-                new ValuePair("Name", obj.Name)
+                new Instruction.Parameter("Name", obj.Name)
             };
 
             // Tags
             if (obj.Tags != null && obj.Tags.Count > 0)
             {
-                createInstr.parameters.Add(new ValuePair("Tags", string.Join(",", obj.Tags)));
+                createInstr.parameters.Add(new Instruction.Parameter("Tags", string.Join(",", obj.Tags)));
             }
 
             // Roles
             if (obj.Roles != null && obj.Roles.Count > 0)
             {
-                createInstr.parameters.Add(new ValuePair("Roles", string.Join(",", obj.Roles)));
+                createInstr.parameters.Add(new Instruction.Parameter("Roles", string.Join(",", obj.Roles)));
             }
 
             // Assets — emit [import, load] pairs from ObjectAssetRef
             if (obj.Assets != null && obj.Assets.Count > 0)
             {
-                createInstr.assets = new List<string>(obj.Assets.Count * 2);
+                createInstr.assets = new List<Instruction.Asset>(obj.Assets.Count * 2);
                 foreach (var assetRef in obj.Assets)
                 {
-                    if (assetRef == null || string.IsNullOrWhiteSpace(assetRef.Key)) continue;
-                    createInstr.assets.Add(assetRef.Key);
-                    createInstr.assets.Add(assetRef.LoadPath ?? assetRef.Key);
+                    if (assetRef == null || string.IsNullOrWhiteSpace(assetRef.Key)) 
+                        continue;
+
+                    createInstr.assets.Add(new Instruction.Asset 
+                    { 
+                        desc = string.Empty,        //TODO:
+                        type = AssetType.Unknown,   //TODO:
+                        source = assetRef.LoadPath ?? assetRef.Key 
+                    });
                 }
             }
             result.Add(createInstr);
@@ -153,16 +159,16 @@ namespace T2G.Assistant
                         var attachInstr = new Instruction
                         {
                             action = T2G.Actions.attach_to,
-                            state = Instruction.eState.Resolved
+                            state = InstructionState.Resolved
                         };
-                        attachInstr.parameters = new List<ValuePair>
+                        attachInstr.parameters = new List<Instruction.Parameter>
                         {
-                            new ValuePair("source", obj.Name),
-                            new ValuePair("target", targetName)
+                            new Instruction.Parameter("source", obj.Name),
+                            new Instruction.Parameter("target", targetName)
                         };
                         if (!string.IsNullOrWhiteSpace(rel.Slot))
                         {
-                            attachInstr.parameters.Add(new ValuePair("socket", rel.Slot));
+                            attachInstr.parameters.Add(new Instruction.Parameter("socket", rel.Slot));
                         }
                         result.Add(attachInstr);
                     }
@@ -172,17 +178,17 @@ namespace T2G.Assistant
                         var relInstr = new Instruction
                         {
                             action = T2G.Actions.set_relationship,
-                            state = Instruction.eState.Resolved
+                            state = InstructionState.Resolved
                         };
-                        relInstr.parameters = new List<ValuePair>
+                        relInstr.parameters = new List<Instruction.Parameter>
                         {
-                            new ValuePair("source", obj.Name),
-                            new ValuePair("type", rel.Type),
-                            new ValuePair("target", targetName)
+                            new Instruction.Parameter("source", obj.Name),
+                            new Instruction.Parameter("type", rel.Type),
+                            new Instruction.Parameter("target", targetName)
                         };
                         if (!string.IsNullOrWhiteSpace(rel.Slot))
                         {
-                            relInstr.parameters.Add(new ValuePair("slot", rel.Slot));
+                            relInstr.parameters.Add(new Instruction.Parameter("slot", rel.Slot));
                         }
                         result.Add(relInstr);
                     }
@@ -210,13 +216,13 @@ namespace T2G.Assistant
                     var setProp = new Instruction
                     {
                         action = T2G.Actions.set_property,
-                        state = Instruction.eState.Resolved
+                        state = InstructionState.Resolved
                     };
-                    setProp.parameters = new List<ValuePair>
+                    setProp.parameters = new List<Instruction.Parameter>
                     {
-                        new ValuePair("objName", obj.Name),
-                        new ValuePair("Property", prop.name),
-                        new ValuePair("Value", prop.value)
+                        new Instruction.Parameter("objName", obj.Name),
+                        new Instruction.Parameter("Property", prop.name),
+                        new Instruction.Parameter("Value", prop.value)
                     };
                     result.Add(setProp);
                 }
@@ -235,9 +241,9 @@ namespace T2G.Assistant
 
             var instr = new Instruction
             {
-                action = T2G.Actions.add_script,
-                state = Instruction.eState.Resolved,
-                assets = component.Assets?.Select(a => a.Key).ToList()
+                action = T2G.Actions.add_component,
+                state = InstructionState.Resolved,
+                // assets = component.Assets?.Select(a => a.Key).ToList()    //TODO:
             };
             // Read SourceType with heuristic fallback for legacy data
             string mechanism = component.SourceType;
@@ -252,10 +258,10 @@ namespace T2G.Assistant
                     mechanism = "component";
             }
 
-            instr.parameters = new List<ValuePair>
+            instr.parameters = new List<Instruction.Parameter>
             {
-                new ValuePair("objName", objectName),
-                new ValuePair("type", mechanism)
+                new Instruction.Parameter("objName", objectName),
+                new Instruction.Parameter("type", mechanism)
             };
             if (!string.IsNullOrWhiteSpace(component.Description))
             {
@@ -273,20 +279,17 @@ namespace T2G.Assistant
                     var setProp = new Instruction
                     {
                         action = T2G.Actions.set_property,
-                        state = Instruction.eState.Resolved
+                        state = InstructionState.Resolved
                     };
-                    setProp.parameters = new List<ValuePair>
+                    setProp.parameters = new List<Instruction.Parameter>
                     {
-                        new ValuePair("Name", objectName),
-                        new ValuePair("Property", $"{component.Type}.{prop.Name}"),
-                        new ValuePair("Value", prop.Value)
+                        new Instruction.Parameter("Name", objectName),
+                        new Instruction.Parameter("Property", $"{component.Type}.{prop.Name}"),
+                        new Instruction.Parameter("Value", prop.Value)
                     };
                     subInstructions.Add(setProp);
                 }
             }
-
-            if (subInstructions.Count > 0)
-                instr.instructions = subInstructions.ToArray();
 
             return instr;
         }
@@ -301,8 +304,8 @@ namespace T2G.Assistant
 
             var instr = new Instruction
             {
-                action = T2G.Actions.add_script,
-                state = Instruction.eState.Resolved
+                action = T2G.Actions.add_component,
+                state = InstructionState.Resolved
             };
             // Read SourceType with heuristic fallback for legacy data
             string mechanism = component.SourceType;
@@ -317,10 +320,10 @@ namespace T2G.Assistant
                     mechanism = "component";
             }
 
-            instr.parameters = new List<ValuePair>
+            instr.parameters = new List<Instruction.Parameter>
             {
-                new ValuePair("objName", spaceName),
-                new ValuePair("type", mechanism)
+                new Instruction.Parameter("objName", spaceName),
+                new Instruction.Parameter("type", mechanism)
             };
             if (!string.IsNullOrWhiteSpace(component.Description))
             {
@@ -338,20 +341,17 @@ namespace T2G.Assistant
                     var setProp = new Instruction
                     {
                         action = T2G.Actions.set_property,
-                        state = Instruction.eState.Resolved
+                        state = InstructionState.Resolved
                     };
-                    setProp.parameters = new List<ValuePair>
+                    setProp.parameters = new List<Instruction.Parameter>
                     {
-                        new ValuePair("Name", spaceName),
-                        new ValuePair("Property", $"{component.Type}.{prop.Name}"),
-                        new ValuePair("Value", prop.Value)
+                        new Instruction.Parameter("Name", spaceName),
+                        new Instruction.Parameter("Property", $"{component.Type}.{prop.Name}"),
+                        new Instruction.Parameter("Value", prop.Value)
                     };
                     subInstructions.Add(setProp);
                 }
             }
-
-            if (subInstructions.Count > 0)
-                instr.instructions = subInstructions.ToArray();
 
             return instr;
         }

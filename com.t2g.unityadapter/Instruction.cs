@@ -21,6 +21,13 @@ namespace T2G
         Resolved = 2    // Resolution has completed and the instruction is ready for execution.
     }
 
+    public enum AssetType
+    {
+        Unknown = 0,
+        Identifier = 1,     //System component, such as Unity rigidbody, camera, etc.
+        ScriptFile = 2,     //A local script file
+        SourceAsset = 3     //A resolved asset that can be imported from AssetService
+    }
 
     [Serializable]
     public abstract class InstructionBase
@@ -58,9 +65,9 @@ namespace T2G
         [Serializable]
         public class Asset
         {
-            public string desc = string.Empty;  // Semantic description used for asset resolution.
-            public string type = string.Empty;  // Asset category/type. Examples: character, weapon, environment.
-            public string value = string.Empty; // Resolved asset identifier or path. Empty before asset resolution.
+            public string desc = string.Empty;      // Semantic description used for asset resolution.
+            public AssetType type = AssetType.Unknown;    
+            public string source = string.Empty;    // resolved asset identifier, path, or URL.
         }
 
         public InstructionState state = InstructionState.Init;
@@ -76,6 +83,19 @@ namespace T2G
 
         public List<string> dependsOn = new List<string>();  
                                                 // IDs of instructions that must successfully complete.
+
+        public bool HasAssetSource(Instruction.Asset asset)
+        {
+            foreach(var registeredAsset in assets)
+            {
+                if(string.Compare(registeredAsset.source, asset.source, true) == 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
 
         public Instruction Clone()
         {
@@ -116,14 +136,17 @@ namespace T2G
         }
     }
 
-    /// <summary>
-    /// Minimal header used to determine the returned JSON type
-    /// before full deserialization.
-    /// </summary>
     [Serializable]
-    public class InstructionHeader
+    public class ValuePair
     {
-        public InstructionType type;
+        public string name;
+        public JToken value;
+
+        public ValuePair(string keyName, JToken keyValue)
+        {
+            name = keyName;
+            value = keyValue;
+        }
     }
 
     public class InstructionConverter : JsonConverter<Instruction>
@@ -205,19 +228,6 @@ namespace T2G
                 return inst;
             }
 
-        }
-
-        [Serializable]
-        public class ValuePair
-        {
-            public string name;
-            public JToken value;
-
-            public ValuePair(string keyName, JToken keyValue)
-            {
-                name = keyName;
-                value = keyValue;
-            }
         }
 
 

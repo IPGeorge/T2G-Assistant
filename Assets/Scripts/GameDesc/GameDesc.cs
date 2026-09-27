@@ -45,7 +45,7 @@ namespace T2G.Assistant
         /// Key = download URL or absolute source path.
         /// Value = resolved load info (project-relative path + type hint).
         /// </summary>
-        public Dictionary<string, AssetInfo> Assets = new Dictionary<string, AssetInfo>();
+        public Dictionary<string, Instruction.Asset> Assets = new Dictionary<string, Instruction.Asset>();
 
         public void RebuildNameIndex()
         {

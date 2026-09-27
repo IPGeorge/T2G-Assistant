@@ -54,11 +54,11 @@ namespace T2G.Assistant
                         new Instruction
                         {
                             action = "init_project",
-                            state = Instruction.eState.Local,
-                            parameters = new List<ValuePair>
+                            type = InstructionType.Local,
+                            parameters = new List<Instruction.Parameter>
                             {
-                                new ValuePair("path", _projectPath),
-                                new ValuePair("projectName", _projectName)
+                                new Instruction.Parameter("path", _projectPath),
+                                new Instruction.Parameter("projectName", _projectName)
                             }
                         }
                     };

@@ -8,8 +8,8 @@ using UnityEngine.SceneManagement;
 
 namespace T2G
 {
-    [Executor(Actions.place_on_ground)]
-    public class Executor_PlaceOnGround : ExecutorBase
+    [Executor(Actions.place_on)]
+    public class Executor_PlaceOn : ExecutorBase
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {

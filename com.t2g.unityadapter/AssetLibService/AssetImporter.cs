@@ -26,19 +26,19 @@ namespace T2G
 
         static List<string> _importPackagesList = new List<string>();
 
-        public static async Awaitable ImportAssets(string objName, List<string> assets, Vector3? position)
+        public static async Awaitable ImportAssets(string objName, List<Instruction.Asset> assets, Vector3? position)
         {
             if (position.HasValue)
             {
                 var pos = position.Value;
-                _createObjectsList.Add((objName, assets[1], string.Format("({0},{1},{2})", pos.x, pos.y, pos.z)));
+                _createObjectsList.Add((objName, assets[1].source, string.Format("({0},{1},{2})", pos.x, pos.y, pos.z)));
             }
             else
             {
-                _createObjectsList.Add((objName, assets[1], string.Empty));
+                _createObjectsList.Add((objName, assets[1].source, string.Empty));
             }
 
-            _importAssetList.Add((assets[0], assets[1]));
+            _importAssetList.Add((assets[0].source, assets[1].source));
             SaveLists();
             await SimImportAssetsImpl();
         }
@@ -66,7 +66,7 @@ namespace T2G
             }
         }
 
-        public static async Awaitable<int> BeginImportAssets(List<string> assets)
+        public static async Awaitable<int> BeginImportAssets(List<Instruction.Asset> assets)
         {
             int importCount = 0;
 
@@ -77,12 +77,13 @@ namespace T2G
             {
                 foreach (var asset in assets)
                 {
-                    if (string.IsNullOrWhiteSpace(asset))
+                    var source = asset.source;
+                    if (string.IsNullOrWhiteSpace(source))
                     {
                         continue;
                     }
 
-                    string[] assetArray = asset.Split(",");
+                    string[] assetArray = source.Split(",");
                     foreach (var assetSource in assetArray)
                     {
                         string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetSource);
@@ -94,7 +95,7 @@ namespace T2G
                             continue;
                         }
                         
-                        string target = Path.Combine(Application.dataPath, asset);
+                        string target = Path.Combine(Application.dataPath, source);
                         string targetDir = Path.GetDirectoryName(target);
                         if (File.Exists(sourcePath))
                         {
@@ -151,14 +152,14 @@ namespace T2G
             Execution.Instance.SendExecutionResponse(true, "Assets were imported!");
         }
 
-        public static async Awaitable<int> BeginImportScripts(List<string> scriptPaths)
+        public static async Awaitable<int> BeginImportScripts(List<Instruction.Asset> assets)
         {
             EditorApplication.LockReloadAssemblies();
             int importedCount = 0;
-            foreach (var scriptPath in scriptPaths)
+            foreach (var asset in assets)
             {
-                string source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, scriptPath);
-                string target = Path.Combine(Application.dataPath, scriptPath);
+                string source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, asset.source);
+                string target = Path.Combine(Application.dataPath, asset.source);
                 string targetDir = Path.GetDirectoryName(target);
                 if (File.Exists(source))
                 {

@@ -27,7 +27,7 @@ namespace T2G.Assistant
         /// <summary>
         /// Asset library for this space. Key = download URL or absolute path, Value = load info.
         /// </summary>
-        public Dictionary<string, AssetInfo> Assets = new Dictionary<string, AssetInfo>();
+        public Dictionary<string, Instruction.Asset> Assets = new Dictionary<string, Instruction.Asset>();
     }
 
     [Serializable]
@@ -87,8 +87,8 @@ namespace T2G.Assistant
                         : new List<Component>(),
                     Objects = new List<HumanObject>(),
                     Assets = space.Assets != null
-                        ? new Dictionary<string, AssetInfo>(space.Assets)
-                        : new Dictionary<string, AssetInfo>()
+                        ? new Dictionary<string, Instruction.Asset>(space.Assets)
+                        : new Dictionary<string, Instruction.Asset>()
                 };
 
                 // Build GUID → Name lookup for resolving relationship targets
@@ -209,8 +209,8 @@ namespace T2G.Assistant
                         : new List<Component>(),
                     Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase),
                     Assets = humanSpace.Assets != null
-                        ? new Dictionary<string, AssetInfo>(humanSpace.Assets)
-                        : new Dictionary<string, AssetInfo>()
+                        ? new Dictionary<string, Instruction.Asset>(humanSpace.Assets)
+                        : new Dictionary<string, Instruction.Asset>()
                 };
 
                 var nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -246,21 +246,23 @@ namespace T2G.Assistant
                             if (!space.Assets.ContainsKey(importPath))
                             {
                                 string ext = System.IO.Path.GetExtension(importPath)?.ToLowerInvariant()?.TrimStart('.');
-                                space.Assets[importPath] = new AssetInfo
+                                space.Assets[importPath] = new Instruction.Asset()
                                 {
-                                    ImportPath = importPath,
-                                    Type = ext ?? ""
-                                };
+                                    desc = string.Empty,            //TODO: assign the real data 
+                                    type = AssetType.Unknown,       //TODO:  assign the real data
+                                    source = importPath
+                               };
                             }
                             obj.Assets[i] = new ObjectAssetRef { Key = importPath, LoadPath = loadPath };
                         }
                         else if (!string.IsNullOrWhiteSpace(assetRef.Key) && !space.Assets.ContainsKey(assetRef.Key))
                         {
                             string ext = System.IO.Path.GetExtension(assetRef.Key)?.ToLowerInvariant()?.TrimStart('.');
-                            space.Assets[assetRef.Key] = new AssetInfo
+                            space.Assets[assetRef.Key] = new Instruction.Asset()
                             {
-                                ImportPath = assetRef.Key,
-                                Type = ext ?? ""
+                                desc = string.Empty,            //TODO: assign the real data 
+                                type = AssetType.Unknown,       //TODO:  assign the real data
+                                source = assetRef.Key
                             };
                         }
                     }

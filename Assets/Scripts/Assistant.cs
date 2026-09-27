@@ -23,7 +23,7 @@ namespace T2G.Assistant
 
         public CommunicatorClient Communicator { get; private set; }
 
-        private List<Instruction> _instructions;
+        private List<InstructionBase> _instructions;
         private bool _completed;
         private StringBuilder _sb = new StringBuilder();
 
@@ -181,28 +181,34 @@ namespace T2G.Assistant
             }
         }
 
+        bool ValidateInstruction(InstructionBase instructionBase)
+        {
+            return true;
+        }
+
+
         async Awaitable<bool> ProcessInstruction(int i)
         {
-            var instruction = _instructions[i];
+            var instructionBase = _instructions[i];
 
-            if (instruction.type == Instruction.k_TypeInstructionList)
-            {
-                ExponentialBackoffFocusRestorer.NeedFocus = true;
-                _sb.AppendLine($"Start batching {instruction.instructions.Length} instructions:");
-                _completed = true;
-            }
-            else if(instruction.type == Instruction.k_TypeFailed)
+            if(!ValidateInstruction(instructionBase))
             {
                 _sb.AppendLine("Sorry, I don't know how to accomplish this task!");
                 _completed = false;
+                return _completed;
             }
-            else if(instruction.type == Instruction.k_TypeQuestion)
+
+            if (instructionBase.type == InstructionType.Sequence)
             {
-                //Support it later
+                InstructionSequence instructionSequence = instructionBase as InstructionSequence;
+                ExponentialBackoffFocusRestorer.NeedFocus = true;
+                _sb.AppendLine($"Start batching {instructionSequence.instructions.Count} instructions:");
+                _completed = true;
             }
             else
             {
-                if (instruction.state == Instruction.eState.Local)
+                var instruction = instructionBase as Instruction;
+                if (instruction.type == InstructionType.Local)
                 {
                     var result = await LocalExecution.Instance.Execute(instruction);
                     _completed = result.succeeded;
@@ -219,14 +225,14 @@ namespace T2G.Assistant
                 }
                 else
                 {
-                    if (instruction.state == Instruction.eState.Raw)
+                    if (instruction.state == InstructionState.Raw)
                     {
                         instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved
                     }
 
                     ExponentialBackoffFocusRestorer.NeedFocus = true;
 
-                    if (instruction.state == Instruction.eState.Resolved)
+                    if (instruction.state == InstructionState.Resolved)
                     {
                         Communicator.EmptyReceiveBuffer();
                         string jsonInstruction = JsonConvert.SerializeObject(instruction);
@@ -259,17 +265,17 @@ namespace T2G.Assistant
                 }
             }
 
-            if (instruction.instructions != null && instruction.instructions.Length > 0)
-            {
-                InsertAdditionalInstructions(i, new List<Instruction>(instruction.instructions));
-            }
-
             return _completed;
         }
 
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
         {
-            _instructions = await _tanslation.Translate(intent.Trim());
+            var translatedInstructions = await _tanslation.Translate(intent.Trim());
+            foreach (var translatedInstruction in translatedInstructions)
+            {
+                _instructions.Add(translatedInstruction);
+            }
+
 
             if (_instructions == null)
             {

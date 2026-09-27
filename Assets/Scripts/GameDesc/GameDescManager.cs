@@ -197,9 +197,9 @@ namespace T2G.Assistant
                             var space = FindSpace(CurrentSpaceName);
                             for (int i = 0; i < instruction.assets.Count; i += 2)
                             {
-                                string importPath = instruction.assets[i];
+                                string importPath = instruction.assets[i].source;
                                 string loadPath = i + 1 < instruction.assets.Count
-                                    ? instruction.assets[i + 1] : importPath;
+                                    ? instruction.assets[i + 1].source : importPath;
                                 string key = AddAssetToSpace(importPath, loadPath, space);
                                 if (key != null && !obj.Assets.Any(a => a.Key == key))
                                     obj.Assets.Add(new ObjectAssetRef { Key = key, LoadPath = loadPath });
@@ -229,7 +229,7 @@ namespace T2G.Assistant
                     Debug.LogWarning($"[GameDescManager] create_object skipped - objectName or CurrentSpaceName is empty");
                 }
             }
-            else if (action == T2G.Actions.add_script)
+            else if (action == T2G.Actions.add_component)
             {
                 string objectName = instruction.parameters.GetString("objName");
                 if (string.IsNullOrWhiteSpace(objectName))
@@ -466,7 +466,7 @@ namespace T2G.Assistant
                     catch { }
                 }
             }
-            else if (action == T2G.Actions.remove_script)
+            else if (action == T2G.Actions.remove_component)
             {
                 string objectName = instruction.parameters.GetString("Name");
                 string componentType = instruction.parameters.GetString("Type");
@@ -758,8 +758,8 @@ namespace T2G.Assistant
                 Description = instruction.desc,
                 Properties = new List<PropertyDesc>(),
                 Assets = instruction.assets != null
-                    ? instruction.assets.Where(a => !string.IsNullOrWhiteSpace(a))
-                        .Select(a => new ComponentAssetRef { Key = a, Type = Path.GetFileNameWithoutExtension(a) })
+                    ? instruction.assets.Where(a => !string.IsNullOrWhiteSpace(a.source))
+                        .Select(a => new ComponentAssetRef { Key = a.source, Type = Path.GetFileNameWithoutExtension(a.source) })
                         .ToList()
                     : new List<ComponentAssetRef>()
             };
@@ -784,13 +784,14 @@ namespace T2G.Assistant
                     var space = FindSpace(spaceName);
                     if (space != null)
                     {
-                        space.Assets ??= new Dictionary<string, AssetInfo>();
+                        space.Assets ??= new Dictionary<string, Instruction.Asset>();
                         if (!space.Assets.ContainsKey(importPath))
                         {
-                            space.Assets[importPath] = new AssetInfo
+                            space.Assets[importPath] = new Instruction.Asset
                             {
-                                ImportPath = importPath,
-                                Type = "Script"
+                                desc = "",                  //TODO: assign correct value
+                                type = AssetType.Unknown,   //TODO: assign correct value
+                                source = importPath,
                             };
                         }
                     }
@@ -799,39 +800,41 @@ namespace T2G.Assistant
             else if (string.Compare(componentType, "asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
             {
                 comp.Assets = instruction.assets
-                    .Where(a => !string.IsNullOrWhiteSpace(a))
+                    .Where(a => !string.IsNullOrWhiteSpace(a.source))
                     .Select(a =>
                     {
                         string className = null;
-                        string fullPath = Path.Combine(Application.dataPath, a);
+                        string fullPath = Path.Combine(Application.dataPath, a.source);
                         if (File.Exists(fullPath))
                         {
                             string content = File.ReadAllText(fullPath);
                             className = ExtractScriptClassName(content);
                         }
-                        className ??= Path.GetFileNameWithoutExtension(a);
-                        return new ComponentAssetRef { Key = a, Type = className };
+                        className ??= Path.GetFileNameWithoutExtension(a.source);
+                        return new ComponentAssetRef { Key = a.source, Type = className };
                     })
                     .ToList();
 
                 var space = FindSpace(spaceName);
                 if (space != null)
                 {
-                    space.Assets ??= new Dictionary<string, AssetInfo>();
+                    space.Assets ??= new Dictionary<string, Instruction.Asset>();
                     for (int i = 0; i < instruction.assets.Count; i++)
                     {
-                        string assetPath = instruction.assets[i];
-                        if (string.IsNullOrWhiteSpace(assetPath)) continue;
+                        string assetPath = instruction.assets[i].source;
+                        if (string.IsNullOrWhiteSpace(assetPath)) 
+                            continue;
 
                         if (i == 0 && comp.Assets.Count > 0)
                             comp.Type = comp.Assets[0].Type;
 
                         if (!space.Assets.ContainsKey(assetPath))
                         {
-                            space.Assets[assetPath] = new AssetInfo
+                            space.Assets[assetPath] = new Instruction.Asset()
                             {
-                                ImportPath = assetPath,
-                                Type = "Script"
+                                desc = instruction.assets[i].desc,
+                                type = instruction.assets[i].type,
+                                source = instruction.assets[i].source
                             };
                         }
                     }
@@ -1001,7 +1004,7 @@ namespace T2G.Assistant
 
                 space.Objects ??= new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
                 space.Components ??= new List<Component>();
-                space.Assets ??= new Dictionary<string, AssetInfo>();
+                space.Assets ??= new Dictionary<string, Instruction.Asset>();
                 space.RebuildNameIndex();
 
                 foreach (var obj in space.Objects.Values)
@@ -1094,10 +1097,11 @@ namespace T2G.Assistant
 
             if (!space.Assets.ContainsKey(key))
             {
-                space.Assets[key] = new AssetInfo
+                space.Assets[key] = new Instruction.Asset()
                 {
-                    ImportPath = key,
-                    Type = InferAssetType(key)
+                    desc = key,                 //TODO: assign valid data
+                    type = AssetType.Unknown,   //TODO: assign valid data
+                    source = key
                 };
             }
 
