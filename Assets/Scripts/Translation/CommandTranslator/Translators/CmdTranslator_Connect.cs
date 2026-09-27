@@ -6,15 +6,12 @@ namespace T2G.Assistant
     [CommandTranslator("connect")]
     public class CmdTranslator_Connect : CmdTranslatorBase
     {
-        public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
+        public override (bool succeeded, InstructionBase instructionBase) Translate((string name, string value)[] args)
         {
-            List<Instruction> instructions = new List<Instruction>();
-
             Instruction instruction = new Instruction();
-            instruction.action = GetType().GetCustomAttribute<CommandTranslatorAttribute>()?.Action;
-            instruction.state = Instruction.eState.Local;
-            instructions.Add(instruction);
-            return (true, instructions);
+            instruction.action = GetActionName();
+            instruction.type = InstructionType.Local;
+            return (true, instruction);
         }
     }
 }

@@ -34,7 +34,7 @@ namespace T2G
         public const string create_object = "create_object";
         public const string select_object = "select_object";
         public const string delete_object = "delete_object";
-        public const string place_on_ground = "place_on_ground";
+        public const string place_on = "place_on";
         public const string attach_to = "attach_to";
         public const string detach_from = "detach_from";
         public const string set_property = "set_property";
@@ -42,9 +42,9 @@ namespace T2G
         #endregion Object
 
         #region Component
-        public const string add_script = "add_script";
-        public const string remove_script = "remove_script";
-        public const string update_script = "update_script";
+        public const string add_component = "add_component";
+        public const string remove_component = "remove_component";
+        public const string update_component = "update_component";
         public const string call_method = "call_method";
         #endregion Component
     }

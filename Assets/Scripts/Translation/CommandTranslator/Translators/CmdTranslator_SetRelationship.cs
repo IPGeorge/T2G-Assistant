@@ -5,7 +5,7 @@ namespace T2G.Assistant
     [CommandTranslator(T2G.Actions.set_relationship)]
     public class CmdTranslator_SetRelationship : CmdTranslatorBase
     {
-        public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
+        public override (bool succeeded, InstructionBase instructionBase) Translate((string name, string value)[] args)
         {
             string source = Utils.GetParamFromArguments(args, "source");
             string target = Utils.GetParamFromArguments(args, "target");
@@ -18,17 +18,17 @@ namespace T2G.Assistant
             var instruction = new Instruction
             {
                 action = GetActionName(),
-                state = Instruction.eState.Resolved,
-                parameters = new List<ValuePair>
+                type = InstructionType.Composite,
+                parameters = new List<Instruction.Parameter>
                 {
-                    new ValuePair("source", source),
-                    new ValuePair("target", target ?? string.Empty),
-                    new ValuePair("type", type ?? string.Empty),
-                    new ValuePair("slot", slot ?? string.Empty)
+                    new Instruction.Parameter("source", source),
+                    new Instruction.Parameter("target", target ?? string.Empty),
+                    new Instruction.Parameter("type", type ?? string.Empty),
+                    new Instruction.Parameter("slot", slot ?? string.Empty)
                 }
             };
 
-            return (true, new List<Instruction> { instruction });
+            return (true, instruction);
         }
     }
 }

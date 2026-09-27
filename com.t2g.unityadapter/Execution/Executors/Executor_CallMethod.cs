@@ -14,8 +14,8 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("objName");
-            string methodFullName = instruction.parameters.GetString("method");
+            string objName = instruction.parameters.GetString("ObjName");
+            string methodFullName = instruction.parameters.GetString("Method");
 
             await Task.Yield();
 

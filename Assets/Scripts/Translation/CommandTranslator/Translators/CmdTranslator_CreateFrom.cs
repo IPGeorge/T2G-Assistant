@@ -7,7 +7,7 @@ namespace T2G.Assistant
     [CommandTranslator(T2G.Actions.create_from)]
     public class CmdTranslator_CreateFrom : CmdTranslatorBase
     {
-        public override (bool succeeded, List<Instruction> instructions) Translate((string name, string value)[] args)
+        public override (bool succeeded, InstructionBase instructionBase) Translate((string name, string value)[] args)
         {
             // 1. Parse parameters
             string gameDescPathFile = Utils.GetParamFromArguments(args, "gamedesc");
@@ -18,20 +18,16 @@ namespace T2G.Assistant
                 return (false, null);
             }
 
-            List<Instruction> instructions = new List<Instruction>();
             var instruction = new Instruction()
             {
-                type = Instruction.k_TypeInstruction,
+                type = InstructionType.Local,
                 action = GetActionName(),
-                state = Instruction.eState.Local,
-                parameters = new List<ValuePair>()
             };
 
-            instruction.parameters.Add(new ValuePair("GameDesc", gameDescPathFile));
-            instruction.parameters.Add(new ValuePair("Spaces", spacesStr));
+            instruction.parameters.Add(new Instruction.Parameter("GameDesc", gameDescPathFile));
+            instruction.parameters.Add(new Instruction.Parameter("Spaces", spacesStr));
 
-            instructions.Add(instruction);
-            return (true, instructions);
+            return (true, instruction);
         }
     }
 }

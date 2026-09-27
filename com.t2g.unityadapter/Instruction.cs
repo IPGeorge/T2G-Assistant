@@ -21,8 +21,17 @@ namespace T2G
         Resolved = 2    // Resolution has completed and the instruction is ready for execution.
     }
 
+
     [Serializable]
-    public class Instruction
+    public abstract class InstructionBase
+    {
+        public string id;                       // Unique instruction identifier.
+        public InstructionType type = InstructionType.Elemental;
+        public string desc; // Original user prompt that produced this sequence.
+    }
+
+    [Serializable]
+    public class Instruction : InstructionBase
     {
         [Serializable]
         public class Parameter
@@ -49,17 +58,13 @@ namespace T2G
         [Serializable]
         public class Asset
         {
-            public string desc;     // Semantic description used for asset resolution.
-            public string type;     // Asset category/type. Examples: character, weapon, environment.
-            public string status;   // Asset resolution status.
-            public string value;    // Resolved asset identifier or path. Empty before asset resolution.
+            public string desc = string.Empty;  // Semantic description used for asset resolution.
+            public string type = string.Empty;  // Asset category/type. Examples: character, weapon, environment.
+            public string value = string.Empty; // Resolved asset identifier or path. Empty before asset resolution.
         }
 
-        public string id;                       // Unique instruction identifier.
-        public InstructionType type = InstructionType.Elemental;
         public InstructionState state = InstructionState.Init;
         public string action;                   // Canonical action name.
-        public string desc = string.Empty;      // Original prompt text associated with this instruction.
 
         [JsonProperty("parameters")]            // Model may output "params" or "parameters" → accept both.
         public List<Parameter> parameters = new List<Parameter>();   
@@ -100,16 +105,16 @@ namespace T2G
         }
     }
 
-
     [Serializable]
-    public class InstructionSequence
+    public class InstructionSequence : InstructionBase
     {
-        public InstructionType type = InstructionType.Sequence; // Always Sequence.
-        public string id;   // Unique sequence identifier.
-        public string desc; // Original user prompt that produced this sequence.
         public List<Instruction> instructions = new();  // Ordered instructions required to satisfy the user intent.
-    }
 
+        public InstructionSequence()
+        {
+            type = InstructionType.Sequence; // Always Sequence.
+        }
+    }
 
     /// <summary>
     /// Minimal header used to determine the returned JSON type

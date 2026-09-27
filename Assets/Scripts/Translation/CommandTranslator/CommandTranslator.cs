@@ -1,3 +1,18 @@
+/*
+
+Command examples:
+    create project c:\UnityGames Shooter (or create project c:\UnityGames\Shooter)
+    init project c:\UnityGames Shooter (or initialize project c:\UnityGames\Shooter)
+    open project c:\UnityGames Shooter (or open project c:\UnityGames\Shooter)
+    connect
+    disconnect
+    create a cube named Box at (0,0,0)
+    set Box position to (0,1,0)
+    add script spin to Box
+*/
+
+
+
 using UnityEngine;
 using T2G;
 using System.Threading.Tasks;
@@ -22,48 +37,57 @@ namespace T2G.Assistant
 
     public class CommandTranslator : TranslatorBase
     {
-        //Command examples:
-        //create project c:\UnityGames Shooter (or create project c:\UnityGames\Shooter)
-        //init project c:\UnityGames Shooter (or initialize project c:\UnityGames\Shooter)
-        //open project c:\UnityGames Shooter (or open project c:\UnityGames\Shooter)
-        //connect
-        //disconnect
-
         //Rule Based Process (RBP) key map
-        private (string pattern, string key)[] _RBP_Rules = 
+        private (string pattern, string key)[] _RBP_Rules =             // Pattern that handles both cases
         {
-            // Pattern that handles both cases
-            (@"^(generate|create)\s+from\s+(?<gamedesc>[A-Za-z]:\\[^\s]+)(?:\s+spaces\s*=\s*""?(?<spaces>[^""\s]*)""?)?\s*$", T2G.Actions.create_from),
-            (@"^import\s+assets\s+(?<assets>(?:""[^""]+""|[^\s,]+)(?:\s*,\s*(?:""[^""]+""|[^\s,]+))*)\s*$", T2G.Actions.import_assets),
+            //Unity project commands
             (@"^create\s+project\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+)(?!\s+from\b)(?:\s+(?<name>[^\s]+))?$", T2G.Actions.create_project),
             (@"^(init|initialize)\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.init_project),
             (@"^open\s+project(?:\s+(?<path>[A-Za-z]:\\[^\s]+|\\\\[^\s]+))?(?:\s+(?<name>[^\s]+))?$", T2G.Actions.open_project),
+
+            //Chat UI commands
+            (@"^(clear|clean)(?:\s+(history|chat|chat\s+history))?$", T2G.Actions.clear),
             (@"^connect$", T2G.Actions.connect),
             (@"^disconnect$", T2G.Actions.disconnect),
-            (@"^(clear|clean)(?:\s+(history|chat|chat\s+history))?$", T2G.Actions.clear),
+
+            //Space commands
             (@"^create\s+space\s+(?<name>[^\s]+)$", T2G.Actions.create_space),
             (@"^(goto|go\s+to|enter|open)\s+(?:space\s+)?(?<name>[^\s]+)$", T2G.Actions.goto_space),
             (@"^(save space|save)$", T2G.Actions.save_space),
             (@"^rename\s+space\s+(?<name>[^\s]+)$", T2G.Actions.rename_space),
+
+            //Game object commands
             (@"^(create|instantiate)\s+(?:(?:a|an)\s+|(?<count>\d{1,4})\s+)?(?:new\s+)?(?<desc>[\w\s\-]+?)(?:\s+(?:called|named|name|with\s+the\s+name)\s+(?<name>""[^""]+""|[\w\s\-]+))?(?:\s+(?:at|at\s+position|at\s+location)\s+\((?<x>-?\d+(?:\.\d+)?),\s*(?<y>-?\d+(?:\.\d+)?),\s*(?<z>-?\d+(?:\.\d+)?)\))?(?:\.)?$", T2G.Actions.create_object),
-            (@"^(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
             (@"^(delete)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.delete_object),
-            (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on_ground),
-            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:at|on)\s+(?<socket>[\w\-]+))?\s*$", T2G.Actions.attach_to),
-            (@"^set\s+relationship\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+as\s+(?<type>[\w_]+))?(?:\s+(?:at|on|slot)\s+(?<slot>[\w\-]+))?\s*$", T2G.Actions.set_relationship),
-            (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", T2G.Actions.detach_from),
-            (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=|to)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", T2G.Actions.set_property),
-            (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", T2G.Actions.call_method),
+            (@"^(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
+
+            //Game object component cammands
             (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.add_script),
             (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.remove_script),
-            (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", T2G.Actions.update_script),
+            (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=|to)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", T2G.Actions.set_property),
+            (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", T2G.Actions.call_method),
 
-            (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
-            (@"^call\s+(?<name>""[^""]+""|'[^']+'|[\w\-]+)\s+method\s+(?<method>""[^""]+""|'[^']+'|[\w\.]+)(?:\s+(?:with\s+)?parameters?\s+(?<parameters>.+))?$", T2G.Actions.call_method),
-            (@"^spin(?:\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))?(?:\s+(?<speed>[+-]?\d+(?:\.\d+)?))?$", "spin_object"),
+            //Game object relationship commands 
+            (@"^attach\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:at|on)\s+(?<socket>[\w\-]+))?\s*$", T2G.Actions.attach_to),
+            (@"^detach\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)$", T2G.Actions.detach_from),
+
+            //Composite commands
+            (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on),
+
+            //UI display commands
             (@"^font\s+(?<attrib>\w+)\s+(?<value>-?\d+(?:\.\d+)?|#[0-9a-fA-F]{3,6}|\w+)\s*$", "set_font"),
+            (@"^(print|display|write)\s+(?<text>(""[^""]+"")|('[^']+')|([\w\-_]+(?:\s+[\w\-_]+)*))\s+at\s+(?<position>center|top[-\s]?(left|mid|right)|bottom[-\s]?(left|mid|right)|\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\))\s*$", "print_text"),
+
+            //Generating game from GameDesc commands    
+            (@"^(generate|create)\s+from\s+(?<gamedesc>[A-Za-z]:\\[^\s]+)(?:\s+spaces\s*=\s*""?(?<spaces>[^""\s]*)""?)?\s*$", T2G.Actions.create_from),
+            
+            //Handy demo commands
+            (@"^import\s+assets\s+(?<assets>(?:""[^""]+""|[^\s,]+)(?:\s*,\s*(?:""[^""]+""|[^\s,]+))*)\s*$", T2G.Actions.import_assets),
+            (@"^(make|create)\s+prefab\s+from\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "make_prefab"),
+            (@"^set\s+relationship\s+(?<source>""[^""]+""|'[^']+'|[\w\-\s]+?)\s+to\s+(?<target>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+as\s+(?<type>[\w_]+))?(?:\s+(?:at|on|slot)\s+(?<slot>[\w\-]+))?\s*$", T2G.Actions.set_relationship),
+            (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", T2G.Actions.update_script),
+            (@"^spin(?:\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?))?(?:\s+(?<speed>[+-]?\d+(?:\.\d+)?))?$", "spin_object"),
             (@"^build\s+(?<shape>circle|square|rectangle)\s+(?<structure>wall)\s+with\s+(?<element>\w+)\s*(?:named|with the name\s+)?(?<name>.+?)(?:\.)?$", "build_structure"),
-            (@"^(make|create)\s+prefab\s+from\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)\s*$", "make_prefab")
         };
 
         Dictionary<string, CmdTranslatorBase> _translatorMap = new Dictionary<string, CmdTranslatorBase>();
