@@ -424,7 +424,7 @@ namespace T2G
             return canvas;
         }
 
-        public static int CollectAllAssets(Instruction[] instructions, ref List<string> assetList)
+        public static int CollectAllAssets(Instruction[] instructions, ref List<Instruction.Asset> assetList)
         {
             if(instructions == null || instructions.Length <= 0 || assetList == null)
             {
@@ -444,11 +444,6 @@ namespace T2G
                 {
                     assetList.Add(asset);
                     cnt++;
-                }
-
-                if (instruction.instructions != null)
-                {
-                    cnt += CollectAllAssets(instruction.instructions, ref assetList);
                 }
             }
 
