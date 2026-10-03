@@ -21,10 +21,10 @@ namespace T2G.Assistant
                 type = InstructionType.Composite,
                 parameters = new List<Instruction.Parameter>
                 {
-                    new Instruction.Parameter("source", source),
-                    new Instruction.Parameter("target", target ?? string.Empty),
-                    new Instruction.Parameter("type", type ?? string.Empty),
-                    new Instruction.Parameter("slot", slot ?? string.Empty)
+                    new Instruction.Parameter("Source", source),
+                    new Instruction.Parameter("Target", target ?? string.Empty),
+                    new Instruction.Parameter("Type", type ?? string.Empty),
+                    new Instruction.Parameter("Slot", slot ?? string.Empty)
                 }
             };
 

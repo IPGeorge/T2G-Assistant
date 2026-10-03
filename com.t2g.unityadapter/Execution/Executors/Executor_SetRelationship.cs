@@ -11,10 +11,10 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string sourceName = instruction.parameters.GetString("source");
-            string relType = instruction.parameters.GetString("type");
-            string targetName = instruction.parameters.GetString("target");
-            string slotName = instruction.parameters.GetString("slot");
+            string sourceName = instruction.parameters.GetString("Source");
+            string relType = instruction.parameters.GetString("Type");
+            string targetName = instruction.parameters.GetString("Target");
+            string slotName = instruction.parameters.GetString("Slot");
 
             if (string.IsNullOrWhiteSpace(sourceName))
                 return (false, "source is required.", null);

@@ -13,7 +13,7 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("objName");
+            string objName = instruction.parameters.GetString("Name");
 
             var obj = Utils.FindObjectByName(objName);
             if (obj == null)
@@ -21,8 +21,8 @@ namespace T2G
                 return (false, $"Couldn't find {objName}!", null);
             }
 
-            string propertyName = instruction.parameters.GetString("property");
-            string value = instruction.parameters.GetString("value");
+            string propertyName = instruction.parameters.GetString("Property");
+            string value = instruction.parameters.GetString("Value");
 
             bool succeeded = GameObjectPropertySetter.SetProperty(obj, propertyName, value, out var resultMessage);
             if (succeeded)

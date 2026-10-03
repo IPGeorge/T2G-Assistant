@@ -12,6 +12,7 @@ namespace T2G.Assistant
 
             Instruction instruction = new Instruction();
             instruction.action = GetActionName();
+            instruction.type = InstructionType.Composite;
             string objectName = Utils.GetParamFromArguments(args, "name");
             instruction.parameters.Add(new Instruction.Parameter("Name", objectName));
             return (true, instruction);

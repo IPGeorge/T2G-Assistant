@@ -10,7 +10,7 @@ namespace T2G.Assistant
             Instruction instruction = new Instruction();
             instruction.action = GetActionName();
             string objectName = Utils.GetParamFromArguments(args, "name");
-            instruction.parameters.Add(new Instruction.Parameter("objectName", objectName));
+            instruction.parameters.Add(new Instruction.Parameter("Name", objectName));
             return (true, instruction);
         }
     }

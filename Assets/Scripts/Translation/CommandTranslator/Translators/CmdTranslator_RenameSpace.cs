@@ -12,7 +12,7 @@ namespace T2G.Assistant
             instruction.action = GetActionName();
 
             string spaceName = Utils.GetParamFromArguments(args, "name");
-            instruction.parameters.Add(new Instruction.Parameter("spaceName", spaceName));
+            instruction.parameters.Add(new Instruction.Parameter("SpaceName", spaceName));
 
             return (true, instruction);
         }

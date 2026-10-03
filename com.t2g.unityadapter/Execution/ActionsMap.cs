@@ -1,10 +1,11 @@
 
+using System.Collections.Generic;
+
 namespace T2G
 {
     public static class Actions
     {
         public const string no_action = "no_action";
-        public const string question = "question";
 
         #region Project 
         public const string create_project = "create_project";
@@ -44,9 +45,57 @@ namespace T2G
         #region Component
         public const string add_component = "add_component";
         public const string remove_component = "remove_component";
-        public const string update_component = "update_component";
         public const string call_method = "call_method";
         #endregion Component
-    }
 
+
+        public class ActionMeta
+        {
+            public InstructionType instructionType;
+            public InstructionState instructionState;
+            public string[] parameters = null;
+        }
+
+        static Dictionary<string, ActionMeta> s_actionsMap = null;
+        public static Dictionary<string, ActionMeta> ActionMap
+        {
+            get
+            {
+                if(s_actionsMap == null)
+                {
+                    BuildActionsMap();
+                }
+                return s_actionsMap;
+            }
+        }
+
+        static void BuildActionsMap()
+        {
+            s_actionsMap = new Dictionary<string, ActionMeta>();
+            s_actionsMap[Actions.no_action] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
+            s_actionsMap[Actions.create_project] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = new string[]{ "Path", "ProjectName" } };
+            s_actionsMap[Actions.create_from] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = new string[] { "GameDesc", "Spaces" } };
+            s_actionsMap[Actions.init_project] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = new string[] { "Path", "ProjectName" } };
+            s_actionsMap[Actions.open_project] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = new string[] { "Path", "ProjectName" } };
+            s_actionsMap[Actions.connect] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
+            s_actionsMap[Actions.disconnect] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
+            s_actionsMap[Actions.clear] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
+            s_actionsMap[Actions.import_assets] = new ActionMeta() { instructionType = InstructionType.Sequence, instructionState = InstructionState.Resolved, parameters = new string[] { "Path", "ProjectName" } };
+            s_actionsMap[Actions.create_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
+            s_actionsMap[Actions.goto_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
+            s_actionsMap[Actions.save_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = null };
+            s_actionsMap[Actions.rename_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
+            s_actionsMap[Actions.create_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Raw, parameters = new string[] { "Position", "Name" } };
+            s_actionsMap[Actions.select_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
+            s_actionsMap[Actions.delete_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
+            s_actionsMap[Actions.place_on] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
+            s_actionsMap[Actions.attach_to] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Source", "Target" } };
+            s_actionsMap[Actions.detach_from] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
+            s_actionsMap[Actions.set_property] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "Property", "Value" } };
+            s_actionsMap[Actions.set_relationship] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Source", "Target", "Type", "Slot" } };
+            s_actionsMap[Actions.add_component] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "Type" } };
+            s_actionsMap[Actions.remove_component] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "ComponentType" } };
+            s_actionsMap[Actions.call_method] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "Method" } };
+        }
+    }
 }

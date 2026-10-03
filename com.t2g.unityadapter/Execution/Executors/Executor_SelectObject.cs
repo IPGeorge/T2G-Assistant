@@ -13,7 +13,7 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("objectName");
+            string objName = instruction.parameters.GetString("Name");
 
             var rootObjects = SceneManager.GetActiveScene().GetRootGameObjects();
             var gameObject = rootObjects.Where(obj => obj.name == objName).FirstOrDefault();

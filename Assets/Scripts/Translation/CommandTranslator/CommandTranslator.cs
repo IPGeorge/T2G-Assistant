@@ -73,7 +73,6 @@ namespace T2G.Assistant
 
             //Composite commands
             (@"^(place|align|put\s+down|put)\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\s+(?:on|onto|to)\s+(?:the\s+)?(?:ground|floor|surface|terrain))?\.?$", T2G.Actions.place_on),
-            (@"^(?:update|modify|replace)\s+(?:behavior|behaviour|script|component)\s+(?<component>[^\s]+)\s+(?:with|using)\s+(?<newComponent>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)(?:\s+for\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+))?\s*$", T2G.Actions.update_component),
 
             //UI display commands
             (@"^font\s+(?<attrib>\w+)\s+(?<value>-?\d+(?:\.\d+)?|#[0-9a-fA-F]{3,6}|\w+)\s*$", "set_font"),

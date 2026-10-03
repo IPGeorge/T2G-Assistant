@@ -23,7 +23,8 @@ namespace T2G.Assistant
 
         public CommunicatorClient Communicator { get; private set; }
 
-        private List<InstructionBase> _instructions;
+        private List<InstructionBase> _instructions = new List<InstructionBase>();
+        private Dictionary<string, string> _instructionLocalGlobalIdMap = new Dictionary<string, string>();
         private bool _completed;
         private StringBuilder _sb = new StringBuilder();
 
@@ -181,22 +182,9 @@ namespace T2G.Assistant
             }
         }
 
-        bool ValidateInstruction(InstructionBase instructionBase)
-        {
-            return true;
-        }
-
-
         async Awaitable<bool> ProcessInstruction(int i)
         {
             var instructionBase = _instructions[i];
-
-            if(!ValidateInstruction(instructionBase))
-            {
-                _sb.AppendLine("Sorry, I don't know how to accomplish this task!");
-                _completed = false;
-                return _completed;
-            }
 
             if (instructionBase.type == InstructionType.Sequence)
             {
@@ -271,18 +259,38 @@ namespace T2G.Assistant
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
         {
             var translatedInstructions = await _tanslation.Translate(intent.Trim());
+
+            _instructionLocalGlobalIdMap.Clear();
+            _instructions.Clear();
             foreach (var translatedInstruction in translatedInstructions)
             {
-                _instructions.Add(translatedInstruction);
-            }
+                if (string.IsNullOrEmpty(translatedInstruction.id))
+                {
+                    _instructionLocalGlobalIdMap[translatedInstruction.id] = 
+                        translatedInstruction.id = 
+                        InstructionIdGenerator.Instance.NextId();
+                }
 
-
-            if (_instructions == null)
-            {
-                return (false, null);
+                var normailizedInstruction = InstructionNormalizer.Normalize(translatedInstruction);
+                var result = InstructionValidator.Validate(normailizedInstruction, _instructionLocalGlobalIdMap);
+                if (result.IsValid)
+                {
+                    _instructions.Add(normailizedInstruction);
+                }
+                else
+                {
+                    _completed = false;
+                    return (_completed, result.Errors.ToString());
+                }
             }
 
             _completed = true;
+
+            if (_instructions.Count == 0)
+            {
+                return (_completed, "No more instructions to execute!");
+            }
+            
             _sb.Clear();
 
             for (int i = 0; i < _instructions.Count && _completed; ++i)

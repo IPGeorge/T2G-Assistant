@@ -22,7 +22,7 @@ namespace T2G
                 Directory.CreateDirectory(spacesPath);
             }
 
-            string newSpaceName = instruction.parameters.GetString("spaceName");
+            string newSpaceName = instruction.parameters.GetString("SpaceName");
             if (string.IsNullOrEmpty(newSpaceName))
             {
                 return (false, "Can't rename space with an empty name", null);

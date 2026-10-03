@@ -20,9 +20,9 @@ namespace T2G.Assistant
                 return (false, null);
             }
 
-            instruction.parameters.Add(new Instruction.Parameter("objName", objName));
-            instruction.parameters.Add(new Instruction.Parameter("property", propertyName));
-            instruction.parameters.Add(new Instruction.Parameter("value", valueString));
+            instruction.parameters.Add(new Instruction.Parameter("Name", objName));
+            instruction.parameters.Add(new Instruction.Parameter("Property", propertyName));
+            instruction.parameters.Add(new Instruction.Parameter("Value", valueString));
             
             return (true, instruction);
         }

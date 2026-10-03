@@ -35,6 +35,11 @@ namespace T2G.Assistant
             {
                 instruction.parameters.Add(new Instruction.Parameter("Position", $"({x}, {y}, {z})"));
             }
+            else
+            {
+                instruction.parameters.Add(new Instruction.Parameter("Position", $"(0, 0, 0)"));
+            }
+
             instruction.parameters.Add(new Instruction.Parameter("Name", objectName));
 
             return (true, instruction);
