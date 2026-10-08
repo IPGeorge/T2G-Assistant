@@ -33,7 +33,7 @@ namespace T2G
             {
                 _newObj = new GameObject(name);
             }
-            else if(T2G.Utils.IsCameraDesc(desc))
+            else if (T2G.Utils.IsCameraDesc(desc))
             {
                 _newObj = new GameObject(name);
                 Camera camera = _newObj.AddComponent<Camera>();
@@ -52,7 +52,7 @@ namespace T2G
                 camera.farClipPlane = 1000f;
                 _newObj.AddComponent<AudioListener>();
             }
-            else if(T2G.Utils.IsLightDesc(desc))
+            else if (T2G.Utils.IsLightDesc(desc))
             {
                 _newObj = new GameObject(name);
                 Light light = _newObj.AddComponent<Light>();
@@ -75,12 +75,12 @@ namespace T2G
                 _newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 _newObj.name = name;
             }
-            else if(desc.Contains("node object", System.StringComparison.OrdinalIgnoreCase))
+            else if (desc.Contains("node object", System.StringComparison.OrdinalIgnoreCase))
             {
                 _newObj = new GameObject(name);
             }
-            
-            if(_newObj == null)
+
+            if (_newObj == null)
             {
                 await AssetImporter.ImportAssets(name, instruction.assets, position);
                 await Utils.WaitForUnityIdle();
@@ -112,13 +112,13 @@ namespace T2G
                 }
                 else
                 {
-                Utils.PlaceInFrontOfCamera(_newObj);
-            }
-            var identifier = _newObj.AddComponent<T2GIdentifier>();
-            identifier.Id = System.Guid.NewGuid().ToString();
-            ResultObjectId = identifier.Id;
-            Utils.UpdateEditorViews();
-            return (true, $"{name} was created.", null);
+                    Utils.PlaceInFrontOfCamera(_newObj);
+                }
+                var identifier = _newObj.AddComponent<T2GIdentifier>();
+                identifier.Id = System.Guid.NewGuid().ToString();
+                ResultObjectId = identifier.Id;
+                Utils.UpdateEditorViews();
+                return (true, $"{name} was created.", null);
             }
         }
 
@@ -134,7 +134,7 @@ namespace T2G
                 var rectTransform = _newObj.GetComponent<RectTransform>();
                 if (rectTransform != null)
                 {
-                   var canvas = Utils.CreateCanvasSystem();
+                    var canvas = Utils.CreateCanvasSystem();
                     rectTransform.parent = canvas.transform;
                     rectTransform.localPosition = Vector3.zero;
                 }
@@ -144,7 +144,7 @@ namespace T2G
                 }
                 else
                 {
-                    Vector3? pos =  T2G.Utils.ParseVector3(objPrefab.position);
+                    Vector3? pos = T2G.Utils.ParseVector3(objPrefab.position);
                     if (pos.HasValue)
                     {
                         _newObj.transform.position = pos.Value;
@@ -168,7 +168,7 @@ namespace T2G
         {
             AssetImporter.LoadLists();
 
-            while(AssetImporter.ImportAssetList.Count > 0 || !CommunicatorServer.Instance.ShakeHand)
+            while (AssetImporter.ImportAssetList.Count > 0 || !CommunicatorServer.Instance.ShakeHand)
             {
                 await Task.Yield();
             }
@@ -181,7 +181,26 @@ namespace T2G
                 {
                     response.Succeeded = true;
                     response.Message = $"{objPrefab.name} was created.";
-                    response.ObjectId = _newObj?.GetComponent<T2GIdentifier>()?.Id ?? string.Empty;
+                    string objectId =
+                        _newObj?.GetComponent<T2GIdentifier>()?.Id ?? string.Empty;
+
+                    if (!string.IsNullOrWhiteSpace(objectId))
+                    {
+                        response.AddResult(
+                            "ObjectId",
+                            "String",
+                            objectId);
+                    }
+
+                    // Return the actual transform established by Unity.
+                    if (_newObj != null)
+                    {
+                        Vector3 position = _newObj.transform.position;
+                        response.AddResult(
+                            "Position",
+                            "Vector3",
+                            new float[] { position.x, position.y, position.z });
+                    }
                 }
                 else
                 {

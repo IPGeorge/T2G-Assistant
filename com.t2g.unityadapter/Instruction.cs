@@ -174,6 +174,10 @@ namespace T2G
         public string name;
         public JToken value;
 
+        public ValuePair()
+        {
+        }
+
         public ValuePair(string keyName, JToken keyValue)
         {
             name = keyName;

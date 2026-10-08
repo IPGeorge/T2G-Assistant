@@ -28,7 +28,7 @@ namespace T2G
     public class Execution
     {
         public Action<string> OnDisplayText = null;
-        
+
         public SettingsLite Settings { get; private set; } = new SettingsLite();
         CommunicatorServer _server;
 
@@ -112,7 +112,10 @@ namespace T2G
                     case CommunicatorBase.eMessageType.Instruction:
                         {
                             Instruction instruction = JsonConvert.DeserializeObject<Instruction>(messageData.Message.ToString());
-                            Response response = new Response();
+                            Response response = new Response
+                            {
+                                InstructionId = instruction.id ?? string.Empty
+                            };
                             bool isBusy = false;
                             if (_executorMap.ContainsKey(instruction.action))
                             {
@@ -120,13 +123,22 @@ namespace T2G
                                 var result = await executor.Execute(instruction);
                                 response.Succeeded = result.succeeded;
                                 response.Message = result.message;
-                                response.ObjectId = executor.ResultObjectId ?? string.Empty;
+                                // ObjectId is execution result data rather than
+                                // a fixed Response field.
+                                if (!string.IsNullOrWhiteSpace(executor.ResultObjectId))
+                                {
+                                    response.AddResult(
+                                        "ObjectId",
+                                        "String",
+                                        executor.ResultObjectId);
+                                }
+
                                 isBusy = string.IsNullOrEmpty(result.message);
                             }
                             else
                             {
                                 response.Succeeded = false;
-                                response.Message = "No appropriate exector was found!";
+                                response.Message = "No appropriate executor was found!";
                             }
 
                             if (!isBusy)
@@ -146,7 +158,7 @@ namespace T2G
 
         public async void SendExecutionResponse(Response response)
         {
-            while(!CommunicatorServer.Instance.IsConnected)
+            while (!CommunicatorServer.Instance.IsConnected)
             {
                 await Task.Delay(100);
             }

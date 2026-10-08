@@ -94,7 +94,7 @@ namespace T2G.Assistant
 
         private void OnGUI()
         {
-            if(SettingsWindow.Instance == null || SettingsWindow.Instance.IsWindowVisible)
+            if (SettingsWindow.Instance == null || SettingsWindow.Instance.IsWindowVisible)
             {
                 return;
             }
@@ -122,7 +122,7 @@ namespace T2G.Assistant
             GUI.Box(new Rect(windowX, windowY, windowWidth, chatWindowHeight), "");
 
             Rect viewport = new Rect(windowX + 10, windowY + 10, windowWidth - 30, chatWindowHeight - 20);
-            
+
             float totalContentHeight = CalculateTotalContentHeight(windowWidth - 50);
             Rect contentRect = new Rect(0, 0, windowWidth - 50, totalContentHeight);
 
@@ -147,7 +147,7 @@ namespace T2G.Assistant
         {
             float totalHeight = 0f;
             GUIStyle style = GUI.skin.box;
-            
+
             foreach (var message in chatHistory)
             {
                 GUIContent content = new GUIContent(message.message);
@@ -156,7 +156,7 @@ namespace T2G.Assistant
                 size.y = style.CalcHeight(content, size.x - 25);
                 totalHeight += 30 + size.y + 4;
             }
-            
+
             return Mathf.Max(totalHeight, chatWindowHeight - 20);
         }
 
@@ -164,10 +164,10 @@ namespace T2G.Assistant
         {
             var settings = Assistant.Instance.Settings;
             bool isUser = message.sender == settings.userName;
-            Color messageColor = isUser ? settings.userMessageColor : settings.botMessageColor;  
+            Color messageColor = isUser ? settings.userMessageColor : settings.botMessageColor;
 
             GUIStyle style = GUI.skin.box;
-            
+
             float maxBubbleWidth = width * 0.7f;
             GUIContent content = new GUIContent(message.message);
             Vector2 size = style.CalcSize(content);
@@ -178,7 +178,7 @@ namespace T2G.Assistant
 
             string senderLabel = $"{message.sender} - {message.timestamp:HH:mm:ss}";
             Vector2 labelSize = style.CalcSize(new GUIContent(senderLabel));
-            
+
             Rect senderRect;
             if (isUser)
             {
@@ -243,9 +243,9 @@ namespace T2G.Assistant
 
             float textFieldX = windowX + 10;
             float textFieldWidth = windowWidth - 190;
-            
+
             Rect inputRect = new Rect(textFieldX, inputY + 10, textFieldWidth, inputFieldHeight - 20);
-            
+
             GUI.SetNextControlName("ChatInput");
             currentInput = GUI.TextField(inputRect, currentInput);
 
@@ -348,13 +348,13 @@ namespace T2G.Assistant
 
             if (GUI.Button(new Rect(windowX + (buttonWidth + spacing) * 3, buttonsY, buttonWidth, buttonHeight), "Export"))
             {
-                if (GameDescManager.Instance?.Snapshot == null)
+                if (GameDescManager.Instance?.CurrentGameDesc == null)
                 {
                     AddMessage(Assistant.Instance.Settings.botName, "No game description data is available!");
                 }
                 else
                 {
-                    string defaultName = $"{GameDescManager.Instance.Snapshot.ProjectName ?? "GameDesc"}_export.json";
+                    string defaultName = $"{GameDescManager.Instance.CurrentGameDesc.ProjectName ?? "GameDesc"}_export.json";
 #if UNITY_EDITOR
                     string folder = EditorUtility.OpenFolderPanel("Select export folder", Application.persistentDataPath, "");
                     if (!string.IsNullOrWhiteSpace(folder))

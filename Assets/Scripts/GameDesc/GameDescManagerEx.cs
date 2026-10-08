@@ -1,161 +1,213 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json;
 using T2G;
 using UnityEngine;
 
 namespace T2G.Assistant
 {
-    public sealed partial class GameDescManager
+    /// <summary>
+    /// File loading and GameDesc-to-instruction regeneration extensions for
+    /// the final GameDescManager. The main GameDescManager must be declared partial.
+    /// </summary>
+    public partial class GameDescManager
     {
+        private static readonly JsonSerializerSettings GameDescJsonSettings =
+            new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                NullValueHandling = NullValueHandling.Include
+            };
+
         // ============================================================
-        // From file (local buffer — never touches Snapshot)
+        // From file - local buffer; does not replace CurrentGameDesc.
         // ============================================================
 
-        /// <summary>
-        /// Loads a GameDesc JSON file into a local buffer and returns
-        /// flat instructions to recreate a single space.
-        /// Does not modify the current Snapshot.
-        /// </summary>
         public Instruction[] GetInstructionsForSpace(string filePath, string spaceName)
         {
             ValidateArgs(filePath, spaceName);
 
-            var gd = DeserializeGameDescFile(filePath);
-            if (gd == null) return null;
+            GameDesc gameDesc = DeserializeGameDescFile(filePath);
+            Space space = FindSpaceInDesc(gameDesc, spaceName);
 
-            var space = FindSpaceInDesc(gd, spaceName);
             if (space == null)
-                throw new InvalidOperationException($"Space '{spaceName}' not found.");
+                throw new InvalidOperationException("Space '" + spaceName + "' not found.");
 
             return GameDescParser.ParseSpaceForInstructions(space);
         }
 
-        /// <summary>
-        /// Loads a GameDesc JSON file into a local buffer and returns
-        /// flat instructions for the specified spaces.
-        /// If spaceNames is null or empty, returns instructions for ALL spaces.
-        /// Does not modify the current Snapshot.
-        /// </summary>
         public Instruction[] GetInstructionsForSpaces(string filePath, string[] spaceNames)
         {
             if (string.IsNullOrWhiteSpace(filePath))
-            {
                 throw new ArgumentException("filePath is empty.");
-            }
-
             if (!File.Exists(filePath))
-            {
                 throw new FileNotFoundException("GameDesc file not found.", filePath);
-            }
 
-            var gd = DeserializeGameDescFile(filePath);
-            if (gd == null) return null;
+            GameDesc gameDesc = DeserializeGameDescFile(filePath);
 
             if (spaceNames == null || spaceNames.Length == 0)
-            {
-                return GameDescParser.ParseForInstructions(gd);
-            }
+                return GameDescParser.ParseForInstructions(gameDesc);
 
             var result = new List<Instruction>();
-            foreach (var name in spaceNames)
+            foreach (string name in spaceNames)
             {
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                var space = FindSpaceInDesc(gd, name);
+
+                Space space = FindSpaceInDesc(gameDesc, name.Trim());
                 if (space == null)
                 {
-                    UnityEngine.Debug.LogWarning($"Space '{name}' not found in GameDesc, skipping.");
+                    Debug.LogWarning("Space '" + name + "' not found in GameDesc, skipping.");
                     continue;
                 }
-                var spaceInstructions = GameDescParser.ParseSpaceForInstructions(space);
-                if (spaceInstructions != null)
-                    result.AddRange(spaceInstructions);
+
+                Instruction[] instructions = GameDescParser.ParseSpaceForInstructions(space);
+                if (instructions != null)
+                    result.AddRange(instructions);
             }
+
             return result.ToArray();
         }
 
-        /// <summary>
-        /// Parses a comma-separated space list string.
-        /// If null or empty, returns null (meaning "all spaces").
-        /// </summary>
-        public Instruction[] GetInstructionsForSpaces(string filePath, string spaceList = null, int tempreture = 0)
+        public Instruction[] GetInstructionsForSpaces(
+            string filePath,
+            string spaceList = null,
+            int tempreture = 0)
         {
             string[] names = null;
 
             if (!string.IsNullOrWhiteSpace(spaceList))
             {
-                names = spaceList.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                names = spaceList.Split(
+                    new[] { ',' },
+                    StringSplitOptions.RemoveEmptyEntries);
+
                 for (int i = 0; i < names.Length; i++)
-                {
                     names[i] = names[i].Trim();
-                }
             }
 
-            var instructions = GetInstructionsForSpaces(filePath, names);
-            return instructions;
+            return GetInstructionsForSpaces(filePath, names);
         }
 
         // ============================================================
-        // From current Snapshot
+        // From CurrentGameDesc.
         // ============================================================
 
-        /// <summary>
-        /// Generates flat instructions for a single space from the current Snapshot.
-        /// </summary>
         public Instruction[] GetInstructionsForSpace(string spaceName)
         {
-            EnsureSnapshot();
+            EnsureCurrentGameDesc();
 
-            var space = FindSpace(spaceName);
+            Space space = FindSpaceByName(spaceName);
             if (space == null)
-                throw new InvalidOperationException($"Space '{spaceName}' not found.");
+                throw new InvalidOperationException("Space '" + spaceName + "' not found.");
 
             return GameDescParser.ParseSpaceForInstructions(space);
         }
 
-        /// <summary>
-        /// Generates flat instructions for specified spaces from the current Snapshot.
-        /// If spaceNames is null or empty, returns ALL spaces.
-        /// </summary>
         public Instruction[] GetInstructionsForSpaces(string[] spaceNames)
         {
-            EnsureSnapshot();
+            EnsureCurrentGameDesc();
 
             if (spaceNames == null || spaceNames.Length == 0)
-            {
-                return GameDescParser.ParseForInstructions(Snapshot);
-            }
+                return GameDescParser.ParseForInstructions(CurrentGameDesc);
 
             var result = new List<Instruction>();
-            foreach (var name in spaceNames)
+            foreach (string name in spaceNames)
             {
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                var space = FindSpace(name);
+
+                Space space = FindSpaceByName(name.Trim());
                 if (space == null)
                 {
-                    UnityEngine.Debug.LogWarning($"Space '{name}' not found in Snapshot, skipping.");
+                    Debug.LogWarning("Space '" + name + "' not found in CurrentGameDesc, skipping.");
                     continue;
                 }
-                var spaceInstructions = GameDescParser.ParseSpaceForInstructions(space);
-                if (spaceInstructions != null)
-                    result.AddRange(spaceInstructions);
+
+                Instruction[] instructions = GameDescParser.ParseSpaceForInstructions(space);
+                if (instructions != null)
+                    result.AddRange(instructions);
             }
+
             return result.ToArray();
         }
 
-        /// <summary>
-        /// Generates flat instructions for ALL spaces from the current Snapshot.
-        /// </summary>
         public Instruction[] GetInstructionsForSpaces()
         {
-            EnsureSnapshot();
-            return GameDescParser.ParseForInstructions(Snapshot);
+            EnsureCurrentGameDesc();
+            return GameDescParser.ParseForInstructions(CurrentGameDesc);
         }
 
         // ============================================================
-        // Private helpers
+        // Serialization helpers.
         // ============================================================
+
+        public GameDesc DeserializeGameDescFile(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath is empty.");
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("GameDesc file not found.", filePath);
+
+            string json = File.ReadAllText(filePath);
+            if (string.IsNullOrWhiteSpace(json))
+                throw new InvalidOperationException("Invalid file: GameDesc JSON is empty.");
+
+            JObject root;
+            try
+            {
+                root = JObject.Parse(json);
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException("Invalid GameDesc JSON.", ex);
+            }
+
+            GameDesc gameDesc = null;
+
+            // Supports both the final direct GameDesc JSON and the older wrapper
+            // shape { SchemaVersion, Context, GameDesc } without depending on
+            // legacy wrapper classes.
+            JToken gameDescToken = GetPropertyIgnoreCase(root, "GameDesc");
+            if (gameDescToken != null && gameDescToken.Type == JTokenType.Object)
+            {
+                gameDesc = gameDescToken.ToObject<GameDesc>(
+                    JsonSerializer.Create(GameDescJsonSettings));
+            }
+            else if (LooksLikeFlatGameDesc(root))
+            {
+                gameDesc = root.ToObject<GameDesc>(
+                    JsonSerializer.Create(GameDescJsonSettings));
+            }
+
+            if (gameDesc == null)
+            {
+                // HumanGameDesc uses Objects as arrays rather than dictionaries.
+                HumanGameDesc human = root.ToObject<HumanGameDesc>(
+                    JsonSerializer.Create(GameDescJsonSettings));
+
+                if (human != null && human.Spaces != null)
+                    gameDesc = GameDescConverter.FromHuman(human);
+            }
+
+            if (gameDesc == null)
+                throw new InvalidOperationException("Invalid file: GameDesc missing.");
+
+            NormalizeLoadedGameDesc(gameDesc);
+            return gameDesc;
+        }
+
+        public string SerializeGameDesc(GameDesc gameDesc, bool humanReadable = false)
+        {
+            if (gameDesc == null)
+                throw new ArgumentNullException(nameof(gameDesc));
+
+            object value = humanReadable
+                ? (object)GameDescConverter.ToHuman(gameDesc)
+                : gameDesc;
+
+            return JsonConvert.SerializeObject(value, GameDescJsonSettings);
+        }
 
         private static void ValidateArgs(string filePath, string spaceName)
         {
@@ -167,45 +219,76 @@ namespace T2G.Assistant
                 throw new FileNotFoundException("GameDesc file not found.", filePath);
         }
 
-        public GameDesc DeserializeGameDescFile(string filePath)
+        private void EnsureCurrentGameDesc()
         {
-            string json = File.ReadAllText(filePath);
-
-            // Try flat GameDescFile format (SchemaVersion + Context + GameDesc wrapper)
-            var wrapper = JsonConvert.DeserializeObject<GameDescFile>(json, _jsonSettings);
-            if (wrapper?.GameDesc != null)
-            {
-                var gd = wrapper.GameDesc;
-
-                if (wrapper.SchemaVersion == null || wrapper.SchemaVersion < 1)
-                {
-                    // Legacy hierarchical format — migrate
-                    var legacyWrapper = JsonConvert.DeserializeObject<LegacyGameDescFile>(json, _jsonSettings);
-                    if (legacyWrapper?.GameDesc == null)
-                        throw new InvalidOperationException("Invalid file: cannot migrate legacy GameDesc.");
-                    gd = MigrateFromLegacy(legacyWrapper.GameDesc);
-                }
-
-                Normalize(gd);
-                return gd;
-            }
-
-            // Fall back to HumanGameDesc (hierarchical export) format
-            var human = JsonConvert.DeserializeObject<HumanGameDesc>(json, _jsonSettings);
-            if (human != null)
-            {
-                var gd = GameDescConverter.FromHuman(human);
-                Normalize(gd);
-                return gd;
-            }
-
-            throw new InvalidOperationException("Invalid file: GameDesc missing.");
+            if (CurrentGameDesc == null)
+                throw new InvalidOperationException("CurrentGameDesc has not been initialized.");
         }
 
-        private static Space FindSpaceInDesc(GameDesc gd, string spaceName)
+        private static Space FindSpaceInDesc(GameDesc gameDesc, string spaceName)
         {
-            return gd?.Spaces?.Find(s =>
-                s != null && string.Equals(s.Name, spaceName, StringComparison.OrdinalIgnoreCase));
+            if (gameDesc == null || gameDesc.Spaces == null || string.IsNullOrWhiteSpace(spaceName))
+                return null;
+
+            return gameDesc.Spaces.Find(s =>
+                s != null &&
+                string.Equals(s.Name, spaceName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool LooksLikeFlatGameDesc(JObject root)
+        {
+            return GetPropertyIgnoreCase(root, "Spaces") != null ||
+                   GetPropertyIgnoreCase(root, "ProjectName") != null;
+        }
+
+        private static JToken GetPropertyIgnoreCase(JObject obj, string name)
+        {
+            foreach (JProperty property in obj.Properties())
+            {
+                if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return property.Value;
+            }
+            return null;
+        }
+
+        private static void NormalizeLoadedGameDesc(GameDesc gameDesc)
+        {
+            gameDesc.Spaces = gameDesc.Spaces ?? new List<Space>();
+            gameDesc.InstructionHistory =
+                gameDesc.InstructionHistory ?? new List<InstructionRecord>();
+
+            foreach (Space space in gameDesc.Spaces)
+            {
+                if (space == null) continue;
+
+                if (string.IsNullOrWhiteSpace(space.Id))
+                    space.Id = Guid.NewGuid().ToString();
+
+                space.Properties = space.Properties ?? new List<PropertyDesc>();
+                space.Components = space.Components ?? new List<Component>();
+                space.Objects = space.Objects ??
+                    new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
+                space.Assets = space.Assets ??
+                    new Dictionary<string, GameAsset>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (Object obj in space.Objects.Values)
+                {
+                    if (obj == null) continue;
+                    if (string.IsNullOrWhiteSpace(obj.Id))
+                        obj.Id = Guid.NewGuid().ToString();
+
+                    obj.Tags = obj.Tags ?? new List<string>();
+                    obj.Roles = obj.Roles ?? new List<string>();
+                    obj.Relationships = obj.Relationships ?? new List<Relationship>();
+                    obj.Properties = obj.Properties ?? new List<PropertyDesc>();
+                    obj.Assets = obj.Assets ?? new List<AssetRef>();
+                    obj.Components = obj.Components ?? new List<Component>();
+                    obj.RebuildPropertyMap();
+                }
+
+                space.RebuildNameIndex();
+                space.RebuildPropertyMap();
+            }
         }
     }
 }

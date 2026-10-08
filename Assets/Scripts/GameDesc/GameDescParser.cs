@@ -1,20 +1,16 @@
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using T2G;
 
 namespace T2G.Assistant
 {
     /// <summary>
-    /// Parses a flat (machine-oriented) GameDesc into instruction lists
-    /// for batch execution.
+    /// Converts persistent flat GameDesc state back into elemental instructions
+    /// for regeneration/batch execution.
     /// </summary>
-    public class GameDescParser
+    public static class GameDescParser
     {
-        // ============================================================
-        // Entry points
-        // ============================================================
-
         public static bool ParseForInstructions(GameDesc gameDesc, out Instruction[] instructions)
         {
             instructions = ParseForInstructions(gameDesc);
@@ -27,333 +23,288 @@ namespace T2G.Assistant
                 return null;
 
             var result = new List<Instruction>();
-            foreach (var space in gameDesc.Spaces)
+            if (gameDesc.Spaces == null)
+                return result.ToArray();
+
+            foreach (Space space in gameDesc.Spaces)
             {
                 if (space == null) continue;
-
-                var spaceInstructions = ParseSpaceForInstructions(space);
-                if (spaceInstructions != null)
-                {
-                    result.AddRange(spaceInstructions);
-                }
+                Instruction[] items = ParseSpaceForInstructions(space);
+                if (items != null) result.AddRange(items);
             }
+
             return result.ToArray();
         }
 
-        // ============================================================
-        // Space → flat Instruction[]
-        // ============================================================
-
-        public static Instruction[] ParseSpaceForInstructions(T2G.Assistant.Space space)
+        public static Instruction[] ParseSpaceForInstructions(Space space)
         {
-            if (space == null) return null;
+            if (space == null)
+                return null;
 
             var result = new List<Instruction>();
 
-            // 1. create_space
-            var spaceInstr = new Instruction
-            {
-                action = T2G.Actions.create_space,
-                state = InstructionState.Resolved
-            };
-            spaceInstr.parameters = new List<Instruction.Parameter>()
-            {
-                new Instruction.Parameter("SpaceName", space.Name)
-            };
-            result.Add(spaceInstr);
+            // 1. Create the space.
+            result.Add(CreateInstruction(
+                Actions.create_space,
+                new Instruction.Parameter("SpaceName", "String", JToken.FromObject(space.Name ?? string.Empty))));
 
-            // Build GUID → Name map for resolving relationship targets in instructions
+            // 2. Restore space-level properties.
+            AddPropertyInstructions(result, space.Name, space.Properties, null);
+
+            // 3. Restore space-level components and their properties.
+            if (space.Components != null)
+            {
+                foreach (Component component in space.Components)
+                    AddComponentInstructions(result, component, space.Name, space);
+            }
+
+            // Build GUID -> Name map for relationship targets.
             var guidToName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var obj in space.Objects.Values)
+            if (space.Objects != null)
             {
-                if (obj != null && !string.IsNullOrWhiteSpace(obj.Name))
-                    guidToName[obj.Id] = obj.Name;
-            }
+                foreach (Object obj in space.Objects.Values)
+                {
+                    if (obj != null && !string.IsNullOrWhiteSpace(obj.Id) && !string.IsNullOrWhiteSpace(obj.Name))
+                        guidToName[obj.Id] = obj.Name;
+                }
 
-            // 2. Each object in the flat list (no hierarchy traversal needed)
-            foreach (var obj in space.Objects.Values)
-            {
-                if (obj == null) continue;
-                result.AddRange(ParseObjectForInstructions(obj, space, guidToName));
-            }
-
-            // 3. Space-level components
-            foreach (var comp in space.Components)
-            {
-                if (comp == null) continue;
-                result.Add(ParseSpaceComponentForInstructions(comp, space.Name));
+                // 4. Create objects and restore object-local state.
+                foreach (Object obj in space.Objects.Values)
+                {
+                    if (obj == null) continue;
+                    result.AddRange(ParseObjectForInstructions(obj, space, guidToName));
+                }
             }
 
             return result.ToArray();
         }
 
-        // ============================================================
-        // Object → flat Instruction[]
-        // ============================================================
-
-        public static Instruction[] ParseObjectForInstructions(T2G.Assistant.Object obj, T2G.Assistant.Space space, Dictionary<string, string> guidToName = null)
+        public static Instruction[] ParseObjectForInstructions(
+            Object obj,
+            Space space,
+            Dictionary<string, string> guidToName = null)
         {
-            if (obj == null) return null;
+            if (obj == null)
+                return null;
 
             var result = new List<Instruction>();
 
-            // 1. create_object
-            var createInstr = new Instruction
+            var create = new Instruction
             {
-                action = T2G.Actions.create_object,
+                action = Actions.create_object,
                 state = InstructionState.Resolved,
-                desc = obj.Desc ?? string.Empty
-            };
-            createInstr.parameters = new List<Instruction.Parameter>
-            {
-                new Instruction.Parameter("Name", obj.Name)
+                desc = obj.Desc ?? string.Empty,
+                parameters = new List<Instruction.Parameter>()
             };
 
-            // Tags
+            create.parameters.Add(new Instruction.Parameter(
+                "Name", "String", JToken.FromObject(obj.Name ?? string.Empty)));
+
+            // Optional semantic metadata used by GameDesc regeneration.
             if (obj.Tags != null && obj.Tags.Count > 0)
-            {
-                createInstr.parameters.Add(new Instruction.Parameter("Tags", string.Join(",", obj.Tags)));
-            }
+                create.parameters.Add(new Instruction.Parameter(
+                    "Tags", "String", JToken.FromObject(string.Join(",", obj.Tags))));
 
-            // Roles
             if (obj.Roles != null && obj.Roles.Count > 0)
+                create.parameters.Add(new Instruction.Parameter(
+                    "Roles", "String", JToken.FromObject(string.Join(",", obj.Roles))));
+
+            PropertyDesc position = FindProperty(obj.Properties, "Position");
+            if (position != null && position.Value != null)
             {
-                createInstr.parameters.Add(new Instruction.Parameter("Roles", string.Join(",", obj.Roles)));
+                create.parameters.Add(new Instruction.Parameter(
+                    "Position",
+                    NormalizeInstructionType(position.Type, position.Value),
+                    position.Value.DeepClone()));
             }
 
-            // Assets — emit [import, load] pairs from ObjectAssetRef
-            if (obj.Assets != null && obj.Assets.Count > 0)
+            // create_object is the correct place to restore object asset requirements.
+            create.assets = BuildInstructionAssets(obj.Assets, space);
+            result.Add(create);
+
+            // Restore remaining object properties. Position is already supplied to create_object.
+            AddPropertyInstructions(result, obj.Name, obj.Properties, "Position");
+
+            // Restore components and their component properties.
+            if (obj.Components != null)
             {
-                createInstr.assets = new List<Instruction.Asset>(obj.Assets.Count * 2);
-                foreach (var assetRef in obj.Assets)
-                {
-                    if (assetRef == null || string.IsNullOrWhiteSpace(assetRef.Key)) 
-                        continue;
-
-                    createInstr.assets.Add(new Instruction.Asset 
-                    { 
-                        desc = string.Empty,        //TODO:
-                        type = AssetType.Unknown,   //TODO:
-                        source = assetRef.LoadPath ?? assetRef.Key 
-                    });
-                }
+                foreach (Component component in obj.Components)
+                    AddComponentInstructions(result, component, obj.Name, space);
             }
-            result.Add(createInstr);
 
-            // 2. Relationships → attach_to / set_relationship instructions
-            //    Target GUIDs are resolved to Names for the executor's scene lookup
+            // Restore semantic/structural relationships after the object exists.
             if (obj.Relationships != null)
             {
-                foreach (var rel in obj.Relationships)
+                foreach (Relationship relation in obj.Relationships)
                 {
-                    if (rel == null || string.IsNullOrWhiteSpace(rel.Type) || string.IsNullOrWhiteSpace(rel.Target))
+                    if (relation == null ||
+                        string.IsNullOrWhiteSpace(relation.Type) ||
+                        string.IsNullOrWhiteSpace(relation.Target))
                         continue;
 
-                    // Resolve target GUID → Name for instructions
-                    string targetName = guidToName != null && guidToName.TryGetValue(rel.Target, out var tn)
-                        ? tn : rel.Target;
+                    string targetName;
+                    if (guidToName == null || !guidToName.TryGetValue(relation.Target, out targetName))
+                        targetName = relation.Target;
 
-                    if (string.Equals(rel.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(rel.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(relation.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase))
                     {
-                        var attachInstr = new Instruction
-                        {
-                            action = T2G.Actions.attach_to,
-                            state = InstructionState.Resolved
-                        };
-                        attachInstr.parameters = new List<Instruction.Parameter>
-                        {
-                            new Instruction.Parameter("source", obj.Name),
-                            new Instruction.Parameter("target", targetName)
-                        };
-                        if (!string.IsNullOrWhiteSpace(rel.Slot))
-                        {
-                            attachInstr.parameters.Add(new Instruction.Parameter("socket", rel.Slot));
-                        }
-                        result.Add(attachInstr);
+                        var attach = CreateInstruction(
+                            Actions.attach_to,
+                            new Instruction.Parameter("Source", "ObjectRef", JToken.FromObject(obj.Name ?? string.Empty)),
+                            new Instruction.Parameter("Target", "ObjectRef", JToken.FromObject(targetName ?? string.Empty)));
+                        result.Add(attach);
                     }
                     else
                     {
-                        // Other relationship types → set_relationship instruction
-                        var relInstr = new Instruction
-                        {
-                            action = T2G.Actions.set_relationship,
-                            state = InstructionState.Resolved
-                        };
-                        relInstr.parameters = new List<Instruction.Parameter>
-                        {
-                            new Instruction.Parameter("source", obj.Name),
-                            new Instruction.Parameter("type", rel.Type),
-                            new Instruction.Parameter("target", targetName)
-                        };
-                        if (!string.IsNullOrWhiteSpace(rel.Slot))
-                        {
-                            relInstr.parameters.Add(new Instruction.Parameter("slot", rel.Slot));
-                        }
-                        result.Add(relInstr);
+                        var setRelation = CreateInstruction(
+                            Actions.set_relationship,
+                            new Instruction.Parameter("Source", "ObjectRef", JToken.FromObject(obj.Name ?? string.Empty)),
+                            new Instruction.Parameter("Target", "ObjectRef", JToken.FromObject(targetName ?? string.Empty)),
+                            new Instruction.Parameter("Type", "String", JToken.FromObject(relation.Type)),
+                            new Instruction.Parameter("Slot", "String", JToken.FromObject(relation.Slot ?? string.Empty)));
+                        result.Add(setRelation);
                     }
-                }
-            }
-
-            // 3. Object-level components
-            if (obj.Components != null)
-            {
-                foreach (var comp in obj.Components)
-                {
-                    if (comp == null) continue;
-                    result.Add(ParseComponentForInstructions(comp, obj.Name));
-                }
-            }
-
-            // 4. Object-level properties → set_property
-            if (obj.Properties != null)
-            {
-                foreach (var prop in obj.Properties)
-                {
-                    if (prop == null || string.IsNullOrWhiteSpace(prop.name))
-                        continue;
-
-                    var setProp = new Instruction
-                    {
-                        action = T2G.Actions.set_property,
-                        state = InstructionState.Resolved
-                    };
-                    setProp.parameters = new List<Instruction.Parameter>
-                    {
-                        new Instruction.Parameter("objName", obj.Name),
-                        new Instruction.Parameter("Property", prop.name),
-                        new Instruction.Parameter("Value", prop.value)
-                    };
-                    result.Add(setProp);
                 }
             }
 
             return result.ToArray();
         }
 
-        // ============================================================
-        // Component → Instruction (add_component with nested set_property)
-        // ============================================================
-
-        public static Instruction ParseComponentForInstructions(T2G.Assistant.Component component, string objectName)
+        public static Instruction ParseComponentForInstructions(Component component, string ownerName)
         {
-            if (component == null) return null;
+            if (component == null)
+                return null;
 
-            var instr = new Instruction
-            {
-                action = T2G.Actions.add_component,
-                state = InstructionState.Resolved,
-                // assets = component.Assets?.Select(a => a.Key).ToList()    //TODO:
-            };
-            // Read SourceType with heuristic fallback for legacy data
-            string mechanism = component.SourceType;
-            if (string.IsNullOrWhiteSpace(mechanism))
-            {
-                if (component.Assets != null && component.Assets.Count > 0)
-                    mechanism = "asset";
-                else if (!string.IsNullOrWhiteSpace(component.Description) &&
-                         component.Description.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-                    mechanism = "file";
-                else
-                    mechanism = "component";
-            }
+            var instruction = CreateInstruction(
+                Actions.add_component,
+                new Instruction.Parameter("ObjName", "String", JToken.FromObject(ownerName ?? string.Empty)),
+                new Instruction.Parameter("Type", "String", JToken.FromObject(component.Type ?? string.Empty)));
 
-            instr.parameters = new List<Instruction.Parameter>
-            {
-                new Instruction.Parameter("objName", objectName),
-                new Instruction.Parameter("type", mechanism)
-            };
-            if (!string.IsNullOrWhiteSpace(component.Description))
-            {
-                instr.desc = component.Description;
-            }
-
-            var subInstructions = new List<Instruction>();
-            if (component.Properties != null)
-            {
-                foreach (var prop in component.Properties)
-                {
-                    if (prop == null || string.IsNullOrWhiteSpace(prop.Name))
-                        continue;
-
-                    var setProp = new Instruction
-                    {
-                        action = T2G.Actions.set_property,
-                        state = InstructionState.Resolved
-                    };
-                    setProp.parameters = new List<Instruction.Parameter>
-                    {
-                        new Instruction.Parameter("Name", objectName),
-                        new Instruction.Parameter("Property", $"{component.Type}.{prop.Name}"),
-                        new Instruction.Parameter("Value", prop.Value)
-                    };
-                    subInstructions.Add(setProp);
-                }
-            }
-
-            return instr;
+            instruction.desc = component.Description ?? string.Empty;
+            return instruction;
         }
 
-        // ============================================================
-        // Space-level component → Instruction
-        // ============================================================
-
-        public static Instruction ParseSpaceComponentForInstructions(T2G.Assistant.Component component, string spaceName)
+        public static Instruction ParseSpaceComponentForInstructions(Component component, string spaceName)
         {
-            if (component == null) return null;
+            return ParseComponentForInstructions(component, spaceName);
+        }
 
-            var instr = new Instruction
+        private static void AddComponentInstructions(
+            List<Instruction> result,
+            Component component,
+            string ownerName,
+            Space space)
+        {
+            if (component == null)
+                return;
+
+            Instruction add = ParseComponentForInstructions(component, ownerName);
+            add.assets = BuildInstructionAssets(component.Assets, space);
+            result.Add(add);
+
+            // Component properties use the established dotted-property convention.
+            AddPropertyInstructions(result, ownerName, component.Properties, null, component.Type);
+        }
+
+        private static void AddPropertyInstructions(
+            List<Instruction> result,
+            string ownerName,
+            List<PropertyDesc> properties,
+            string skipProperty,
+            string componentType = null)
+        {
+            if (properties == null)
+                return;
+
+            foreach (PropertyDesc property in properties)
             {
-                action = T2G.Actions.add_component,
-                state = InstructionState.Resolved
-            };
-            // Read SourceType with heuristic fallback for legacy data
-            string mechanism = component.SourceType;
-            if (string.IsNullOrWhiteSpace(mechanism))
-            {
-                if (component.Assets != null && component.Assets.Count > 0)
-                    mechanism = "asset";
-                else if (!string.IsNullOrWhiteSpace(component.Description) &&
-                         component.Description.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-                    mechanism = "file";
-                else
-                    mechanism = "component";
+                if (property == null || string.IsNullOrWhiteSpace(property.Name))
+                    continue;
+
+                if (!string.IsNullOrWhiteSpace(skipProperty) &&
+                    string.Equals(property.Name, skipProperty, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string propertyName = string.IsNullOrWhiteSpace(componentType)
+                    ? property.Name
+                    : componentType + "." + property.Name;
+
+                result.Add(CreateInstruction(
+                    Actions.set_property,
+                    new Instruction.Parameter("ObjName", "String", JToken.FromObject(ownerName ?? string.Empty)),
+                    new Instruction.Parameter("Property", "String", JToken.FromObject(propertyName)),
+                    new Instruction.Parameter(
+                        "Value",
+                        NormalizeInstructionType(property.Type, property.Value),
+                        property.Value != null ? property.Value.DeepClone() : JValue.CreateNull())));
             }
+        }
 
-            instr.parameters = new List<Instruction.Parameter>
-            {
-                new Instruction.Parameter("objName", spaceName),
-                new Instruction.Parameter("type", mechanism)
-            };
-            if (!string.IsNullOrWhiteSpace(component.Description))
-            {
-                instr.desc = component.Description;
-            }
+        private static List<Instruction.Asset> BuildInstructionAssets(List<AssetRef> refs, Space space)
+        {
+            var result = new List<Instruction.Asset>();
+            if (refs == null || space == null || space.Assets == null)
+                return result;
 
-            var subInstructions = new List<Instruction>();
-            if (component.Properties != null)
+            foreach (AssetRef assetRef in refs)
             {
-                foreach (var prop in component.Properties)
+                if (assetRef == null || string.IsNullOrWhiteSpace(assetRef.AssetId))
+                    continue;
+
+                GameAsset asset;
+                if (!space.Assets.TryGetValue(assetRef.AssetId, out asset) || asset == null)
+                    continue;
+
+                AssetType assetType;
+                if (!Enum.TryParse(asset.Type, true, out assetType))
+                    assetType = AssetType.Unknown;
+
+                string source = !string.IsNullOrWhiteSpace(asset.Source)
+                    ? asset.Source
+                    : (!string.IsNullOrWhiteSpace(asset.ImportPath) ? asset.ImportPath : asset.LoadPath);
+
+                result.Add(new Instruction.Asset
                 {
-                    if (prop == null || string.IsNullOrWhiteSpace(prop.Name))
-                        continue;
-
-                    var setProp = new Instruction
-                    {
-                        action = T2G.Actions.set_property,
-                        state = InstructionState.Resolved
-                    };
-                    setProp.parameters = new List<Instruction.Parameter>
-                    {
-                        new Instruction.Parameter("Name", spaceName),
-                        new Instruction.Parameter("Property", $"{component.Type}.{prop.Name}"),
-                        new Instruction.Parameter("Value", prop.Value)
-                    };
-                    subInstructions.Add(setProp);
-                }
+                    desc = asset.Name ?? string.Empty,
+                    type = assetType,
+                    source = source ?? string.Empty
+                });
             }
 
-            return instr;
+            return result;
+        }
+
+        private static PropertyDesc FindProperty(List<PropertyDesc> properties, string name)
+        {
+            if (properties == null)
+                return null;
+
+            foreach (PropertyDesc property in properties)
+            {
+                if (property != null &&
+                    string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return property;
+            }
+            return null;
+        }
+
+        private static Instruction CreateInstruction(string action, params Instruction.Parameter[] parameters)
+        {
+            return new Instruction
+            {
+                action = action,
+                state = InstructionState.Resolved,
+                parameters = parameters != null
+                    ? new List<Instruction.Parameter>(parameters)
+                    : new List<Instruction.Parameter>()
+            };
+        }
+
+        private static string NormalizeInstructionType(string declaredType, JToken value)
+        {
+            if (!string.IsNullOrWhiteSpace(declaredType))
+                return declaredType;
+            return value != null ? value.Type.ToString() : "Null";
         }
     }
 }

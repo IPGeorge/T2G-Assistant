@@ -1,1278 +1,1200 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using UnityEngine;
 using T2G;
-using System.Linq;
-using System.Text.RegularExpressions;
+using UnityEngine;
 
 namespace T2G.Assistant
 {
     /// <summary>
-    /// Manages GameDesc design snapshots: create, save, load, list, and edit.
-    /// Snapshot is the domain model (design-state), not runtime state.
+    /// Maintains the persistent GameDesc.
+    ///
+    /// Instruction = intended operation.
+    /// Response    = authoritative execution result.
+    /// GameDesc    = established game state.
+    ///
+    /// Failed execution is recorded but never mutates persistent state.
     /// </summary>
-    public sealed partial class GameDescManager
+    public partial class GameDescManager
     {
-        // -------------------------
-        // Singleton
-        // -------------------------
-        private static readonly Lazy<GameDescManager> _instance = new Lazy<GameDescManager>(() => new GameDescManager());
+        #region Singleton
 
-        public static GameDescManager Instance => _instance.Value;
+        private static GameDescManager _instance;
+
+        public static GameDescManager Instance
+        {
+            get
+            {
+                if (_instance == null)
+                    _instance = new GameDescManager();
+
+                return _instance;
+            }
+        }
 
         private GameDescManager()
         {
-            _saveGameDescFolder = Path.Combine(Application.persistentDataPath, "GameDescs");
-            if (!Directory.Exists(_saveGameDescFolder))
-            {
-                Directory.CreateDirectory(_saveGameDescFolder);
-            }
+        }
 
-            _jsonSettings = new JsonSerializerSettings
+        #endregion
+
+        public GameDesc CurrentGameDesc { get; private set; }
+
+        // Runtime context only; not persisted in GameDesc.
+        public Space CurrentSpace { get; private set; }
+        public Object CurrentObject { get; private set; }
+
+
+        public void SetGameDesc(GameDesc gameDesc)
+        {
+            CurrentGameDesc = gameDesc;
+            CurrentSpace = null;
+            CurrentObject = null;
+
+            if (CurrentGameDesc == null)
+                return;
+
+            CurrentGameDesc.Spaces = CurrentGameDesc.Spaces ?? new List<Space>();
+            CurrentGameDesc.InstructionHistory =
+                CurrentGameDesc.InstructionHistory ?? new List<InstructionRecord>();
+
+            foreach (Space space in CurrentGameDesc.Spaces)
+                NormalizeSpace(space);
+        }
+
+        public GameDesc CreateGameDesc(string projectName, string title = "")
+        {
+            CurrentGameDesc = new GameDesc
             {
-                Formatting = Formatting.Indented,
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore, // Parent pointers not persisted
-                MissingMemberHandling = MissingMemberHandling.Ignore,
-                NullValueHandling = NullValueHandling.Include
+                ProjectName = projectName ?? string.Empty,
+                Title = title ?? string.Empty
             };
+
+            CurrentSpace = null;
+            CurrentObject = null;
+            return CurrentGameDesc;
         }
 
-        // -------------------------
-        // Snapshot + Context
-        // -------------------------
         /// <summary>
-        /// Active design snapshot.
+        /// Compatibility wrapper retained for existing Assistant code.
+        /// New code may call CreateGameDesc directly.
         /// </summary>
-        public GameDesc Snapshot { get; private set; }
-
-        // -------------------------
-        // Internal
-        // -------------------------
-        private readonly string _saveGameDescFolder;
-        private readonly JsonSerializerSettings _jsonSettings;
-        public string CurrentSpaceName 
-        { 
-            get
-            {
-                return Assistant.Instance.GameProject.CurrentSpace;
-            }
-            set
-            {
-                Assistant.Instance.GameProject.CurrentSpace = value;
-            }
-        }
-        public string CurrentProjectName 
-        { 
-            get
-            {
-                return Snapshot.ProjectName;
-            }
+        public GameDesc CreateGameDescProject(string projectName, string title = "")
+        {
+            return CreateGameDesc(projectName, title);
         }
 
-        // ============================================================
-        // Project lifecycle
-        // ============================================================
-
-        public void CreateGameDescProject(string projectName)
+        /// <summary>
+        /// Opens the persisted GameDesc for a project when it exists; otherwise
+        /// creates a new authoritative GameDesc for that project.
+        /// </summary>
+        public GameDesc OpenOrCreateGameDesc(string projectName, string title = "")
         {
             if (string.IsNullOrWhiteSpace(projectName))
-                throw new ArgumentException("projectName is empty.");
+                throw new ArgumentException("projectName is empty.", nameof(projectName));
 
-            CurrentSpaceName = null;
-            CreateGameDesc(projectName);
-            SaveGameDesc(projectName);
-        }
-
-        public void OpenOrCreateGameDesc(string projectName, string title)
-        {
-            if (string.IsNullOrWhiteSpace(projectName))
-                throw new ArgumentException("projectName is empty.");
-
-            string filePath = Path.Combine(_saveGameDescFolder, projectName + ".json");
+            string filePath = GetGameDescFilePath(projectName);
+            GameDesc gameDesc;
 
             if (File.Exists(filePath))
             {
-                LoadGameDesc(filePath);
-                Snapshot.ProjectName = projectName;
-                Snapshot.Title = title ?? Snapshot.Title;
+                gameDesc = DeserializeGameDescFile(filePath);
+                if (gameDesc == null)
+                    throw new InvalidOperationException(
+                        "Failed to load GameDesc for project '" + projectName + "'.");
+
+                if (string.IsNullOrWhiteSpace(gameDesc.ProjectName))
+                    gameDesc.ProjectName = projectName;
+
+                if (string.IsNullOrWhiteSpace(gameDesc.Title) &&
+                    !string.IsNullOrWhiteSpace(title))
+                    gameDesc.Title = title;
             }
             else
             {
-                CreateGameDesc(projectName, title);
-                SaveGameDesc(projectName);
+                gameDesc = new GameDesc
+                {
+                    ProjectName = projectName,
+                    Title = title ?? string.Empty
+                };
             }
+
+            SetGameDesc(gameDesc);
+            return CurrentGameDesc;
         }
 
-        public void RecordInstruction(T2G.Instruction instruction, T2G.Response response, string[] responseParams)
+        /// <summary>
+        /// Saves the authoritative flat GameDesc used internally by T2G.
+        /// </summary>
+        public void SaveGameDesc(string projectName = null)
         {
-            if (instruction == null || Snapshot == null)
+            if (CurrentGameDesc == null)
                 return;
 
-            Snapshot.InstructionHistory ??= new List<InstructionRecord>();
+            if (!string.IsNullOrWhiteSpace(projectName))
+                CurrentGameDesc.ProjectName = projectName;
 
-            var record = new InstructionRecord
+            if (string.IsNullOrWhiteSpace(CurrentGameDesc.ProjectName))
+                throw new InvalidOperationException(
+                    "Cannot save GameDesc because ProjectName is empty.");
+
+            string filePath = GetGameDescFilePath(CurrentGameDesc.ProjectName);
+            string json = SerializeGameDesc(CurrentGameDesc, false);
+            File.WriteAllText(filePath, json);
+        }
+
+        /// <summary>
+        /// Exports a hierarchical, human-oriented representation without replacing
+        /// or mutating CurrentGameDesc.
+        /// </summary>
+        public void SaveHumanGameDesc(string filePath)
+        {
+            if (CurrentGameDesc == null)
+                throw new InvalidOperationException(
+                    "CurrentGameDesc has not been initialized.");
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath is empty.", nameof(filePath));
+
+            string directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            string json = SerializeGameDesc(CurrentGameDesc, true);
+            File.WriteAllText(filePath, json);
+        }
+
+        private static string GetGameDescFilePath(string projectName)
+        {
+            if (string.IsNullOrWhiteSpace(projectName))
+                throw new ArgumentException("projectName is empty.", nameof(projectName));
+
+            string directory = Path.Combine(
+                Application.persistentDataPath,
+                "GameDesc");
+
+            Directory.CreateDirectory(directory);
+            return Path.Combine(directory, projectName + ".json");
+        }
+
+        /// <summary>
+        /// Reconciles a successfully/unsuccessfully executed instruction.
+        /// History is always recorded. Persistent state changes only on success.
+        /// </summary>
+        public bool Apply(Instruction instruction, Response response)
+        {
+            if (instruction == null)
+                throw new ArgumentNullException(nameof(instruction));
+            if (response == null)
+                throw new ArgumentNullException(nameof(response));
+
+            EnsureGameDesc();
+            RecordHistory(instruction, response);
+
+            if (!response.Succeeded)
+                return false;
+
+            switch (instruction.action)
             {
-                InstructionJson = JsonConvert.SerializeObject(instruction, _jsonSettings),
-                ExecutedUtc = DateTime.UtcNow,
-                Succeeded = response?.Succeeded ?? false
+                case Actions.no_action:
+                    break;
+
+                case Actions.create_project:
+                    ApplyCreateProject(instruction, response);
+                    break;
+
+                case Actions.create_from:
+                    // Orchestration action. Generated elemental instructions
+                    // reconstruct the persistent state.
+                    break;
+
+                case Actions.init_project:
+                    ApplyInitProject(instruction, response);
+                    break;
+
+                case Actions.open_project:
+                    // Existing GameDesc should be loaded and passed to SetGameDesc().
+                    break;
+
+                case Actions.connect:
+                case Actions.disconnect:
+                case Actions.clear:
+                    break;
+
+                case Actions.import_assets:
+                    ApplyImportAssets(instruction, response);
+                    break;
+
+                case Actions.create_space:
+                    ApplyCreateSpace(instruction, response);
+                    break;
+
+                case Actions.goto_space:
+                    ApplyGotoSpace(instruction);
+                    break;
+
+                case Actions.save_space:
+                    break;
+
+                case Actions.rename_space:
+                    ApplyRenameSpace(instruction, response);
+                    break;
+
+                case Actions.create_object:
+                    ApplyCreateObject(instruction, response);
+                    break;
+
+                case Actions.select_object:
+                    ApplySelectObject(instruction);
+                    break;
+
+                case Actions.delete_object:
+                    ApplyDeleteObject(instruction, response);
+                    break;
+
+                case Actions.place_on:
+                    ApplyPlaceOn(instruction, response);
+                    break;
+
+                case Actions.attach_to:
+                    ApplyAttachTo(instruction, response);
+                    break;
+
+                case Actions.detach_from:
+                    ApplyDetachFrom(instruction, response);
+                    break;
+
+                case Actions.set_property:
+                    ApplySetProperty(instruction, response);
+                    break;
+
+                case Actions.set_relationship:
+                    ApplySetRelationship(instruction, response);
+                    break;
+
+                case Actions.add_component:
+                    ApplyAddComponent(instruction, response);
+                    break;
+
+                case Actions.remove_component:
+                    ApplyRemoveComponent(instruction, response);
+                    break;
+
+                case Actions.call_method:
+                    // Do not infer arbitrary persistent changes from a method call.
+                    break;
+
+                default:
+                    throw new InvalidOperationException(
+                        "Unsupported GameDesc action: '" + instruction.action + "'.");
+            }
+
+            return true;
+        }
+
+        private void ApplyCreateProject(Instruction instruction, Response response)
+        {
+            string projectName = GetParameterString(instruction, "ProjectName");
+            CurrentGameDesc.ProjectName =
+                response.GetValue<string>("ProjectName", projectName) ?? string.Empty;
+        }
+
+        private void ApplyInitProject(Instruction instruction, Response response)
+        {
+            string projectName = response.GetValue<string>(
+                "ProjectName",
+                GetParameterString(instruction, "ProjectName"));
+
+            if (!string.IsNullOrWhiteSpace(projectName))
+                CurrentGameDesc.ProjectName = projectName;
+        }
+
+        private void ApplyCreateSpace(Instruction instruction, Response response)
+        {
+            string name = response.GetValue<string>(
+                "SpaceName",
+                GetParameterString(instruction, "SpaceName"));
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException("create_space requires SpaceName.");
+
+            Space existing = FindSpaceByName(name);
+            if (existing != null)
+            {
+                CurrentSpace = existing;
+                CurrentObject = null;
+                return;
+            }
+
+            string id = response.GetValue<string>("SpaceId", string.Empty);
+            if (string.IsNullOrWhiteSpace(id))
+                id = Guid.NewGuid().ToString();
+
+            Space space = new Space
+            {
+                Id = id,
+                Name = name
             };
 
-            Snapshot.InstructionHistory.Add(record);
-
-            if (response?.Succeeded == true)
-            {
-                UpdateFromInstruction(instruction, response, responseParams);
-            }
-
-            SaveGameDesc();
+            CurrentGameDesc.Spaces.Add(space);
+            CurrentSpace = space;
+            CurrentObject = null;
         }
 
-        private void UpdateFromInstruction(T2G.Instruction instruction, T2G.Response response, string[] responseParams)
+        private void ApplyGotoSpace(Instruction instruction)
         {
-            Debug.Log($"Update game after instruction {instruction.action} execution.");
+            string name = GetParameterString(instruction, "SpaceName");
+            Space space = FindSpaceByName(name);
 
-            if (instruction == null || string.IsNullOrWhiteSpace(instruction.action))
+            if (space == null)
+                throw new InvalidOperationException("Space '" + name + "' does not exist.");
+
+            CurrentSpace = space;
+            CurrentObject = null;
+        }
+
+        private void ApplyRenameSpace(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            string newName = response.GetValue<string>(
+                "SpaceName",
+                GetParameterString(instruction, "SpaceName"));
+
+            if (string.IsNullOrWhiteSpace(newName))
+                throw new InvalidOperationException("rename_space requires SpaceName.");
+
+            CurrentSpace.Name = newName;
+        }
+
+        private void ApplyCreateObject(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            string name = response.GetValue<string>(
+                "Name",
+                GetParameterString(instruction, "Name"));
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException("create_object requires Name.");
+
+            Object existing;
+            if (CurrentSpace.TryGetObjectByName(name, out existing))
+            {
+                CurrentObject = existing;
+                return;
+            }
+
+            string id = response.GetValue<string>("ObjectId", string.Empty);
+            if (string.IsNullOrWhiteSpace(id))
+                id = Guid.NewGuid().ToString();
+
+            Object obj = new Object
+            {
+                Id = id,
+                Name = name,
+                Desc = instruction.desc ?? string.Empty
+            };
+
+            // Optional semantic metadata emitted by GameDescParser during regeneration.
+            obj.Tags = ParseStringListParameter(instruction, "Tags");
+            obj.Roles = ParseStringListParameter(instruction, "Roles");
+
+            Instruction.Parameter position = GetParameter(instruction, "Position");
+            if (position != null)
+            {
+                JToken actualPosition = GetResponseValue(
+                    response, "Position", position.value);
+
+                SetProperty(
+                    obj.Properties,
+                    "Position",
+                    NormalizeType(position.type, actualPosition),
+                    CloneToken(actualPosition));
+            }
+
+            RegisterInstructionAssets(instruction, response, obj);
+
+            CurrentSpace.Objects[id] = obj;
+            CurrentSpace.RebuildNameIndex();
+            obj.RebuildPropertyMap();
+
+            CurrentObject = obj;
+        }
+
+        private void ApplySelectObject(Instruction instruction)
+        {
+            RequireCurrentSpace();
+
+            string name = GetParameterString(instruction, "Name");
+            Object obj = FindObjectByName(name);
+
+            if (obj == null)
+                throw new InvalidOperationException(
+                    "Object '" + name + "' does not exist in space '" +
+                    CurrentSpace.Name + "'.");
+
+            CurrentObject = obj;
+        }
+
+        private void ApplyDeleteObject(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            string name = GetParameterString(instruction, "Name");
+            string objectId = response.GetValue<string>("ObjectId", string.Empty);
+
+            Object obj = null;
+
+            if (!string.IsNullOrWhiteSpace(objectId))
+                CurrentSpace.TryGetObjectById(objectId, out obj);
+
+            if (obj == null)
+                obj = FindObjectByName(name);
+
+            if (obj == null)
                 return;
 
-            string action = instruction.action;
+            string removedId = obj.Id;
+            CurrentSpace.Objects.Remove(removedId);
 
-            if (action == T2G.Actions.create_space)
+            foreach (Object remaining in CurrentSpace.Objects.Values)
             {
-                string spaceName = instruction.parameters.GetString("spaceName");
-                if (!string.IsNullOrWhiteSpace(spaceName))
-                {
-                    AddSpace(spaceName);
-                    CurrentSpaceName = spaceName;
-                }
+                if (remaining == null || remaining.Relationships == null)
+                    continue;
+
+                remaining.Relationships.RemoveAll(
+                    r => r != null &&
+                         string.Equals(
+                             r.Target,
+                             removedId,
+                             StringComparison.OrdinalIgnoreCase));
             }
-            else if (action == T2G.Actions.create_object)
-            {
-                string objectName = instruction.parameters.GetString("Name");
-                Debug.Log($"[GameDescManager] create_object: objectName={objectName}, CurrentSpaceName={CurrentSpaceName}");
 
-                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
+            CurrentSpace.RebuildNameIndex();
+
+            if (CurrentObject != null &&
+                string.Equals(CurrentObject.Id, removedId, StringComparison.OrdinalIgnoreCase))
+                CurrentObject = null;
+        }
+
+        private void ApplyPlaceOn(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            string name = GetParameterString(instruction, "Name");
+            Object obj = FindObjectByName(name);
+
+            if (obj == null)
+                throw new InvalidOperationException("Object '" + name + "' does not exist.");
+
+            ApplyResponsePropertyIfPresent(response, obj.Properties, "Position", "Vector3");
+            ApplyResponsePropertyIfPresent(response, obj.Properties, "Rotation", "Vector3");
+            ApplyResponsePropertyIfPresent(response, obj.Properties, "Scale", "Vector3");
+
+            obj.RebuildPropertyMap();
+        }
+
+        private void ApplyAttachTo(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            Object source = ResolveResponseOrNamedObject(
+                response,
+                "SourceObjectId",
+                GetParameterString(instruction, "Source"));
+
+            Object target = ResolveResponseOrNamedObject(
+                response,
+                "TargetObjectId",
+                GetParameterString(instruction, "Target"));
+
+            if (source == null || target == null)
+                throw new InvalidOperationException(
+                    "attach_to source or target could not be resolved.");
+
+            AddOrUpdateRelationship(
+                source,
+                GameDescRelationTypes.AttachedTo,
+                target.Id,
+                string.Empty);
+        }
+
+        private void ApplyDetachFrom(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            Object source = ResolveResponseOrNamedObject(
+                response,
+                "SourceObjectId",
+                GetParameterString(instruction, "Name"));
+
+            if (source == null || source.Relationships == null)
+                return;
+
+            string targetId = response.GetValue<string>("TargetObjectId", string.Empty);
+
+            source.Relationships.RemoveAll(
+                r =>
                 {
-                    if (FindSpace(CurrentSpaceName) == null)
-                        AddSpace(CurrentSpaceName);
+                    if (r == null ||
+                        !string.Equals(
+                            r.Type,
+                            GameDescRelationTypes.AttachedTo,
+                            StringComparison.OrdinalIgnoreCase))
+                        return false;
 
-                    string remoteId = response?.ObjectId;
-                    try
-                    {
-                        var obj = AddObject(CurrentSpaceName, objectName, instruction.desc);
-                        if (!string.IsNullOrEmpty(remoteId))
-                            obj.Id = remoteId;
-                        Debug.Log($"[GameDescManager] Created object: {objectName}");
+                    return string.IsNullOrWhiteSpace(targetId) ||
+                           string.Equals(
+                               r.Target,
+                               targetId,
+                               StringComparison.OrdinalIgnoreCase);
+                });
+        }
 
-                        // Tags
-                        string tagsStr = instruction.parameters.GetString("Tags");
-                        if (!string.IsNullOrWhiteSpace(tagsStr))
-                        {
-                            foreach (var tag in tagsStr.Split(','))
-                            {
-                                var trimmed = tag.Trim();
-                                if (!string.IsNullOrWhiteSpace(trimmed) && !obj.Tags.Contains(trimmed))
-                                    obj.Tags.Add(trimmed);
-                            }
-                        }
+        private void ApplySetRelationship(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
 
-                        // Roles
-                        string rolesStr = instruction.parameters.GetString("Roles");
-                        if (!string.IsNullOrWhiteSpace(rolesStr))
-                        {
-                            foreach (var role in rolesStr.Split(','))
-                            {
-                                var trimmed = role.Trim();
-                                if (!string.IsNullOrWhiteSpace(trimmed) && !obj.Roles.Contains(trimmed))
-                                    obj.Roles.Add(trimmed);
-                            }
-                        }
+            Object source = ResolveResponseOrNamedObject(
+                response,
+                "SourceObjectId",
+                GetParameterString(instruction, "Source"));
 
-                        // Assets — instruction.assets is paired: [import0, load0, import1, load1, ...]
-                        if (instruction.assets != null)
-                        {
-                            obj.Assets ??= new List<ObjectAssetRef>();
-                            var space = FindSpace(CurrentSpaceName);
-                            for (int i = 0; i < instruction.assets.Count; i += 2)
-                            {
-                                string importPath = instruction.assets[i].source;
-                                string loadPath = i + 1 < instruction.assets.Count
-                                    ? instruction.assets[i + 1].source : importPath;
-                                string key = AddAssetToSpace(importPath, loadPath, space);
-                                if (key != null && !obj.Assets.Any(a => a.Key == key))
-                                    obj.Assets.Add(new ObjectAssetRef { Key = key, LoadPath = loadPath });
-                            }
-                        }
+            Object target = ResolveResponseOrNamedObject(
+                response,
+                "TargetObjectId",
+                GetParameterString(instruction, "Target"));
 
-                        // Position from parameters
-                        string positionStr = instruction.parameters.GetString("position");
-                        if (!string.IsNullOrWhiteSpace(positionStr))
-                        {
-                            obj.Properties ??= new List<ValuePair>();
-                            var posProp = obj.Properties.Find(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase));
-                            if (posProp != null) posProp.value = positionStr;
-                            else obj.Properties.Add(new ValuePair("position", positionStr));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogWarning($"[GameDescManager] Failed to create object: {ex.Message}");
-                        var obj = AddObject(CurrentSpaceName, objectName, instruction.desc);
-                        if (!string.IsNullOrEmpty(remoteId))
-                            obj.Id = remoteId;
-                    }
+            if (source == null || target == null)
+                throw new InvalidOperationException(
+                    "set_relationship source or target could not be resolved.");
+
+            string type = response.GetValue<string>(
+                "RelationshipType",
+                GetParameterString(instruction, "Type"));
+
+            string slot = response.GetValue<string>(
+                "Slot",
+                GetParameterString(instruction, "Slot"));
+
+            AddOrUpdateRelationship(source, type, target.Id, slot);
+        }
+
+        private void ApplySetProperty(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            string ownerName = GetParameterString(instruction, "ObjName");
+            string propertyName = GetParameterString(instruction, "Property");
+            Instruction.Parameter valueParameter = GetParameter(instruction, "Value");
+
+            if (valueParameter == null)
+                throw new InvalidOperationException("set_property requires Value.");
+
+            JToken actualValue = GetResponseValue(response, "Value", valueParameter.value);
+            string type = response.GetValue<string>(
+                "ValueType",
+                NormalizeType(valueParameter.type, actualValue));
+
+            // Regeneration uses ComponentType.PropertyName to address component
+            // properties without changing the elemental set_property schema.
+            string componentType;
+            string componentProperty;
+            bool isComponentProperty = TrySplitComponentProperty(
+                propertyName, out componentType, out componentProperty);
+
+            if (string.Equals(CurrentSpace.Name, ownerName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (isComponentProperty)
+                {
+                    Component component = FindComponentByType(CurrentSpace.Components, componentType);
+                    if (component == null)
+                        throw new InvalidOperationException(
+                            "Component '" + componentType + "' does not exist on space '" + ownerName + "'.");
+
+                    SetProperty(component.Properties, componentProperty, type, CloneToken(actualValue));
+                    component.RebuildPropertyMap();
                 }
                 else
                 {
-                    Debug.LogWarning($"[GameDescManager] create_object skipped - objectName or CurrentSpaceName is empty");
+                    SetProperty(CurrentSpace.Properties, propertyName, type, CloneToken(actualValue));
+                    CurrentSpace.RebuildPropertyMap();
                 }
-            }
-            else if (action == T2G.Actions.add_component)
-            {
-                string objectName = instruction.parameters.GetString("objName");
-                if (string.IsNullOrWhiteSpace(objectName))
-                    objectName = instruction.parameters.GetString("ObjName");
-                string componentType = instruction.parameters.GetString("type");
-
-                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
-                {
-                    try { AddComponent(CurrentSpaceName, objectName, componentType, instruction); }
-                    catch { }
-                }
-            }
-            else if (action == T2G.Actions.set_property)
-            {
-                string objectName = instruction.parameters.GetString("Name");
-                if (string.IsNullOrWhiteSpace(objectName))
-                    objectName = instruction.parameters.GetString("objName");
-
-                string propertyName = instruction.parameters.GetString("Property");
-                if (string.IsNullOrWhiteSpace(propertyName))
-                    propertyName = instruction.parameters.GetString("property");
-
-                string valueStr = instruction.parameters.GetString("Value");
-                if (string.IsNullOrWhiteSpace(valueStr))
-                    valueStr = instruction.parameters.GetString("value");
-
-                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) &&
-                    !string.IsNullOrWhiteSpace(propertyName))
-                {
-                    string componentName = null;
-                    string actualPropertyName = propertyName;
-
-                    int dotIndex = propertyName.IndexOf('.');
-                    if (dotIndex > 0 && dotIndex < propertyName.Length - 1)
-                    {
-                        componentName = propertyName.Substring(0, dotIndex);
-                        actualPropertyName = propertyName.Substring(dotIndex + 1);
-                    }
-
-                    if (FindSpace(CurrentSpaceName) == null)
-                        AddSpace(CurrentSpaceName);
-
-                    var space = FindSpace(CurrentSpaceName);
-                    var obj = FindObjectInSpace(space, objectName);
-                    if (obj == null)
-                        obj = AddObject(CurrentSpaceName, objectName, null);
-
-                    JToken tokenValue = null;
-                    if (!string.IsNullOrWhiteSpace(valueStr))
-                    {
-                        try { tokenValue = JToken.Parse(valueStr); }
-                        catch { tokenValue = valueStr; }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(componentName))
-                    {
-                        var comp = obj.Components?.Find(c =>
-                            string.Equals(c.Description, componentName, StringComparison.OrdinalIgnoreCase));
-
-                        if (comp != null)
-                        {
-                            AddOrSetPropertyValue(comp, actualPropertyName, "", tokenValue);
-                        }
-                        else
-                        {
-                            obj.Properties ??= new List<ValuePair>();
-                            var existingProp = obj.Properties.Find(p =>
-                                string.Equals(p.name, propertyName, StringComparison.OrdinalIgnoreCase));
-                            if (existingProp != null) existingProp.value = tokenValue;
-                            else obj.Properties.Add(new ValuePair(propertyName, tokenValue));
-                        }
-                    }
-                    else
-                    {
-                        obj.Properties ??= new List<ValuePair>();
-                        var existingProp = obj.Properties.Find(p =>
-                            string.Equals(p.name, actualPropertyName, StringComparison.OrdinalIgnoreCase));
-                        if (existingProp != null) existingProp.value = tokenValue;
-                        else obj.Properties.Add(new ValuePair(actualPropertyName, tokenValue));
-                    }
-                }
-            }
-            else if (action == T2G.Actions.delete_object)
-            {
-                string objectName = instruction.parameters.GetString("Name");
-                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
-                {
-                    try
-                    {
-                        var space = FindSpace(CurrentSpaceName);
-                        if (space == null) return;
-
-                        space._nameToId.TryGetValue(objectName, out var targetId);
-
-                        foreach (var obj in space.Objects.Values)
-                        {
-                            if (obj?.Relationships == null) continue;
-                            if (targetId != null)
-                                obj.Relationships.RemoveAll(r =>
-                                    string.Equals(r.Target, targetId, StringComparison.OrdinalIgnoreCase));
-                        }
-
-                        RemoveObject(CurrentSpaceName, objectName);
-                    }
-                    catch { }
-                }
-            }
-            else if (action == T2G.Actions.goto_space)
-            {
-                string spaceName = instruction.parameters.GetString("spaceName");
-                if (!string.IsNullOrWhiteSpace(spaceName))
-                    CurrentSpaceName = spaceName;
-            }
-            else if (action == T2G.Actions.rename_space)
-            {
-                string newSpaceName = instruction.parameters.GetString("spaceName");
-                if (!string.IsNullOrWhiteSpace(newSpaceName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
-                {
-                    var space = FindSpace(CurrentSpaceName);
-                    if (space != null)
-                    {
-                        string oldName = space.Name;
-                        space.Name = newSpaceName;
-                        if (string.Equals(CurrentSpaceName, oldName, StringComparison.OrdinalIgnoreCase))
-                            CurrentSpaceName = newSpaceName;
-                        Debug.Log($"[GameDescManager] Renamed space: {oldName} -> {newSpaceName}");
-                    }
-                }
-            }
-            else if (action == T2G.Actions.attach_to)
-            {
-                string childName = instruction.parameters.GetString("source");
-                string parentName = instruction.parameters.GetString("target");
-                string socketName = instruction.parameters.GetString("socket");
-
-                if (!string.IsNullOrWhiteSpace(childName) && !string.IsNullOrWhiteSpace(parentName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
-                {
-                    try
-                    {
-                        if (FindSpace(CurrentSpaceName) == null)
-                            AddSpace(CurrentSpaceName);
-
-                        var space = FindSpace(CurrentSpaceName);
-                        if (space == null) return;
-
-                        var child = FindObjectInSpace(space, childName);
-                        if (child == null)
-                            child = AddObject(CurrentSpaceName, childName, null);
-
-                        var parent = FindObjectInSpace(space, parentName);
-                        if (parent == null)
-                            parent = AddObject(CurrentSpaceName, parentName, null);
-
-                        // Remove any existing containment/attachment relationship from this child
-                        child.Relationships ??= new List<Relationship>();
-                        child.Relationships.RemoveAll(r =>
-                            string.Equals(r.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(r.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase));
-
-                        // Add new relationship with parent's GUID
-                        child.Relationships.Add(new Relationship
-                        {
-                            Type = GameDescRelationTypes.AttachedTo,
-                            Target = parent.Id,
-                            Slot = socketName ?? string.Empty
-                        });
-
-                        if (responseParams != null)
-                        {
-                            foreach (var responseParam in responseParams)
-                            {
-                                string[] valuePaire = responseParam.Split(new char[] { '=' }, 2);
-                                if (valuePaire.Length == 2)
-                                    AddOrSetProperty(child, valuePaire[0], valuePaire[1]);
-                            }
-
-                            child.Properties?.RemoveAll(p => string.Equals(p.name, "position", StringComparison.OrdinalIgnoreCase)
-                                                          || string.Equals(p.name, "rotation", StringComparison.OrdinalIgnoreCase)
-                                                          || string.Equals(p.name, "scale", StringComparison.OrdinalIgnoreCase));
-                        }
-                    }
-                    catch { }
-                }
-            }
-            else if (action == T2G.Actions.set_relationship)
-            {
-                string sourceName = instruction.parameters.GetString("source");
-                string relType = instruction.parameters.GetString("type");
-                string targetName = instruction.parameters.GetString("target");
-                string slotName = instruction.parameters.GetString("slot");
-
-                if (!string.IsNullOrWhiteSpace(sourceName) && !string.IsNullOrWhiteSpace(relType) &&
-                    !string.IsNullOrWhiteSpace(CurrentSpaceName))
-                {
-                    try
-                    {
-                        if (FindSpace(CurrentSpaceName) == null)
-                            AddSpace(CurrentSpaceName);
-
-                        var space = FindSpace(CurrentSpaceName);
-                        if (space == null) return;
-
-                        var source = FindObjectInSpace(space, sourceName);
-                        if (source == null)
-                            source = AddObject(CurrentSpaceName, sourceName, null);
-
-                        source.Relationships ??= new List<Relationship>();
-
-                        // Resolve target name to GUID
-                        string targetId = string.Empty;
-                        if (!string.IsNullOrWhiteSpace(targetName))
-                        {
-                            if (space._nameToId.TryGetValue(targetName, out var tid))
-                                targetId = tid;
-                            else
-                            {
-                                var targetObj = AddObject(CurrentSpaceName, targetName, null);
-                                targetId = targetObj.Id;
-                            }
-                        }
-
-                        // Remove existing relationship of the same type targeting the same object
-                        source.Relationships.RemoveAll(r =>
-                            string.Equals(r.Type, relType, StringComparison.OrdinalIgnoreCase) &&
-                            string.Equals(r.Target, targetId, StringComparison.OrdinalIgnoreCase));
-
-                        source.Relationships.Add(new Relationship
-                        {
-                            Type = relType,
-                            Target = targetId,
-                            Slot = slotName ?? string.Empty
-                        });
-                    }
-                    catch { }
-                }
-            }
-            else if (action == T2G.Actions.remove_component)
-            {
-                string objectName = instruction.parameters.GetString("Name");
-                string componentType = instruction.parameters.GetString("Type");
-                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName) && !string.IsNullOrWhiteSpace(componentType))
-                {
-                    try { RemoveComponent(CurrentSpaceName, objectName, componentType); }
-                    catch { }
-                }
-            }
-            else if (action == T2G.Actions.detach_from)
-            {
-                string objectName = instruction.parameters.GetString("Name");
-                if (string.IsNullOrWhiteSpace(objectName))
-                    objectName = instruction.parameters.GetString("childName");
-
-                if (!string.IsNullOrWhiteSpace(objectName) && !string.IsNullOrWhiteSpace(CurrentSpaceName))
-                {
-                    try
-                    {
-                        var space = FindSpace(CurrentSpaceName);
-                        if (space == null) return;
-
-                        var obj = FindObjectInSpace(space, objectName);
-                        if (obj == null) return;
-
-                        // Remove containment/attachment relationships
-                        obj.Relationships ??= new List<Relationship>();
-                        obj.Relationships.RemoveAll(r =>
-                            string.Equals(r.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(r.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase));
-
-                        if (responseParams != null)
-                        {
-                            foreach (var responseParam in responseParams)
-                            {
-                                string[] valuePaire = responseParam.Split(new char[] { '=' }, 2);
-                                if (valuePaire.Length == 2)
-                                    AddOrSetProperty(obj, valuePaire[0], valuePaire[1]);
-                            }
-
-                            obj.Properties?.RemoveAll(p => string.Equals(p.name, "localPosition", StringComparison.OrdinalIgnoreCase)
-                                                        || string.Equals(p.name, "localRotation", StringComparison.OrdinalIgnoreCase)
-                                                        || string.Equals(p.name, "localScale", StringComparison.OrdinalIgnoreCase));
-                        }
-                    }
-                    catch { }
-                }
-            }
-        }
-
-        private static void AddOrSetProperty(T2G.Assistant.Object obj, string name, JToken value)
-        {
-            if (obj == null) return;
-            obj.Properties ??= new List<ValuePair>();
-            var existing = obj.Properties.Find(p => string.Equals(p.name, name, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
-                existing.value = value;
-            else
-                obj.Properties.Add(new ValuePair(name, value));
-        }
-
-        // ============================================================
-        // Domain: Snapshot lifecycle
-        // ============================================================
-
-        public GameDesc CreateGameDesc(string projectName, string title = null)
-        {
-            Snapshot = new GameDesc
-            {
-                ProjectName = projectName ?? "Untitled",
-                Title = title ?? "Untitled",
-                Spaces = new List<T2G.Assistant.Space>(),
-                InstructionHistory = new List<InstructionRecord>()
-            };
-
-            return Snapshot;
-        }
-
-        public string SaveGameDesc(string fileName = null)
-        {
-            EnsureSnapshot();
-
-            var wrapper = new GameDescFile
-            {
-                SchemaVersion = 1,
-                Context = Assistant.Instance.GameProject,
-                GameDesc = Snapshot
-            };
-
-            string json = JsonConvert.SerializeObject(wrapper, _jsonSettings);
-
-            if (string.IsNullOrWhiteSpace(fileName))
-            {
-                fileName = MakeSafeFileName(Snapshot.Title);
+                return;
             }
 
-            if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            Object obj = FindObjectByName(ownerName);
+            if (obj == null)
+                throw new InvalidOperationException(
+                    "Property owner '" + ownerName + "' could not be resolved.");
+
+            if (isComponentProperty)
             {
-                fileName += ".json";
-            }
+                Component component = FindComponentByType(obj.Components, componentType);
+                if (component == null)
+                    throw new InvalidOperationException(
+                        "Component '" + componentType + "' does not exist on object '" + ownerName + "'.");
 
-            string fullPath = Path.Combine(_saveGameDescFolder, fileName);
-            File.WriteAllText(fullPath, json);
-
-            return fullPath;
-        }
-
-        public bool LoadGameDesc(string filePath)
-        {
-            if (string.IsNullOrWhiteSpace(filePath))
-                throw new ArgumentException("filePath is null/empty.");
-
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("GameDesc json file not found.", filePath);
-
-            string json = File.ReadAllText(filePath);
-
-            // Try new flat format first (SchemaVersion >= 1)
-            GameDescFile wrapper;
-            try
-            {
-                wrapper = JsonConvert.DeserializeObject<GameDescFile>(json, _jsonSettings);
-            }
-            catch (Exception e)
-            {
-                throw new InvalidOperationException($"Failed to deserialize GameDescFile: {e.Message}", e);
-            }
-
-            if (wrapper?.GameDesc == null)
-                throw new InvalidOperationException("Invalid file: GameDesc missing.");
-
-            if (wrapper.SchemaVersion == null || wrapper.SchemaVersion < 1)
-            {
-                // Legacy hierarchical format — migrate
-                var legacyWrapper = JsonConvert.DeserializeObject<LegacyGameDescFile>(json, _jsonSettings);
-                if (legacyWrapper?.GameDesc == null)
-                    throw new InvalidOperationException("Invalid file: cannot migrate legacy GameDesc.");
-
-                Snapshot = MigrateFromLegacy(legacyWrapper.GameDesc);
-                Debug.Log("[GameDescManager] Migrated legacy hierarchical GameDesc to flat format.");
-
-                // Re-save in new format immediately
-                SaveGameDesc(Path.GetFileName(filePath));
+                SetProperty(component.Properties, componentProperty, type, CloneToken(actualValue));
+                component.RebuildPropertyMap();
             }
             else
             {
-                Snapshot = wrapper.GameDesc;
+                SetProperty(obj.Properties, propertyName, type, CloneToken(actualValue));
+                obj.RebuildPropertyMap();
+            }
+        }
+
+        private void ApplyAddComponent(Instruction instruction, Response response)
+        {
+            RequireCurrentSpace();
+
+            string ownerName = GetParameterString(instruction, "ObjName");
+            string componentType = response.GetValue<string>(
+                "ComponentType",
+                GetParameterString(instruction, "Type"));
+
+            if (string.IsNullOrWhiteSpace(componentType))
+                throw new InvalidOperationException("add_component requires Type.");
+
+            Component component = CreateComponentFromInstruction(
+                instruction, response, componentType);
+
+            if (string.Equals(
+                CurrentSpace.Name,
+                ownerName,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                RemoveComponentByType(CurrentSpace.Components, componentType);
+                CurrentSpace.Components.Add(component);
+                return;
             }
 
-            Normalize(Snapshot);
+            Object obj = FindObjectByName(ownerName);
+            if (obj == null)
+                throw new InvalidOperationException(
+                    "Component owner '" + ownerName + "' could not be resolved.");
 
-            return true;
+            RemoveComponentByType(obj.Components, componentType);
+            obj.Components.Add(component);
         }
 
-        public List<string> ListSavedGameDescs()
+        private void ApplyRemoveComponent(Instruction instruction, Response response)
         {
-            Directory.CreateDirectory(_saveGameDescFolder);
+            RequireCurrentSpace();
 
-            var files = new DirectoryInfo(_saveGameDescFolder)
-                .GetFiles("*.json", SearchOption.TopDirectoryOnly);
+            string ownerName = GetParameterString(instruction, "ObjName");
+            string componentType = response.GetValue<string>(
+                "ComponentType",
+                GetParameterString(instruction, "ComponentType"));
 
-            Array.Sort(files, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
-
-            var result = new List<string>(files.Length);
-            foreach (var f in files)
-                result.Add(f.FullName);
-
-            return result;
-        }
-
-        // ============================================================
-        // Domain: Snapshot edits
-        // ============================================================
-
-        // ============================================================
-        // Export / Import (human-oriented format)
-        // ============================================================
-
-        /// <summary>
-        /// Exports the current Snapshot as a hierarchical HumanGameDesc.
-        /// </summary>
-        public HumanGameDesc ExportToHumanGameDesc()
-        {
-            EnsureSnapshot();
-            return GameDescConverter.ToHuman(Snapshot);
-        }
-
-        /// <summary>
-        /// Saves the current Snapshot as a human-oriented JSON file.
-        /// </summary>
-        public string SaveHumanGameDesc(string filePath)
-        {
-            EnsureSnapshot();
-            var human = ExportToHumanGameDesc();
-            string json = JsonConvert.SerializeObject(human, _jsonSettings);
-            File.WriteAllText(filePath, json);
-            return filePath;
-        }
-
-        /// <summary>
-        /// Loads a human-oriented (hierarchical) GameDesc JSON file
-        /// and converts it to the internal flat model.
-        /// </summary>
-        public void ImportFromHumanGameDesc(string filePath)
-        {
-            if (string.IsNullOrWhiteSpace(filePath))
-                throw new ArgumentException("filePath is empty.");
-
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("File not found.", filePath);
-
-            string json = File.ReadAllText(filePath);
-            var human = JsonConvert.DeserializeObject<HumanGameDesc>(json, _jsonSettings);
-            if (human == null)
-                throw new InvalidOperationException("Failed to deserialize HumanGameDesc.");
-
-            Snapshot = GameDescConverter.FromHuman(human);
-            Normalize(Snapshot);
-        }
-
-        public Space AddSpace(string spaceName)
-        {
-            EnsureSnapshot();
-            if (string.IsNullOrWhiteSpace(spaceName))
-                throw new ArgumentException("spaceName is empty.");
-
-            Snapshot.Spaces ??= new List<Space>();
-
-            var space = new Space
+            if (string.Equals(
+                CurrentSpace.Name,
+                ownerName,
+                StringComparison.OrdinalIgnoreCase))
             {
-                Name = spaceName,
-                Components = new List<Component>(),
-                Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase)
-            };
-
-            Snapshot.Spaces.Add(space);
-            return space;
-        }
-
-        public Object AddObject(string spaceName, string objectName, string desc = null)
-        {
-            EnsureSnapshot();
-
-            var space = FindSpace(spaceName)
-                        ?? throw new InvalidOperationException($"Space '{spaceName}' not found.");
-
-            var newObj = new Object
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = objectName,
-                Desc = desc ?? string.Empty,
-                Components = new List<Component>()
-            };
-
-            space.Objects[newObj.Id] = newObj;
-            space._nameToId[objectName] = newObj.Id;
-
-            return newObj;
-        }
-
-        public bool RemoveObject(string spaceName, string objectName)
-        {
-            EnsureSnapshot();
-
-            var space = FindSpace(spaceName);
-            if (space == null) return false;
-
-            if (space._nameToId.TryGetValue(objectName, out var id))
-            {
-                space.Objects.Remove(id);
-                space._nameToId.Remove(objectName);
-                return true;
+                RemoveComponentByType(CurrentSpace.Components, componentType);
+                return;
             }
-            return false;
+
+            Object obj = FindObjectByName(ownerName);
+            if (obj != null)
+                RemoveComponentByType(obj.Components, componentType);
         }
 
-        public Component AddComponent(string spaceName, string objectName, string componentType, Instruction instruction)
+        private void ApplyImportAssets(Instruction instruction, Response response)
         {
-            EnsureSnapshot();
+            RequireCurrentSpace();
+            RegisterInstructionAssets(instruction, response, null);
+        }
 
-            var obj = RequireObject(spaceName, objectName);
+        private void RecordHistory(Instruction instruction, Response response)
+        {
+            EnsureGameDesc();
 
-            obj.Components ??= new List<Component>();
-
-            var comp = new Component
-            {
-                Type = componentType,
-                SourceType = componentType,
-                Description = instruction.desc,
-                Properties = new List<PropertyDesc>(),
-                Assets = instruction.assets != null
-                    ? instruction.assets.Where(a => !string.IsNullOrWhiteSpace(a.source))
-                        .Select(a => new ComponentAssetRef { Key = a.source, Type = Path.GetFileNameWithoutExtension(a.source) })
-                        .ToList()
-                    : new List<ComponentAssetRef>()
-            };
-
-            if(string.Compare(componentType, "file", true) == 0)
-            {
-                string className = null;
-
-                if (File.Exists(comp.Description))
+            CurrentGameDesc.InstructionHistory.Add(
+                new InstructionRecord
                 {
-                    string scriptContent = File.ReadAllText(comp.Description);
-                    className = ExtractScriptClassName(scriptContent);
-                }
-
-                className ??= Path.GetFileNameWithoutExtension(comp.Description);
-
-                if (!string.IsNullOrWhiteSpace(className))
-                {
-                    comp.Type = className;
-
-                    string importPath = comp.Description;
-                    var space = FindSpace(spaceName);
-                    if (space != null)
-                    {
-                        space.Assets ??= new Dictionary<string, Instruction.Asset>();
-                        if (!space.Assets.ContainsKey(importPath))
-                        {
-                            space.Assets[importPath] = new Instruction.Asset
-                            {
-                                desc = "",                  //TODO: assign correct value
-                                type = AssetType.Unknown,   //TODO: assign correct value
-                                source = importPath,
-                            };
-                        }
-                    }
-                }
-            }
-            else if (string.Compare(componentType, "asset", true) == 0 && instruction.assets != null && instruction.assets.Count > 0)
-            {
-                comp.Assets = instruction.assets
-                    .Where(a => !string.IsNullOrWhiteSpace(a.source))
-                    .Select(a =>
-                    {
-                        string className = null;
-                        string fullPath = Path.Combine(Application.dataPath, a.source);
-                        if (File.Exists(fullPath))
-                        {
-                            string content = File.ReadAllText(fullPath);
-                            className = ExtractScriptClassName(content);
-                        }
-                        className ??= Path.GetFileNameWithoutExtension(a.source);
-                        return new ComponentAssetRef { Key = a.source, Type = className };
-                    })
-                    .ToList();
-
-                var space = FindSpace(spaceName);
-                if (space != null)
-                {
-                    space.Assets ??= new Dictionary<string, Instruction.Asset>();
-                    for (int i = 0; i < instruction.assets.Count; i++)
-                    {
-                        string assetPath = instruction.assets[i].source;
-                        if (string.IsNullOrWhiteSpace(assetPath)) 
-                            continue;
-
-                        if (i == 0 && comp.Assets.Count > 0)
-                            comp.Type = comp.Assets[0].Type;
-
-                        if (!space.Assets.ContainsKey(assetPath))
-                        {
-                            space.Assets[assetPath] = new Instruction.Asset()
-                            {
-                                desc = instruction.assets[i].desc,
-                                type = instruction.assets[i].type,
-                                source = instruction.assets[i].source
-                            };
-                        }
-                    }
-                }
-            }
-            else
-            {
-                comp.Type = instruction.desc ?? componentType;
-            }
-
-            // Prevent duplicate component types
-            bool duplicate = obj.Components.Any(c =>
-                c != null &&
-                string.Equals(c.Type, comp.Type, StringComparison.OrdinalIgnoreCase));
-            if (duplicate) return comp;
-
-            obj.Components.Add(comp);
-            comp.RebuildPropertyMapIfExists();
-            return comp;
+                    InstructionJson = JsonConvert.SerializeObject(instruction),
+                    ResponseJson = JsonConvert.SerializeObject(response),
+                    ExecutedUtc = DateTime.UtcNow,
+                    Succeeded = response.Succeeded
+                });
         }
 
-        public bool RemoveComponent(string spaceName, string objectName, string componentType)
+        public Space FindSpaceByName(string name)
         {
-            EnsureSnapshot();
-
-            var obj = RequireObject(spaceName, objectName);
-            if (obj.Components == null) return false;
-
-            int idx = obj.Components.FindIndex(c =>
-                c != null && string.Equals(c.Type, componentType, StringComparison.OrdinalIgnoreCase));
-
-            if (idx < 0) return false;
-
-            obj.Components.RemoveAt(idx);
-            return true;
-        }
-
-        public void AddOrSetPropertyValue(
-            string spaceName,
-            string objectName,
-            string componentType,
-            string propertyName,
-            string propertyType,
-            JToken value)
-        {
-            EnsureSnapshot();
-
-            var comp = RequireComponent(spaceName, objectName, componentType);
-            AddOrSetPropertyValue(comp, propertyName, propertyType, value);
-        }
-
-        public void AddOrSetPropertyValue(Component comp, string propertyName, string propertyType, JToken value)
-        {
-            comp.Properties ??= new List<PropertyDesc>();
-
-            int idx = comp.Properties.FindIndex(p => p != null && string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
-
-            var prop = new PropertyDesc
-            {
-                Name = propertyName,
-                Type = propertyType,
-                Value = value
-            };
-
-            if (idx >= 0) 
-                comp.Properties[idx] = prop;
-            else 
-                comp.Properties.Add(prop);
-
-            comp.RebuildPropertyMapIfExists();
-        }
-
-        public void AddOrSetPropertyValue(
-            string spaceName,
-            string objectName,
-            string componentType,
-            string propertyName,
-            string propertyType,
-            object value)
-        {
-            AddOrSetPropertyValue(spaceName, objectName, componentType, propertyName, propertyType,
-                value == null ? JValue.CreateNull() : JToken.FromObject(value));
-        }
-
-        public bool DeleteProperty(string spaceName, string objectName, string componentType, string propertyName)
-        {
-            EnsureSnapshot();
-
-            var comp = RequireComponent(spaceName, objectName, componentType);
-            if (comp.Properties == null) return false;
-
-            int idx = comp.Properties.FindIndex(p =>
-                p != null && string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
-
-            if (idx < 0) return false;
-
-            comp.Properties.RemoveAt(idx);
-            comp.RebuildPropertyMapIfExists();
-            return true;
-        }
-
-        // ============================================================
-        // Queries / Internal helpers
-        // ============================================================
-
-        private void EnsureSnapshot()
-        {
-            if (Snapshot == null)
-                throw new InvalidOperationException("Snapshot is null. Call CreateNewSnapshot(...) or LoadSnapshot(...) first.");
-        }
-
-        private Space FindSpace(string spaceName)
-        {
-            if (Snapshot?.Spaces == null) return null;
-
-            return Snapshot.Spaces.Find(s =>
-                s != null && string.Equals(s.Name, spaceName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private Object RequireObject(string spaceName, string objectName)
-        {
-            var space = FindSpace(spaceName)
-                        ?? throw new InvalidOperationException($"Space '{spaceName}' not found.");
-
-            var obj = FindObjectInSpace(space, objectName)
-                      ?? throw new InvalidOperationException($"Object '{objectName}' not found in space '{spaceName}'.");
-
-            return obj;
-        }
-
-        private Component RequireComponent(string spaceName, string objectName, string componentType)
-        {
-            var obj = RequireObject(spaceName, objectName);
-
-            if (obj.Components == null)
-                throw new InvalidOperationException($"Object '{objectName}' has no components.");
-
-            var comp = obj.Components.Find(c =>
-                c != null && string.Equals(c.Type, componentType, StringComparison.OrdinalIgnoreCase));
-
-            if (comp == null)
-                throw new InvalidOperationException($"Component '{componentType}' not found on object '{objectName}'.");
-
-            return comp;
-        }
-
-        private Object FindObjectInSpace(Space space, string objectName)
-        {
-            if (space == null || string.IsNullOrWhiteSpace(objectName))
+            if (CurrentGameDesc == null ||
+                CurrentGameDesc.Spaces == null ||
+                string.IsNullOrWhiteSpace(name))
                 return null;
 
-            if (space._nameToId.TryGetValue(objectName, out var id) &&
-                space.Objects.TryGetValue(id, out var obj))
-                return obj;
+            foreach (Space space in CurrentGameDesc.Spaces)
+            {
+                if (space != null &&
+                    string.Equals(space.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return space;
+            }
 
             return null;
         }
 
-        private static void Normalize(GameDesc gd)
+        public Object FindObjectByName(string name)
         {
-            gd.Spaces ??= new List<Space>();
-            gd.InstructionHistory ??= new List<InstructionRecord>();
+            if (CurrentSpace == null || string.IsNullOrWhiteSpace(name))
+                return null;
 
-            foreach (var space in gd.Spaces)
+            Object obj;
+            return CurrentSpace.TryGetObjectByName(name, out obj) ? obj : null;
+        }
+
+        private Object ResolveResponseOrNamedObject(
+            Response response,
+            string responseIdName,
+            string fallbackName)
+        {
+            string id = response.GetValue<string>(responseIdName, string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(id))
             {
-                if (space == null) continue;
+                Object byId;
+                if (CurrentSpace.TryGetObjectById(id, out byId))
+                    return byId;
+            }
 
-                space.Objects ??= new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
-                space.Components ??= new List<Component>();
-                space.Assets ??= new Dictionary<string, Instruction.Asset>();
-                space.RebuildNameIndex();
+            return FindObjectByName(fallbackName);
+        }
 
-                foreach (var obj in space.Objects.Values)
+        private static Instruction.Parameter GetParameter(
+            Instruction instruction,
+            string name)
+        {
+            if (instruction == null || instruction.parameters == null)
+                return null;
+
+            foreach (Instruction.Parameter parameter in instruction.parameters)
+            {
+                if (parameter != null &&
+                    string.Equals(parameter.name, name, StringComparison.OrdinalIgnoreCase))
+                    return parameter;
+            }
+
+            return null;
+        }
+
+        private static string GetParameterString(
+            Instruction instruction,
+            string name)
+        {
+            Instruction.Parameter parameter = GetParameter(instruction, name);
+
+            if (parameter == null || parameter.value == null)
+                return string.Empty;
+
+            try
+            {
+                return parameter.value.ToObject<string>() ?? string.Empty;
+            }
+            catch
+            {
+                return parameter.value.ToString();
+            }
+        }
+
+        private static JToken GetResponseValue(
+            Response response,
+            string name,
+            JToken fallback)
+        {
+            Response.Result result = response.GetResultOrNull(name);
+            return result != null && result.value != null ? result.value : fallback;
+        }
+
+        private static void SetProperty(
+            List<PropertyDesc> properties,
+            string name,
+            string type,
+            JToken value)
+        {
+            if (properties == null)
+                throw new ArgumentNullException(nameof(properties));
+
+            PropertyDesc existing = null;
+
+            foreach (PropertyDesc property in properties)
+            {
+                if (property != null &&
+                    string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (obj == null) continue;
-
-                    obj.Tags ??= new List<string>();
-                    obj.Roles ??= new List<string>();
-                    obj.Relationships ??= new List<Relationship>();
-                    obj.Components ??= new List<Component>();
-                    obj.Assets ??= new List<ObjectAssetRef>();
-
-                    // Migrate any legacy comma-delimited asset strings ("import,load")
-                    // into ObjectAssetRef entries with separate Key and LoadPath.
-                    for (int i = 0; i < obj.Assets.Count; i++)
-                    {
-                        var assetRef = obj.Assets[i];
-                        if (assetRef == null) { obj.Assets.RemoveAt(i--); continue; }
-
-                        // Detect legacy format: Key contains a comma, or the key isn't in space.Assets yet
-                        bool isLegacy = assetRef.Key != null && assetRef.Key.IndexOf(',') >= 0;
-                        if (!isLegacy && !string.IsNullOrWhiteSpace(assetRef.Key) && space.Assets.ContainsKey(assetRef.Key))
-                            continue;
-
-                        if (isLegacy)
-                        {
-                            var parts = assetRef.Key.Split(new[] { ',' }, 2);
-                            string importPath = parts[0].Trim();
-                            string loadPath = parts.Length > 1 ? parts[1].Trim() : importPath;
-                            string key = AddAssetToSpace(importPath, loadPath, space);
-                            if (key != null)
-                            {
-                                obj.Assets[i] = new ObjectAssetRef { Key = key, LoadPath = loadPath };
-                                continue;
-                            }
-                        }
-
-                        obj.Assets.RemoveAt(i--);
-                    }
-
-                    foreach (var c in obj.Components)
-                    {
-                        if (c == null) continue;
-                        c.Properties ??= new List<PropertyDesc>();
-                        c.RebuildPropertyMapIfExists();
-                    }
+                    existing = property;
+                    break;
                 }
             }
-        }
 
-        private static string MakeSafeFileName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return "GameDesc";
-
-            foreach (char c in Path.GetInvalidFileNameChars())
-                name = name.Replace(c, '_');
-
-            return name.Trim();
-        }
-
-        /// <summary>
-        /// Extract the MonoBehaviour class name from a script's source text.
-        /// </summary>
-        private static string ExtractScriptClassName(string scriptContent)
-        {
-            if (string.IsNullOrWhiteSpace(scriptContent)) return null;
-            var match = Regex.Match(scriptContent, @"class\s+(\w+)\s*:\s*MonoBehaviour");
-            return match.Success ? match.Groups[1].Value : null;
-        }
-
-        /// <summary>
-        /// Infer asset type from its file extension (returned without the leading dot).
-        /// </summary>
-        private static string InferAssetType(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return "";
-            var ext = Path.GetExtension(path)?.ToLowerInvariant();
-            if (string.IsNullOrEmpty(ext)) return "";
-            return ext.TrimStart('.');
-        }
-
-        /// <summary>
-        /// Add an asset entry to Space.Assets or return existing key.
-        /// </summary>
-        private static string AddAssetToSpace(string importPath, string loadPath, Space space)
-        {
-            if (string.IsNullOrWhiteSpace(importPath)) return null;
-
-            string key = importPath.Trim();
-
-            if (!space.Assets.ContainsKey(key))
+            if (existing == null)
             {
-                space.Assets[key] = new Instruction.Asset()
-                {
-                    desc = key,                 //TODO: assign valid data
-                    type = AssetType.Unknown,   //TODO: assign valid data
-                    source = key
-                };
+                existing = new PropertyDesc { Name = name ?? string.Empty };
+                properties.Add(existing);
             }
 
-            return key;
+            existing.Type = type ?? string.Empty;
+            existing.Value = value;
         }
 
-        /// <summary>
-        /// Parse a single asset string from 'Object.Assets' (legacy format "import,load") into
-        /// separate import/load paths. If no comma, the entire string is used as both.
-        /// </summary>
-        private static string AddAssetToSpace(string assetStr, Space space)
+        private static void ApplyResponsePropertyIfPresent(
+            Response response,
+            List<PropertyDesc> properties,
+            string resultName,
+            string defaultType)
         {
-            if (string.IsNullOrWhiteSpace(assetStr)) return null;
-            var parts = assetStr.Split(new[] { ',' }, 2);
-            return AddAssetToSpace(parts[0].Trim(),
-                parts.Length > 1 ? parts[1].Trim() : parts[0].Trim(),
-                space);
+            Response.Result result = response.GetResultOrNull(resultName);
+
+            if (result == null || result.value == null)
+                return;
+
+            SetProperty(
+                properties,
+                resultName,
+                !string.IsNullOrWhiteSpace(result.type) ? result.type : defaultType,
+                CloneToken(result.value));
         }
 
-        // ============================================================
-        // File wrapper
-        // ============================================================
-
-        [Serializable]
-        private class GameDescFile
+        private static void AddOrUpdateRelationship(
+            Object source,
+            string type,
+            string targetId,
+            string slot)
         {
-            public int? SchemaVersion;
-            public ProjectContext Context;
-            public GameDesc GameDesc;
-        }
+            if (source.Relationships == null)
+                source.Relationships = new List<Relationship>();
 
-        // ============================================================
-        // Legacy migration DTOs (old hierarchical format, schema v0)
-        // ============================================================
-
-        [Serializable]
-        private class LegacyGameDescFile
-        {
-            public ProjectContext Context;
-            public LegacyGameDesc GameDesc;
-        }
-
-        [Serializable]
-        private class LegacyGameDesc
-        {
-            public string ProjectName;
-            public string Title;
-            public List<LegacySpace> Spaces;
-            public List<InstructionRecord> InstructionHistory;
-        }
-
-        [Serializable]
-        private class LegacySpace
-        {
-            public string Name;
-            public List<Component> Components;
-            public List<LegacyObject> Objects;
-        }
-
-        [Serializable]
-        private class LegacyObject
-        {
-            public string Name;
-            public string Desc;
-            public List<ValuePair> Properties;
-            public List<string> Assets;
-            public List<Component> Components;
-            public List<LegacyObject> Children;
-            public string Socket;
-        }
-
-        private static GameDesc MigrateFromLegacy(LegacyGameDesc legacy)
-        {
-            var flat = new GameDesc
+            foreach (Relationship relationship in source.Relationships)
             {
-                ProjectName = legacy.ProjectName,
-                Title = legacy.Title,
-                InstructionHistory = legacy.InstructionHistory ?? new List<InstructionRecord>(),
-                Spaces = new List<Space>()
+                if (relationship == null)
+                    continue;
+
+                if (string.Equals(
+                        relationship.Type,
+                        type,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(
+                        relationship.Target,
+                        targetId,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(
+                        relationship.Slot ?? string.Empty,
+                        slot ?? string.Empty,
+                        StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+
+            source.Relationships.Add(
+                new Relationship
+                {
+                    Type = type ?? string.Empty,
+                    Target = targetId ?? string.Empty,
+                    Slot = slot ?? string.Empty
+                });
+        }
+
+        private Component CreateComponentFromInstruction(
+            Instruction instruction,
+            Response response,
+            string componentType)
+        {
+            Component component = new Component
+            {
+                Type = componentType,
+                SourceType = DetermineComponentSourceType(instruction),
+                Description = instruction.desc ?? string.Empty
             };
 
-            if (legacy.Spaces == null) return flat;
-
-            foreach (var legacySpace in legacy.Spaces)
-            {
-                if (legacySpace == null) continue;
-
-                var space = new Space
-                {
-                    Name = legacySpace.Name,
-                    Components = legacySpace.Components ?? new List<Component>(),
-                    Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase)
-                };
-
-                FlattenLegacyObjects(legacySpace.Objects, null, space);
-
-                flat.Spaces.Add(space);
-            }
-
-            return flat;
+            RegisterComponentAssets(instruction, response, component);
+            return component;
         }
 
-        private static void FlattenLegacyObjects(List<LegacyObject> legacyObjects, string parentName, Space space)
+        private static ComponentSourceType DetermineComponentSourceType(
+            Instruction instruction)
         {
-            if (legacyObjects == null) return;
-
-            foreach (var legacyObj in legacyObjects)
+            if (instruction != null && instruction.assets != null)
             {
-                if (legacyObj == null) continue;
-
-                var objId = Guid.NewGuid().ToString();
-                var legacyAssets = legacyObj.Assets ?? new List<string>();
-                var migratedAssets = new List<ObjectAssetRef>(legacyAssets.Count);
-                foreach (var a in legacyAssets)
+                foreach (Instruction.Asset asset in instruction.assets)
                 {
-                    if (string.IsNullOrWhiteSpace(a)) continue;
-                    var parts = a.Split(new[] { ',' }, 2);
-                    string importPath = parts[0].Trim();
-                    string loadPath = parts.Length > 1 ? parts[1].Trim() : importPath;
-                    string key = AddAssetToSpace(importPath, loadPath, space);
-                    if (key != null)
-                        migratedAssets.Add(new ObjectAssetRef { Key = key, LoadPath = loadPath });
-                }
+                    if (asset == null)
+                        continue;
 
-                var obj = new Object
-                {
-                    Id = objId,
-                    Name = legacyObj.Name,
-                    Desc = legacyObj.Desc ?? string.Empty,
-                    Tags = new List<string>(),
-                    Roles = new List<string>(),
-                    Relationships = new List<Relationship>(),
-                    Properties = legacyObj.Properties ?? new List<ValuePair>(),
-                    Assets = migratedAssets,
-                    Components = legacyObj.Components ?? new List<Component>()
-                };
+                    if (asset.type == AssetType.ScriptFile)
+                        return ComponentSourceType.Script;
 
-                if (!string.IsNullOrWhiteSpace(parentName))
-                {
-                    string parentId = space._nameToId.TryGetValue(parentName, out var pid)
-                        ? pid : parentName;
-                    obj.Relationships.Add(new Relationship
-                    {
-                        Type = GameDescRelationTypes.Contains,
-                        Target = parentId,
-                        Slot = legacyObj.Socket ?? string.Empty
-                    });
-                }
-
-                space.Objects[objId] = obj;
-                space._nameToId[obj.Name] = objId;
-
-                if (legacyObj.Children != null && legacyObj.Children.Count > 0)
-                {
-                    FlattenLegacyObjects(legacyObj.Children, legacyObj.Name, space);
+                    if (asset.type == AssetType.Identifier)
+                        return ComponentSourceType.Engine;
                 }
             }
-        }
-    }
 
-    /// <summary>
-    /// Context metadata for a snapshot (separate from design graph).
-    /// </summary>
-    [Serializable]
-    public class SnapshotContext
-    {
-        public string ProjectPath;
-        public string LastFilePath;
-        public DateTime CreatedUtc;
-        public DateTime? LastSavedUtc;
+            return ComponentSourceType.Unknown;
+        }
+
+        private static void RemoveComponentByType(
+            List<Component> components,
+            string componentType)
+        {
+            if (components == null || string.IsNullOrWhiteSpace(componentType))
+                return;
+
+            components.RemoveAll(
+                c => c != null &&
+                     string.Equals(
+                         c.Type,
+                         componentType,
+                         StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void RegisterInstructionAssets(
+            Instruction instruction,
+            Response response,
+            Object owner)
+        {
+            if (instruction.assets == null)
+                return;
+
+            foreach (Instruction.Asset asset in instruction.assets)
+            {
+                GameAsset gameAsset = GetOrCreateGameAsset(asset, response);
+                if (gameAsset == null || owner == null)
+                    continue;
+
+                if (!HasAssetRef(owner.Assets, gameAsset.Id))
+                    owner.Assets.Add(new AssetRef { AssetId = gameAsset.Id });
+            }
+        }
+
+        private void RegisterComponentAssets(
+            Instruction instruction,
+            Response response,
+            Component component)
+        {
+            if (instruction.assets == null)
+                return;
+
+            foreach (Instruction.Asset asset in instruction.assets)
+            {
+                GameAsset gameAsset = GetOrCreateGameAsset(asset, response);
+                if (gameAsset == null)
+                    continue;
+
+                if (!HasAssetRef(component.Assets, gameAsset.Id))
+                    component.Assets.Add(new AssetRef { AssetId = gameAsset.Id });
+            }
+        }
+
+        private GameAsset GetOrCreateGameAsset(
+            Instruction.Asset asset,
+            Response response)
+        {
+            if (asset == null || string.IsNullOrWhiteSpace(asset.source))
+                return null;
+
+            GameAsset gameAsset = FindGameAssetBySource(asset.source);
+
+            if (gameAsset == null)
+            {
+                gameAsset = new GameAsset
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = asset.desc ?? string.Empty,
+                    Source = asset.source,
+                    Type = asset.type.ToString(),
+                    ImportPath = asset.source,
+                    LoadPath = string.Empty
+                };
+
+                CurrentSpace.Assets[gameAsset.Id] = gameAsset;
+            }
+
+            // For single-asset operations, the Executor may return authoritative
+            // import/load paths. Multi-asset response conventions can be added later.
+            string importPath = response.GetValue<string>("ImportPath", string.Empty);
+            string loadPath = response.GetValue<string>("LoadPath", string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(importPath))
+                gameAsset.ImportPath = importPath;
+            if (!string.IsNullOrWhiteSpace(loadPath))
+                gameAsset.LoadPath = loadPath;
+
+            return gameAsset;
+        }
+
+        private GameAsset FindGameAssetBySource(string source)
+        {
+            if (CurrentSpace == null ||
+                CurrentSpace.Assets == null ||
+                string.IsNullOrWhiteSpace(source))
+                return null;
+
+            foreach (GameAsset asset in CurrentSpace.Assets.Values)
+            {
+                if (asset != null &&
+                    string.Equals(asset.Source, source, StringComparison.OrdinalIgnoreCase))
+                    return asset;
+            }
+
+            return null;
+        }
+
+        private static bool HasAssetRef(List<AssetRef> references, string assetId)
+        {
+            if (references == null)
+                return false;
+
+            foreach (AssetRef reference in references)
+            {
+                if (reference != null &&
+                    string.Equals(
+                        reference.AssetId,
+                        assetId,
+                        StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool TrySplitComponentProperty(
+            string propertyName,
+            out string componentType,
+            out string componentProperty)
+        {
+            componentType = string.Empty;
+            componentProperty = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(propertyName))
+                return false;
+
+            int separator = propertyName.IndexOf('.');
+            if (separator <= 0 || separator >= propertyName.Length - 1)
+                return false;
+
+            componentType = propertyName.Substring(0, separator).Trim();
+            componentProperty = propertyName.Substring(separator + 1).Trim();
+            return !string.IsNullOrWhiteSpace(componentType) &&
+                   !string.IsNullOrWhiteSpace(componentProperty);
+        }
+
+        private static Component FindComponentByType(
+            List<Component> components,
+            string componentType)
+        {
+            if (components == null || string.IsNullOrWhiteSpace(componentType))
+                return null;
+
+            foreach (Component component in components)
+            {
+                if (component != null &&
+                    string.Equals(component.Type, componentType, StringComparison.OrdinalIgnoreCase))
+                    return component;
+            }
+            return null;
+        }
+
+        private static List<string> ParseStringListParameter(
+            Instruction instruction,
+            string parameterName)
+        {
+            string value = GetParameterString(instruction, parameterName);
+            var result = new List<string>();
+            if (string.IsNullOrWhiteSpace(value))
+                return result;
+
+            string[] parts = value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string part in parts)
+            {
+                string item = part.Trim();
+                if (!string.IsNullOrWhiteSpace(item))
+                    result.Add(item);
+            }
+            return result;
+        }
+
+        private void EnsureGameDesc()
+        {
+            if (CurrentGameDesc == null)
+                CurrentGameDesc = new GameDesc();
+
+            CurrentGameDesc.Spaces =
+                CurrentGameDesc.Spaces ?? new List<Space>();
+
+            CurrentGameDesc.InstructionHistory =
+                CurrentGameDesc.InstructionHistory ?? new List<InstructionRecord>();
+        }
+
+        private void RequireCurrentSpace()
+        {
+            if (CurrentSpace == null)
+                throw new InvalidOperationException("No current Space has been selected.");
+        }
+
+        private static void NormalizeSpace(Space space)
+        {
+            if (space == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(space.Id))
+                space.Id = Guid.NewGuid().ToString();
+
+            space.Properties = space.Properties ?? new List<PropertyDesc>();
+            space.Components = space.Components ?? new List<Component>();
+            space.Objects = space.Objects ??
+                new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
+            space.Assets = space.Assets ??
+                new Dictionary<string, GameAsset>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (Object obj in space.Objects.Values)
+            {
+                if (obj == null)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(obj.Id))
+                    obj.Id = Guid.NewGuid().ToString();
+
+                obj.Properties = obj.Properties ?? new List<PropertyDesc>();
+                obj.Components = obj.Components ?? new List<Component>();
+                obj.Assets = obj.Assets ?? new List<AssetRef>();
+                obj.Tags = obj.Tags ?? new List<string>();
+                obj.Roles = obj.Roles ?? new List<string>();
+                obj.Relationships = obj.Relationships ?? new List<Relationship>();
+
+                obj.RebuildPropertyMap();
+
+                foreach (Component component in obj.Components)
+                {
+                    if (component != null)
+                        component.RebuildPropertyMap();
+                }
+            }
+
+            foreach (Component component in space.Components)
+            {
+                if (component != null)
+                    component.RebuildPropertyMap();
+            }
+
+            space.RebuildNameIndex();
+            space.RebuildPropertyMap();
+        }
+
+        private static string NormalizeType(string declaredType, JToken value)
+        {
+            if (!string.IsNullOrWhiteSpace(declaredType))
+                return declaredType;
+
+            return value != null ? value.Type.ToString() : "Null";
+        }
+
+        private static JToken CloneToken(JToken token)
+        {
+            return token != null ? token.DeepClone() : null;
+        }
     }
 }
-
-

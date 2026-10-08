@@ -210,7 +210,7 @@ namespace T2G.Assistant
                     }
                 }
 
-                if(!string.IsNullOrEmpty(foundParameter))
+                if(string.IsNullOrEmpty(foundParameter))
                 {
                     result.AddError($"Instruction {instruction.id}: " + $"Missing required parameter {foundParameter}");
                 }

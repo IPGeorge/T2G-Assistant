@@ -47,7 +47,7 @@ namespace T2G.Assistant
 
         private async void Update()
         {
-            if(ExponentialBackoffFocusRestorer.NeedFocus && 
+            if (ExponentialBackoffFocusRestorer.NeedFocus &&
                 !ExponentialBackoffFocusRestorer.IsRestoringFocus &&
                 !ExponentialBackoffFocusRestorer.IsFocusedWindow())
             {
@@ -59,7 +59,7 @@ namespace T2G.Assistant
 
         private void OnDestroy()
         {
-            if(Communicator != null && Communicator.IsConnected)
+            if (Communicator != null && Communicator.IsConnected)
             {
                 Communicator.Disconnect();
             }
@@ -127,13 +127,13 @@ namespace T2G.Assistant
 
         private void OnReceivedMessage(CommunicatorBase.eMessageType type, string message)
         {
-            if(type == CommunicatorBase.eMessageType.ProjectInfo)
+            if (type == CommunicatorBase.eMessageType.ProjectInfo)
             {
                 var pi = JsonConvert.DeserializeObject<ProjectInfo>(message);
-                if(pi != null && !string.IsNullOrEmpty(pi.ProjectName))
+                if (pi != null && !string.IsNullOrEmpty(pi.ProjectName))
                 {
-                    if(GameDescManager.Snapshot != null && 
-                        !string.IsNullOrEmpty(GameDescManager.CurrentProjectName))
+                    if (GameDescManager.CurrentGameDesc != null &&
+                        !string.IsNullOrEmpty(GameDescManager.CurrentGameDesc.ProjectName))
                     {
                         GameDescManager.SaveGameDesc();
                     }
@@ -149,18 +149,18 @@ namespace T2G.Assistant
             Debug.LogError($"[Assistant] Error: {errorMesasge}");
         }
 
- #endregion Communicator event handlers
+        #endregion Communicator event handlers
 
         async Awaitable<Response> WaitForResponse()
         {
             int timeoutMiniSeconds = 60000;
             int waitInterval = 100;
-            while(Communicator.IsReceiveBufferEmpty ||
+            while (Communicator.IsReceiveBufferEmpty ||
                 Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
             {
                 await Task.Delay(waitInterval);
                 timeoutMiniSeconds -= waitInterval;
-                if(timeoutMiniSeconds < 0)
+                if (timeoutMiniSeconds < 0)
                 {
                     return new Response(false, "Timeout waiting for the response!");
                 }
@@ -227,20 +227,10 @@ namespace T2G.Assistant
                         Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
                         var response = await WaitForResponse();
 
-                        if (response.Succeeded)
-                        {
-                            int paramIndex = response.Message.IndexOf("\n");
-
-                            if (paramIndex >= 0)
-                            {
-                                string[] responseParams = response.Message.Substring(paramIndex + 1).Split(';');
-                                GameDescManager.RecordInstruction(instruction, response, responseParams);
-                            }
-                            else
-                            {
-                                GameDescManager.RecordInstruction(instruction, response, null);
-                            }
-                        }
+                        // GameDesc evolves only through the structured execution
+                        // Response. Apply() records both successful and failed
+                        // executions, but mutates persistent state only on success.
+                        GameDescManager.Apply(instruction, response);
 
                         _completed &= response.Succeeded;
                         _sb.AppendLine(response.Message);
@@ -266,8 +256,8 @@ namespace T2G.Assistant
             {
                 if (string.IsNullOrEmpty(translatedInstruction.id))
                 {
-                    _instructionLocalGlobalIdMap[translatedInstruction.id] = 
-                        translatedInstruction.id = 
+                    _instructionLocalGlobalIdMap[translatedInstruction.id] =
+                        translatedInstruction.id =
                         InstructionIdGenerator.Instance.NextId();
                 }
 
@@ -280,7 +270,7 @@ namespace T2G.Assistant
                 else
                 {
                     _completed = false;
-                    return (_completed, result.Errors.ToString());
+                    return (_completed, string.Join("\n", result.Errors));
                 }
             }
 
@@ -290,7 +280,7 @@ namespace T2G.Assistant
             {
                 return (_completed, "No more instructions to execute!");
             }
-            
+
             _sb.Clear();
 
             for (int i = 0; i < _instructions.Count && _completed; ++i)
@@ -305,14 +295,14 @@ namespace T2G.Assistant
                 prompt = intent,
                 success = _completed,
                 instructionList = _instructions
-            }); 
+            });
 
             return (_completed, _sb.ToString());
         }
 
         public void SaveCurrentProject()
         {
-            if(GameProject != null)
+            if (GameProject != null)
             {
                 GameProject.Save();
                 GameDescManager.SaveGameDesc(GameProject.ProjectName);
@@ -327,18 +317,18 @@ namespace T2G.Assistant
         public void CreateNewProjectContext(string projectName, string projectPath)
         {
             SaveCurrentProject();
-            GameProject = new ProjectContext() { ProjectName = projectName, ProjectPath = projectPath, Genre="", Engine="Unity" };
+            GameProject = new ProjectContext() { ProjectName = projectName, ProjectPath = projectPath, Genre = "", Engine = "Unity" };
             GameDescManager.CreateGameDescProject(projectName);
             SaveCurrentProject();
         }
 
         public bool OpenOrCreateProjectContext(ProjectInfo projectInfo)
         {
-            if(string.IsNullOrEmpty(projectInfo.ProjectName))
+            if (string.IsNullOrEmpty(projectInfo.ProjectName))
             {
                 return false;
             }
-             
+
             SaveCurrentProject();
             GameProject = ProjectContext.LoadOrCreate(projectInfo);
             GameProject.CurrentSpace = projectInfo.CurrentSpace;

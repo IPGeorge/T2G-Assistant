@@ -8,16 +8,17 @@ namespace T2G.Assistant
     [Serializable]
     public class GameDesc
     {
-        public string ProjectName;
-        public string Title;
-        public List<T2G.Assistant.Space> Spaces;
-        public List<InstructionRecord> InstructionHistory;
+        public string ProjectName = string.Empty;
+        public string Title = string.Empty;
+        public List<Space> Spaces = new List<Space>();
+        public List<InstructionRecord> InstructionHistory = new List<InstructionRecord>();
     }
 
     [Serializable]
     public class InstructionRecord
     {
-        public string InstructionJson;
+        public string InstructionJson = string.Empty;
+        public string ResponseJson = string.Empty;
         public DateTime ExecutedUtc;
         public bool Succeeded;
     }
@@ -25,99 +26,80 @@ namespace T2G.Assistant
     [Serializable]
     public class Space
     {
-        public string Name;
-        public List<T2G.Assistant.Component> Components = new List<Component>();
+        public string Id = string.Empty;
+        public string Name = string.Empty;
 
-        /// <summary>
-        /// Objects keyed by their GUID Id for O(1) lookup.
-        /// </summary>
-        public Dictionary<string, T2G.Assistant.Object> Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
+        public List<PropertyDesc> Properties = new List<PropertyDesc>();
+        public List<Component> Components = new List<Component>();
 
-        /// <summary>
-        /// Name → GUID index for resolving instructions (which use names) to internal IDs.
-        /// Rebuilt by RebuildNameIndex() after any mutation or deserialization.
-        /// </summary>
+        public Dictionary<string, Object> Objects =
+            new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, GameAsset> Assets =
+            new Dictionary<string, GameAsset>(StringComparer.OrdinalIgnoreCase);
+
         [NonSerialized]
-        public Dictionary<string, string> _nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, string> _nameToId =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Assets referenced by objects in this space.
-        /// Key = download URL or absolute source path.
-        /// Value = resolved load info (project-relative path + type hint).
-        /// </summary>
-        public Dictionary<string, Instruction.Asset> Assets = new Dictionary<string, Instruction.Asset>();
+        [NonSerialized]
+        private Dictionary<string, PropertyDesc> _propertyMap =
+            new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
 
         public void RebuildNameIndex()
         {
-            _nameToId.Clear();
-            if (Objects == null) return;
-            foreach (var kvp in Objects)
+            _nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (Objects == null)
+                return;
+
+            foreach (var pair in Objects)
             {
-                if (kvp.Value != null && !string.IsNullOrWhiteSpace(kvp.Value.Name))
-                    _nameToId[kvp.Value.Name] = kvp.Key;
+                Object obj = pair.Value;
+                if (obj == null || string.IsNullOrWhiteSpace(obj.Name))
+                    continue;
+
+                _nameToId[obj.Name] = pair.Key;
             }
         }
-    }
 
-    [Serializable]
-    public class Object
-    {
-        public string Id;
-        public string Name;
-        public string Desc;
-        public List<string> Tags = new List<string>();
-        public List<string> Roles = new List<string>();
-        public List<Relationship> Relationships = new List<Relationship>();
-        public List<ValuePair> Properties = new List<ValuePair>();
-        public List<ObjectAssetRef> Assets = new List<ObjectAssetRef>();
-        public List<T2G.Assistant.Component> Components = new List<Component>();
-    }
+        public bool TryGetObjectByName(string name, out Object obj)
+        {
+            obj = null;
 
-    /// <summary>
-    /// Represents a named connection between two objects.
-    /// Type defines the kind of relationship (e.g. "attached_to", "contains").
-    /// Target is the GUID of the target object (not the display name).
-    /// Slot is an optional named connection point on the target — for example,
-    /// the socket name when Type is "attached_to", or an inventory slot when
-    /// used with container-type relationships.
-    /// </summary>
-    [Serializable]
-    public class Relationship
-    {
-        public string Type;
-        public string Target;
-        public string Slot;
-    }
+            if (string.IsNullOrWhiteSpace(name))
+                return false;
 
-    [Serializable]
-    public class Component
-    {
-        public string Type;
-        public string SourceType;
-        public List<PropertyDesc> Properties = new List<PropertyDesc>();
-        public List<ComponentAssetRef> Assets = new List<ComponentAssetRef>();
-        public string Description;
+            if (_nameToId == null || _nameToId.Count == 0)
+                RebuildNameIndex();
 
-        // Snapshot cache (fast lookup). Not serialized.
-        [NonSerialized]
-        private Dictionary<string, PropertyDesc> _propertyMap;
+            string id;
+            if (!_nameToId.TryGetValue(name, out id))
+                return false;
 
-        public bool TryGetProperty(string name, out PropertyDesc prop)
+            return Objects != null && Objects.TryGetValue(id, out obj);
+        }
+
+        public bool TryGetObjectById(string id, out Object obj)
+        {
+            obj = null;
+            return !string.IsNullOrWhiteSpace(id) &&
+                   Objects != null &&
+                   Objects.TryGetValue(id, out obj);
+        }
+
+        public bool TryGetProperty(string name, out PropertyDesc property)
         {
             EnsurePropertyMap();
-            return _propertyMap.TryGetValue(name, out prop);
+            return _propertyMap.TryGetValue(name, out property);
         }
 
         public PropertyDesc GetPropertyOrNull(string name)
         {
-            EnsurePropertyMap();
-            _propertyMap.TryGetValue(name, out var prop);
-            return prop;
+            PropertyDesc property;
+            return TryGetProperty(name, out property) ? property : null;
         }
 
-        /// <summary>
-        /// Call this if you modify Properties after deserialization.
-        /// </summary>
         public void RebuildPropertyMap()
         {
             BuildPropertyMap();
@@ -126,125 +108,268 @@ namespace T2G.Assistant
         [OnDeserialized]
         private void OnDeserialized(StreamingContext context)
         {
+            Properties = Properties ?? new List<PropertyDesc>();
+            Components = Components ?? new List<Component>();
+            Objects = Objects ?? new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
+            Assets = Assets ?? new Dictionary<string, GameAsset>(StringComparer.OrdinalIgnoreCase);
+
+            RebuildNameIndex();
             BuildPropertyMap();
         }
 
         private void EnsurePropertyMap()
         {
-            _propertyMap ??= new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
+            if (_propertyMap == null)
+                BuildPropertyMap();
         }
 
         private void BuildPropertyMap()
         {
-            EnsurePropertyMap();
-            _propertyMap.Clear();
+            _propertyMap = new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
 
-            if (Properties == null || Properties.Count == 0)
+            if (Properties == null)
                 return;
 
-            foreach (var p in Properties)
+            foreach (PropertyDesc property in Properties)
             {
-                if (p == null || string.IsNullOrWhiteSpace(p.Name))
+                if (property == null || string.IsNullOrWhiteSpace(property.Name))
                     continue;
 
-                // last one wins if duplicates
-                _propertyMap[p.Name] = p;
+                _propertyMap[property.Name] = property;
             }
         }
     }
 
-    public static class ComponentExtensions
+    [Serializable]
+    public class Object
     {
-        public static void RebuildPropertyMapIfExists(this Component c)
+        public string Id = string.Empty;
+        public string Name = string.Empty;
+        public string Desc = string.Empty;
+
+        public List<string> Tags = new List<string>();
+        public List<string> Roles = new List<string>();
+        public List<Relationship> Relationships = new List<Relationship>();
+        public List<PropertyDesc> Properties = new List<PropertyDesc>();
+        public List<AssetRef> Assets = new List<AssetRef>();
+        public List<Component> Components = new List<Component>();
+
+        [NonSerialized]
+        private Dictionary<string, PropertyDesc> _propertyMap =
+            new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
+
+        public bool TryGetProperty(string name, out PropertyDesc property)
         {
-            if (c == null) return;
-            c.RebuildPropertyMap();
+            EnsurePropertyMap();
+            return _propertyMap.TryGetValue(name, out property);
+        }
+
+        public PropertyDesc GetPropertyOrNull(string name)
+        {
+            PropertyDesc property;
+            return TryGetProperty(name, out property) ? property : null;
+        }
+
+        public void RebuildPropertyMap()
+        {
+            BuildPropertyMap();
+        }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            Tags = Tags ?? new List<string>();
+            Roles = Roles ?? new List<string>();
+            Relationships = Relationships ?? new List<Relationship>();
+            Properties = Properties ?? new List<PropertyDesc>();
+            Assets = Assets ?? new List<AssetRef>();
+            Components = Components ?? new List<Component>();
+
+            BuildPropertyMap();
+        }
+
+        private void EnsurePropertyMap()
+        {
+            if (_propertyMap == null)
+                BuildPropertyMap();
+        }
+
+        private void BuildPropertyMap()
+        {
+            _propertyMap = new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
+
+            if (Properties == null)
+                return;
+
+            foreach (PropertyDesc property in Properties)
+            {
+                if (property == null || string.IsNullOrWhiteSpace(property.Name))
+                    continue;
+
+                _propertyMap[property.Name] = property;
+            }
         }
     }
 
     [Serializable]
-    public class AssetInfo
+    public class Relationship
     {
-        public string ImportPath;
-        public string Type;
+        public string Type = string.Empty;
+        public string Target = string.Empty; // Stable target object GUID.
+        public string Slot = string.Empty;
+    }
+
+    public enum ComponentSourceType
+    {
+        Unknown = 0,
+        Engine = 1,
+        Script = 2,
+        T2G = 3
     }
 
     [Serializable]
-    public class ObjectAssetRef
+    public class Component
     {
-        public string Key;
-        public string LoadPath;
+        public string Type = string.Empty;
+        public ComponentSourceType SourceType = ComponentSourceType.Unknown;
+        public List<PropertyDesc> Properties = new List<PropertyDesc>();
+        public List<AssetRef> Assets = new List<AssetRef>();
+        public string Description = string.Empty;
+
+        [NonSerialized]
+        private Dictionary<string, PropertyDesc> _propertyMap =
+            new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
+
+        public bool TryGetProperty(string name, out PropertyDesc property)
+        {
+            EnsurePropertyMap();
+            return _propertyMap.TryGetValue(name, out property);
+        }
+
+        public PropertyDesc GetPropertyOrNull(string name)
+        {
+            PropertyDesc property;
+            return TryGetProperty(name, out property) ? property : null;
+        }
+
+        public void RebuildPropertyMap()
+        {
+            BuildPropertyMap();
+        }
+
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            Properties = Properties ?? new List<PropertyDesc>();
+            Assets = Assets ?? new List<AssetRef>();
+            BuildPropertyMap();
+        }
+
+        private void EnsurePropertyMap()
+        {
+            if (_propertyMap == null)
+                BuildPropertyMap();
+        }
+
+        private void BuildPropertyMap()
+        {
+            _propertyMap = new Dictionary<string, PropertyDesc>(StringComparer.OrdinalIgnoreCase);
+
+            if (Properties == null)
+                return;
+
+            foreach (PropertyDesc property in Properties)
+            {
+                if (property == null || string.IsNullOrWhiteSpace(property.Name))
+                    continue;
+
+                _propertyMap[property.Name] = property;
+            }
+        }
     }
 
     [Serializable]
-    public class ComponentAssetRef
+    public class GameAsset
     {
-        public string Key;
-        public string Type;
+        public string Id = string.Empty;
+        public string Name = string.Empty;
+        public string Source = string.Empty;
+        public string ImportPath = string.Empty;
+        public string LoadPath = string.Empty;
+        public string Type = string.Empty;
+    }
+
+    [Serializable]
+    public class AssetRef
+    {
+        public string AssetId = string.Empty;
     }
 
     [Serializable]
     public class PropertyDesc
     {
-        public string Name;
-        public string Type;
-        public JToken Value;    //Examples: Value = JToken.FromObject(1.0f);
-                                //          Value = JToken.FromObject(new float[] { 0,0,0 });
-                                //          Value = JToken.FromObject(true);
-                                //          Value = JToken.FromObject(new Color( 1, 1, 1, 1));
-                                //          var pos = Value.ToObject<Vector3>();  
+        public string Name = string.Empty;
+        public string Type = string.Empty;
+        public JToken Value;
 
-        public static bool ValidateType(PropertyDesc prop)
+        public static bool ValidateType(PropertyDesc property)
         {
-            if (prop == null || prop.Value == null || string.IsNullOrWhiteSpace(prop.Type))
+            if (property == null || property.Value == null || string.IsNullOrWhiteSpace(property.Type))
                 return false;
 
-            switch (prop.Type)
+            switch (property.Type.ToLowerInvariant())
             {
                 case "bool":
-                    return prop.Value.Type == JTokenType.Boolean;
+                case "boolean":
+                    return property.Value.Type == JTokenType.Boolean;
 
                 case "int":
-                    return prop.Value.Type == JTokenType.Integer;
+                case "integer":
+                    return property.Value.Type == JTokenType.Integer;
 
                 case "float":
-                    return prop.Value.Type == JTokenType.Float
-                        || prop.Value.Type == JTokenType.Integer;
+                case "double":
+                    return property.Value.Type == JTokenType.Float ||
+                           property.Value.Type == JTokenType.Integer;
 
                 case "string":
-                    return prop.Value.Type == JTokenType.String;
+                case "objectref":
+                case "spaceref":
+                case "assetref":
+                    return property.Value.Type == JTokenType.String;
 
-                case "Vector2":
-                    return IsArrayOfLength(prop.Value, 2);
+                case "vector2":
+                    return IsNumericArrayOfLength(property.Value, 2);
 
-                case "Vector3":
-                    return IsArrayOfLength(prop.Value, 3);
+                case "vector3":
+                    return IsNumericArrayOfLength(property.Value, 3);
 
-                case "Vector4":
-                    return IsArrayOfLength(prop.Value, 4);
+                case "vector4":
+                    return IsNumericArrayOfLength(property.Value, 4);
 
-                case "Color":
-                    return IsArrayOfLength(prop.Value, 3)
-                        || IsArrayOfLength(prop.Value, 4);
+                case "color":
+                    return IsNumericArrayOfLength(property.Value, 3) ||
+                           IsNumericArrayOfLength(property.Value, 4);
 
-                case "ObjectRef":
-                    return prop.Value.Type == JTokenType.String;
                 default:
+                    // Custom/engine-specific types may be validated later.
                     return true;
             }
         }
 
-        private static bool IsArrayOfLength(JToken token, int length)
+        private static bool IsNumericArrayOfLength(JToken token, int length)
         {
-            if (token is not JArray arr) return false;
-            if (arr.Count != length) return false;
+            JArray array = token as JArray;
+            if (array == null || array.Count != length)
+                return false;
 
-            foreach (var item in arr)
+            foreach (JToken item in array)
             {
-                if (item.Type != JTokenType.Float &&
-                    item.Type != JTokenType.Integer)
+                if (item.Type != JTokenType.Integer &&
+                    item.Type != JTokenType.Float)
                     return false;
             }
+
             return true;
         }
     }

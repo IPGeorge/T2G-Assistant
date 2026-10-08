@@ -44,11 +44,31 @@ namespace T2G.Assistant
                 {
                     foreach (var assetPair in space.Assets)
                     {
-                        if (string.IsNullOrWhiteSpace(assetPair.Value.source) ||
-                            importAssetsInstruction.HasAssetSource(assetPair.Value))
+                        GameAsset gameAsset = assetPair.Value;
+                        if (gameAsset == null)
                             continue;
 
-                        importAssetsInstruction.assets.Add(assetPair.Value);
+                        // Persistent GameAsset is converted back to the transient
+                        // Instruction.Asset representation expected by Resolution /
+                        // Asset Importer / Executor.
+                        string source = !string.IsNullOrWhiteSpace(gameAsset.ImportPath)
+                            ? gameAsset.ImportPath
+                            : gameAsset.Source;
+
+                        if (string.IsNullOrWhiteSpace(source))
+                            continue;
+
+                        var instructionAsset = new Instruction.Asset
+                        {
+                            desc = gameAsset.Name ?? string.Empty,
+                            type = ParseAssetType(gameAsset.Type),
+                            source = source
+                        };
+
+                        if (importAssetsInstruction.HasAssetSource(instructionAsset))
+                            continue;
+
+                        importAssetsInstruction.assets.Add(instructionAsset);
                     }
                 }
             }
@@ -95,6 +115,17 @@ namespace T2G.Assistant
             await Task.Yield();
 
             return (true, $"{batchInstructions.Count} instructions are queued to be executed:", batchInstructions);
+        }
+
+        private static AssetType ParseAssetType(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return AssetType.Unknown;
+
+            AssetType assetType;
+            return Enum.TryParse(value, true, out assetType)
+                ? assetType
+                : AssetType.Unknown;
         }
     }
 }

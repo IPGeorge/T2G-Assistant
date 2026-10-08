@@ -4,59 +4,47 @@ using System.Linq;
 
 namespace T2G.Assistant
 {
-    // ============================================================
-    // Human-oriented (hierarchical) export model
-    // ============================================================
-
+    // Human-oriented hierarchical export model. It uses the same final
+    // PropertyDesc/GameAsset/AssetRef types as the machine representation.
     [Serializable]
     public class HumanGameDesc
     {
-        public string ProjectName;
-        public string Title;
-        public List<HumanSpace> Spaces;
-        public List<InstructionRecord> InstructionHistory;
+        public string ProjectName = string.Empty;
+        public string Title = string.Empty;
+        public List<HumanSpace> Spaces = new List<HumanSpace>();
+        public List<InstructionRecord> InstructionHistory = new List<InstructionRecord>();
     }
 
     [Serializable]
     public class HumanSpace
     {
-        public string Name;
+        public string Id = string.Empty;
+        public string Name = string.Empty;
+        public List<PropertyDesc> Properties = new List<PropertyDesc>();
         public List<Component> Components = new List<Component>();
+        public Dictionary<string, GameAsset> Assets =
+            new Dictionary<string, GameAsset>(StringComparer.OrdinalIgnoreCase);
         public List<HumanObject> Objects = new List<HumanObject>();
-
-        /// <summary>
-        /// Asset library for this space. Key = download URL or absolute path, Value = load info.
-        /// </summary>
-        public Dictionary<string, Instruction.Asset> Assets = new Dictionary<string, Instruction.Asset>();
     }
 
     [Serializable]
     public class HumanObject
     {
-        public string Name;
-        public string Desc;
+        public string Id = string.Empty;
+        public string Name = string.Empty;
+        public string Desc = string.Empty;
         public List<string> Tags = new List<string>();
         public List<string> Roles = new List<string>();
         public List<Relationship> Relationships = new List<Relationship>();
-        public List<ValuePair> Properties = new List<ValuePair>();
-        public List<ObjectAssetRef> Assets = new List<ObjectAssetRef>();
+        public List<PropertyDesc> Properties = new List<PropertyDesc>();
+        public List<AssetRef> Assets = new List<AssetRef>();
         public List<Component> Components = new List<Component>();
         public List<HumanObject> Children = new List<HumanObject>();
-        public string Socket;
+        public string Socket = string.Empty;
     }
-
-    // ============================================================
-    // Converter: machine (flat) ↔ human (hierarchical)
-    // ============================================================
 
     public static class GameDescConverter
     {
-        /// <summary>
-        /// Converts the internal flat GameDesc to a hierarchical HumanGameDesc
-        /// for export, debugging, or human inspection.
-        /// Hierarchy is reconstructed from "contains" and "attached_to" relationships.
-        /// Relationship targets are resolved from GUID → Name for human readability.
-        /// </summary>
         public static HumanGameDesc ToHuman(GameDesc machine)
         {
             if (machine == null)
@@ -64,107 +52,81 @@ namespace T2G.Assistant
 
             var human = new HumanGameDesc
             {
-                ProjectName = machine.ProjectName,
-                Title = machine.Title,
+                ProjectName = machine.ProjectName ?? string.Empty,
+                Title = machine.Title ?? string.Empty,
                 InstructionHistory = machine.InstructionHistory != null
                     ? new List<InstructionRecord>(machine.InstructionHistory)
-                    : new List<InstructionRecord>(),
-                Spaces = new List<HumanSpace>()
+                    : new List<InstructionRecord>()
             };
 
             if (machine.Spaces == null)
                 return human;
 
-            foreach (var space in machine.Spaces)
+            foreach (Space space in machine.Spaces)
             {
                 if (space == null) continue;
 
                 var humanSpace = new HumanSpace
                 {
-                    Name = space.Name,
-                    Components = space.Components != null
-                        ? new List<Component>(space.Components)
-                        : new List<Component>(),
-                    Objects = new List<HumanObject>(),
-                    Assets = space.Assets != null
-                        ? new Dictionary<string, Instruction.Asset>(space.Assets)
-                        : new Dictionary<string, Instruction.Asset>()
+                    Id = space.Id ?? string.Empty,
+                    Name = space.Name ?? string.Empty,
+                    Properties = CloneProperties(space.Properties),
+                    Components = CloneComponents(space.Components),
+                    Assets = CloneAssets(space.Assets)
                 };
 
-                // Build GUID → Name lookup for resolving relationship targets
                 var guidToName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var obj in space.Objects.Values)
+                if (space.Objects != null)
                 {
-                    if (obj != null && !string.IsNullOrWhiteSpace(obj.Name))
-                        guidToName[obj.Id] = obj.Name;
-                }
-
-                // Build lookup: object name → HumanObject
-                var humanObjMap = new Dictionary<string, HumanObject>(StringComparer.OrdinalIgnoreCase);
-
-                // Pass 1: create HumanObject for every flat Object, resolve GUID → Name
-                foreach (var obj in space.Objects.Values)
-                {
-                    if (obj == null) continue;
-                    var hObj = MapToHumanObject(obj);
-                    ResolveRelationshipTargets(hObj, guidToName);
-                    humanObjMap[obj.Name] = hObj;
-                }
-
-                // Pass 2: build tree — find all objects that have a "contains" or "attached_to" parent
-                foreach (var obj in space.Objects.Values)
-                {
-                    if (obj == null) continue;
-
-                    string parentName = null;
-                    string socket = null;
-                    foreach (var rel in obj.Relationships)
+                    foreach (Object obj in space.Objects.Values)
                     {
-                        if (string.Equals(rel.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(rel.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase))
-                        {
-                            parentName = guidToName.TryGetValue(rel.Target, out var pn) ? pn : rel.Target;
-                            socket = rel.Slot;
-                            break;
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(parentName) && humanObjMap.TryGetValue(parentName, out var parent))
-                    {
-                        var hObj = humanObjMap[obj.Name];
-                        hObj.Socket = socket ?? string.Empty;
-                        parent.Children ??= new List<HumanObject>();
-                        parent.Children.Add(hObj);
+                        if (obj != null && !string.IsNullOrWhiteSpace(obj.Id) && !string.IsNullOrWhiteSpace(obj.Name))
+                            guidToName[obj.Id] = obj.Name;
                     }
                 }
 
-                // Pass 3: root objects are those not assigned as children
+                var humanById = new Dictionary<string, HumanObject>(StringComparer.OrdinalIgnoreCase);
                 var assigned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var obj in space.Objects.Values)
+
+                if (space.Objects != null)
                 {
-                    if (obj == null) continue;
-                    string parentName = null;
-                    foreach (var rel in obj.Relationships)
+                    foreach (Object obj in space.Objects.Values)
                     {
-                        if (string.Equals(rel.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(rel.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase))
+                        if (obj == null) continue;
+                        HumanObject mapped = MapToHumanObject(obj, guidToName);
+                        humanById[obj.Id] = mapped;
+                    }
+
+                    foreach (Object obj in space.Objects.Values)
+                    {
+                        if (obj == null || obj.Relationships == null) continue;
+
+                        Relationship parentRel = obj.Relationships.FirstOrDefault(r =>
+                            r != null &&
+                            (string.Equals(r.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(r.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase)) &&
+                            !string.IsNullOrWhiteSpace(r.Target));
+
+                        if (parentRel == null)
+                            continue;
+
+                        HumanObject parent;
+                        HumanObject child;
+                        if (humanById.TryGetValue(parentRel.Target, out parent) &&
+                            humanById.TryGetValue(obj.Id, out child))
                         {
-                            parentName = guidToName.TryGetValue(rel.Target, out var pn) ? pn : rel.Target;
-                            break;
+                            child.Socket = parentRel.Slot ?? string.Empty;
+                            parent.Children.Add(child);
+                            assigned.Add(obj.Id);
                         }
                     }
-                    if (!string.IsNullOrWhiteSpace(parentName) && humanObjMap.ContainsKey(parentName))
-                    {
-                        assigned.Add(obj.Name);
-                    }
-                }
 
-                foreach (var obj in space.Objects.Values)
-                {
-                    if (obj == null) continue;
-                    if (!assigned.Contains(obj.Name))
+                    foreach (Object obj in space.Objects.Values)
                     {
-                        humanSpace.Objects.Add(humanObjMap[obj.Name]);
+                        if (obj == null || assigned.Contains(obj.Id)) continue;
+                        HumanObject root;
+                        if (humanById.TryGetValue(obj.Id, out root))
+                            humanSpace.Objects.Add(root);
                     }
                 }
 
@@ -174,11 +136,6 @@ namespace T2G.Assistant
             return human;
         }
 
-        /// <summary>
-        /// Converts a hierarchical HumanGameDesc back to the internal flat GameDesc.
-        /// Parent-child relationships become "contains" relationships.
-        /// Relationship targets are resolved from Name → GUID for internal consistency.
-        /// </summary>
         public static GameDesc FromHuman(HumanGameDesc human)
         {
             if (human == null)
@@ -186,212 +143,232 @@ namespace T2G.Assistant
 
             var machine = new GameDesc
             {
-                ProjectName = human.ProjectName,
-                Title = human.Title,
+                ProjectName = human.ProjectName ?? string.Empty,
+                Title = human.Title ?? string.Empty,
                 InstructionHistory = human.InstructionHistory != null
                     ? new List<InstructionRecord>(human.InstructionHistory)
-                    : new List<InstructionRecord>(),
-                Spaces = new List<Space>()
+                    : new List<InstructionRecord>()
             };
 
             if (human.Spaces == null)
                 return machine;
 
-            foreach (var humanSpace in human.Spaces)
+            foreach (HumanSpace humanSpace in human.Spaces)
             {
                 if (humanSpace == null) continue;
 
                 var space = new Space
                 {
-                    Name = humanSpace.Name,
-                    Components = humanSpace.Components != null
-                        ? new List<Component>(humanSpace.Components)
-                        : new List<Component>(),
-                    Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase),
-                    Assets = humanSpace.Assets != null
-                        ? new Dictionary<string, Instruction.Asset>(humanSpace.Assets)
-                        : new Dictionary<string, Instruction.Asset>()
+                    Id = !string.IsNullOrWhiteSpace(humanSpace.Id)
+                        ? humanSpace.Id
+                        : Guid.NewGuid().ToString(),
+                    Name = humanSpace.Name ?? string.Empty,
+                    Properties = CloneProperties(humanSpace.Properties),
+                    Components = CloneComponents(humanSpace.Components),
+                    Assets = CloneAssets(humanSpace.Assets),
+                    Objects = new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase)
                 };
 
                 var nameToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                FlattenHierarchy(humanSpace.Objects, null, space.Objects, nameToId);
+                var pendingRelationships = new List<Relationship>();
 
-                // Final Name → GUID resolution for all relationship targets
-                foreach (var obj in space.Objects.Values)
+                FlattenHierarchy(
+                    humanSpace.Objects,
+                    null,
+                    space.Objects,
+                    nameToId,
+                    pendingRelationships);
+
+                // All objects are now known, so convert human-readable target names to stable IDs.
+                foreach (Object obj in space.Objects.Values)
                 {
-                    if (obj?.Relationships == null) continue;
-                    foreach (var rel in obj.Relationships)
+                    if (obj == null || obj.Relationships == null) continue;
+                    foreach (Relationship relation in obj.Relationships)
                     {
-                        if (rel != null && !string.IsNullOrWhiteSpace(rel.Target) && nameToId.TryGetValue(rel.Target, out var gid))
-                            rel.Target = gid;
+                        if (relation == null || string.IsNullOrWhiteSpace(relation.Target)) continue;
+                        string targetId;
+                        if (nameToId.TryGetValue(relation.Target, out targetId))
+                            relation.Target = targetId;
                     }
+                    obj.RebuildPropertyMap();
                 }
 
-                // Migrate any legacy comma-delimited or unresolvable object assets into Space.Assets
-                foreach (var obj in space.Objects.Values)
-                {
-                    if (obj?.Assets == null || obj.Assets.Count == 0) continue;
-                    for (int i = 0; i < obj.Assets.Count; i++)
-                    {
-                        var assetRef = obj.Assets[i];
-                        if (assetRef == null) { obj.Assets.RemoveAt(i--); continue; }
-
-                        // Legacy format: Key contains "import,load"
-                        if (!string.IsNullOrWhiteSpace(assetRef.Key) && assetRef.Key.IndexOf(',') >= 0)
-                        {
-                            var parts = assetRef.Key.Split(new[] { ',' }, 2);
-                            string importPath = parts[0].Trim();
-                            string loadPath = parts.Length > 1 ? parts[1].Trim() : importPath;
-
-                            if (!space.Assets.ContainsKey(importPath))
-                            {
-                                string ext = System.IO.Path.GetExtension(importPath)?.ToLowerInvariant()?.TrimStart('.');
-                                space.Assets[importPath] = new Instruction.Asset()
-                                {
-                                    desc = string.Empty,            //TODO: assign the real data 
-                                    type = AssetType.Unknown,       //TODO:  assign the real data
-                                    source = importPath
-                               };
-                            }
-                            obj.Assets[i] = new ObjectAssetRef { Key = importPath, LoadPath = loadPath };
-                        }
-                        else if (!string.IsNullOrWhiteSpace(assetRef.Key) && !space.Assets.ContainsKey(assetRef.Key))
-                        {
-                            string ext = System.IO.Path.GetExtension(assetRef.Key)?.ToLowerInvariant()?.TrimStart('.');
-                            space.Assets[assetRef.Key] = new Instruction.Asset()
-                            {
-                                desc = string.Empty,            //TODO: assign the real data 
-                                type = AssetType.Unknown,       //TODO:  assign the real data
-                                source = assetRef.Key
-                            };
-                        }
-                    }
-                }
-
+                space.RebuildNameIndex();
+                space.RebuildPropertyMap();
                 machine.Spaces.Add(space);
             }
 
             return machine;
         }
 
-        // ============================================================
-        // Private helpers
-        // ============================================================
-
-        private static HumanObject MapToHumanObject(Object obj)
+        private static HumanObject MapToHumanObject(
+            Object obj,
+            Dictionary<string, string> guidToName)
         {
+            var relationships = new List<Relationship>();
+            if (obj.Relationships != null)
+            {
+                foreach (Relationship relation in obj.Relationships)
+                {
+                    if (relation == null) continue;
+                    string target = relation.Target;
+                    string targetName;
+                    if (!string.IsNullOrWhiteSpace(target) &&
+                        guidToName != null &&
+                        guidToName.TryGetValue(target, out targetName))
+                        target = targetName;
+
+                    relationships.Add(new Relationship
+                    {
+                        Type = relation.Type ?? string.Empty,
+                        Target = target ?? string.Empty,
+                        Slot = relation.Slot ?? string.Empty
+                    });
+                }
+            }
+
             return new HumanObject
             {
-                Name = obj.Name,
-                Desc = obj.Desc,
+                Id = obj.Id ?? string.Empty,
+                Name = obj.Name ?? string.Empty,
+                Desc = obj.Desc ?? string.Empty,
                 Tags = obj.Tags != null ? new List<string>(obj.Tags) : new List<string>(),
                 Roles = obj.Roles != null ? new List<string>(obj.Roles) : new List<string>(),
-                Relationships = obj.Relationships != null
-                    ? obj.Relationships.Select(r => new Relationship
-                    {
-                        Type = r.Type,
-                        Target = r.Target,
-                        Slot = r.Slot
-                    }).ToList()
-                    : new List<Relationship>(),
-                Properties = obj.Properties != null ? new List<ValuePair>(obj.Properties) : new List<ValuePair>(),
-                Assets = obj.Assets != null ? obj.Assets.Select(a => new ObjectAssetRef { Key = a.Key, LoadPath = a.LoadPath }).ToList() : new List<ObjectAssetRef>(),
-                Components = obj.Components != null ? new List<Component>(obj.Components) : new List<Component>(),
-                Children = new List<HumanObject>(),
-                Socket = string.Empty
+                Relationships = relationships,
+                Properties = CloneProperties(obj.Properties),
+                Assets = CloneAssetRefs(obj.Assets),
+                Components = CloneComponents(obj.Components)
             };
-        }
-
-        private static void ResolveRelationshipTargets(HumanObject hObj, Dictionary<string, string> guidToName)
-        {
-            if (hObj?.Relationships == null) return;
-            foreach (var rel in hObj.Relationships)
-            {
-                if (rel != null && guidToName.TryGetValue(rel.Target, out var name))
-                    rel.Target = name;
-            }
-            if (hObj.Children != null)
-            {
-                foreach (var child in hObj.Children)
-                    ResolveRelationshipTargets(child, guidToName);
-            }
         }
 
         private static void FlattenHierarchy(
             List<HumanObject> humanObjects,
-            string parentName,
-            Dictionary<string, Object> flatDict,
-            Dictionary<string, string> nameToId)
+            HumanObject parent,
+            Dictionary<string, Object> flat,
+            Dictionary<string, string> nameToId,
+            List<Relationship> unused)
         {
-            if (humanObjects == null) return;
+            if (humanObjects == null)
+                return;
 
-            foreach (var hObj in humanObjects)
+            foreach (HumanObject humanObject in humanObjects)
             {
-                if (hObj == null) continue;
+                if (humanObject == null) continue;
 
-                var objId = Guid.NewGuid().ToString();
+                string id = !string.IsNullOrWhiteSpace(humanObject.Id)
+                    ? humanObject.Id
+                    : Guid.NewGuid().ToString();
+
                 var obj = new Object
                 {
-                    Id = objId,
-                    Name = hObj.Name,
-                    Desc = hObj.Desc,
-                    Tags = hObj.Tags != null ? new List<string>(hObj.Tags) : new List<string>(),
-                    Roles = hObj.Roles != null ? new List<string>(hObj.Roles) : new List<string>(),
-                    Relationships = hObj.Relationships != null
-                        ? hObj.Relationships.Select(r => new Relationship
-                        {
-                            Type = r.Type,
-                            Target = r.Target,
-                            Slot = r.Slot
-                        }).ToList()
-                        : new List<Relationship>(),
-                    Properties = hObj.Properties != null ? new List<ValuePair>(hObj.Properties) : new List<ValuePair>(),
-                    Assets = hObj.Assets != null ? hObj.Assets.Select(a => new ObjectAssetRef { Key = a.Key, LoadPath = a.LoadPath }).ToList() : new List<ObjectAssetRef>(),
-                    Components = hObj.Components != null ? new List<Component>(hObj.Components) : new List<Component>()
+                    Id = id,
+                    Name = humanObject.Name ?? string.Empty,
+                    Desc = humanObject.Desc ?? string.Empty,
+                    Tags = humanObject.Tags != null ? new List<string>(humanObject.Tags) : new List<string>(),
+                    Roles = humanObject.Roles != null ? new List<string>(humanObject.Roles) : new List<string>(),
+                    Relationships = CloneRelationships(humanObject.Relationships),
+                    Properties = CloneProperties(humanObject.Properties),
+                    Assets = CloneAssetRefs(humanObject.Assets),
+                    Components = CloneComponents(humanObject.Components)
                 };
 
-                // Resolve existing relationship targets from Name → GUID
-                foreach (var rel in obj.Relationships)
-                {
-                    if (rel != null && !string.IsNullOrWhiteSpace(rel.Target) && nameToId.TryGetValue(rel.Target, out var tid))
-                        rel.Target = tid;
-                }
+                flat[id] = obj;
+                if (!string.IsNullOrWhiteSpace(obj.Name))
+                    nameToId[obj.Name] = id;
 
-                // Add parent-child relationship with parent's GUID
-                if (!string.IsNullOrWhiteSpace(parentName))
+                if (parent != null)
                 {
-                    string relType = GameDescRelationTypes.Contains;
-                    string relSlot = hObj.Socket ?? string.Empty;
-
-                    var existingRel = hObj.Relationships?.FirstOrDefault(r =>
+                    // Preserve an explicit attached_to/contains relation to the parent if present;
+                    // otherwise the hierarchy itself means "contains".
+                    Relationship explicitParent = obj.Relationships.FirstOrDefault(r =>
                         r != null &&
-                        string.Equals(r.Target, parentName, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(r.Target, parent.Name, StringComparison.OrdinalIgnoreCase) &&
                         (string.Equals(r.Type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase) ||
                          string.Equals(r.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase)));
 
-                    if (existingRel != null)
+                    if (explicitParent == null)
                     {
-                        relType = existingRel.Type;
-                        relSlot = existingRel.Slot;
+                        obj.Relationships.Add(new Relationship
+                        {
+                            Type = GameDescRelationTypes.Contains,
+                            Target = parent.Name ?? string.Empty,
+                            Slot = humanObject.Socket ?? string.Empty
+                        });
                     }
-
-                    string parentId = nameToId.TryGetValue(parentName, out var pid) ? pid : parentName;
-                    obj.Relationships.Add(new Relationship
+                    else if (string.IsNullOrWhiteSpace(explicitParent.Slot))
                     {
-                        Type = relType,
-                        Target = parentId,
-                        Slot = relSlot
-                    });
+                        explicitParent.Slot = humanObject.Socket ?? string.Empty;
+                    }
                 }
 
-                flatDict[objId] = obj;
-                nameToId[hObj.Name] = objId;
-
-                if (hObj.Children != null && hObj.Children.Count > 0)
-                {
-                    FlattenHierarchy(hObj.Children, hObj.Name, flatDict, nameToId);
-                }
+                FlattenHierarchy(humanObject.Children, humanObject, flat, nameToId, unused);
             }
+        }
+
+        private static List<PropertyDesc> CloneProperties(List<PropertyDesc> source)
+        {
+            if (source == null) return new List<PropertyDesc>();
+            return source.Where(p => p != null).Select(p => new PropertyDesc
+            {
+                Name = p.Name ?? string.Empty,
+                Type = p.Type ?? string.Empty,
+                Value = p.Value != null ? p.Value.DeepClone() : null
+            }).ToList();
+        }
+
+        private static List<Relationship> CloneRelationships(List<Relationship> source)
+        {
+            if (source == null) return new List<Relationship>();
+            return source.Where(r => r != null).Select(r => new Relationship
+            {
+                Type = r.Type ?? string.Empty,
+                Target = r.Target ?? string.Empty,
+                Slot = r.Slot ?? string.Empty
+            }).ToList();
+        }
+
+        private static List<AssetRef> CloneAssetRefs(List<AssetRef> source)
+        {
+            if (source == null) return new List<AssetRef>();
+            return source.Where(a => a != null).Select(a => new AssetRef
+            {
+                AssetId = a.AssetId ?? string.Empty
+            }).ToList();
+        }
+
+        private static Dictionary<string, GameAsset> CloneAssets(Dictionary<string, GameAsset> source)
+        {
+            var result = new Dictionary<string, GameAsset>(StringComparer.OrdinalIgnoreCase);
+            if (source == null) return result;
+
+            foreach (var pair in source)
+            {
+                GameAsset a = pair.Value;
+                if (a == null) continue;
+                result[pair.Key] = new GameAsset
+                {
+                    Id = a.Id ?? string.Empty,
+                    Name = a.Name ?? string.Empty,
+                    Source = a.Source ?? string.Empty,
+                    ImportPath = a.ImportPath ?? string.Empty,
+                    LoadPath = a.LoadPath ?? string.Empty,
+                    Type = a.Type ?? string.Empty
+                };
+            }
+            return result;
+        }
+
+        private static List<Component> CloneComponents(List<Component> source)
+        {
+            if (source == null) return new List<Component>();
+            return source.Where(c => c != null).Select(c => new Component
+            {
+                Type = c.Type ?? string.Empty,
+                SourceType = c.SourceType,
+                Description = c.Description ?? string.Empty,
+                Properties = CloneProperties(c.Properties),
+                Assets = CloneAssetRefs(c.Assets)
+            }).ToList();
         }
     }
 }
