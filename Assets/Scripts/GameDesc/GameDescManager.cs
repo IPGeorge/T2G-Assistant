@@ -386,6 +386,12 @@ namespace T2G.Assistant
 
         private void ApplyCreateObject(Instruction instruction, Response response)
         {
+            // If no current space exists, select the first space from GameDesc
+            if (CurrentSpace == null && CurrentGameDesc?.Spaces?.Count > 0)
+            {
+                CurrentSpace = CurrentGameDesc.Spaces[0];
+            }
+
             RequireCurrentSpace();
 
             string name = response.GetValue<string>(
