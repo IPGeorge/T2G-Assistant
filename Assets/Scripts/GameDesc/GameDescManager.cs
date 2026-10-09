@@ -234,6 +234,7 @@ namespace T2G.Assistant
 
                 case Actions.create_space:
                     ApplyCreateSpace(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.goto_space:
@@ -245,10 +246,12 @@ namespace T2G.Assistant
 
                 case Actions.rename_space:
                     ApplyRenameSpace(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.create_object:
                     ApplyCreateObject(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.select_object:
@@ -257,10 +260,12 @@ namespace T2G.Assistant
 
                 case Actions.delete_object:
                     ApplyDeleteObject(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.place_on:
                     ApplyPlaceOn(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.attach_to:
@@ -269,22 +274,27 @@ namespace T2G.Assistant
 
                 case Actions.detach_from:
                     ApplyDetachFrom(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.set_property:
                     ApplySetProperty(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.set_relationship:
                     ApplySetRelationship(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.add_component:
                     ApplyAddComponent(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.remove_component:
                     ApplyRemoveComponent(instruction, response);
+                    SaveGameDesc();
                     break;
 
                 case Actions.call_method:

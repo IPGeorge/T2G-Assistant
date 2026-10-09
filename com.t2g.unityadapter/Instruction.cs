@@ -52,6 +52,8 @@ namespace T2G
             public string type;     // Semantic value type. Examples: String, Int, Float, Bool, Vector3, ObjectRef, SpaceRef.
             public JToken value;    // Parameter value.
 
+            public Parameter() { }
+
             public Parameter(string keyName, string type, JToken keyValue)
             {
                 name = keyName;
