@@ -171,7 +171,7 @@ namespace T2G.Assistant
                 throw new ArgumentException("projectName is empty.", nameof(projectName));
 
             string directory = Path.Combine(
-                Application.persistentDataPath,
+                Assistant.Instance.PersistentDataPath,
                 "GameDesc");
 
             Directory.CreateDirectory(directory);
@@ -214,8 +214,14 @@ namespace T2G.Assistant
                     break;
 
                 case Actions.open_project:
-                    // Existing GameDesc should be loaded and passed to SetGameDesc().
-                    break;
+                    {
+                        string projectName = GetParameterString(instruction, "ProjectName");
+                        if (!string.IsNullOrWhiteSpace(projectName))
+                        {
+                            OpenOrCreateGameDesc(projectName);
+                        }
+                        break;
+                    }
 
                 case Actions.connect:
                 case Actions.disconnect:

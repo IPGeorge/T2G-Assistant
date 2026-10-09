@@ -191,7 +191,7 @@ namespace T2G.Assistant
         {
             if (instruction.parameters == null || instruction.parameters.Count == 0)
             {
-                if (actionMeta.parameters.Length > 0)
+                if (actionMeta != null && actionMeta.parameters != null && actionMeta.parameters.Length > 0)
                 {
                     result.AddError($"Instruction {instruction.id}: " + $"is missing required parameters!");
                 }
