@@ -137,15 +137,12 @@ namespace T2G.Assistant
         private async Awaitable<Instruction> ResolveRawInstruction(
             Instruction instruction)
         {
-            // An instruction without asset requirements does not require
-            // resource resolution.
             if (instruction.assets == null ||
                 instruction.assets.Count == 0)
             {
                 instruction.state = InstructionState.Resolved;
 
-                Debug.Log(
-                    $"[Resolution] Instruction '{instruction.id}' " +
+                Debug.Log($"[Resolution] Instruction '{instruction.id}' " +
                     $"({instruction.action}) contains no asset " +
                     "requirements. Marked Resolved.");
 
@@ -158,16 +155,14 @@ namespace T2G.Assistant
 
                 if (asset == null)
                 {
-                    Debug.LogWarning(
-                        $"[Resolution] Instruction '{instruction.id}' " +
+                    Debug.LogWarning($"[Resolution] Instruction '{instruction.id}' " +
                         $"contains a null asset requirement at index {i}.");
 
                     // Do not mark the instruction Resolved.
                     return instruction;
                 }
 
-                bool succeeded =
-                    await _assetResolver.Resolve(asset);
+                bool succeeded = await _assetResolver.Resolve(asset);
 
                 if (!succeeded)
                 {
@@ -214,8 +209,7 @@ namespace T2G.Assistant
     /// </summary>
     public class AssetResolver
     {
-        public async Awaitable<bool> Resolve(
-            Instruction.Asset asset)
+        public async Awaitable<bool> Resolve(Instruction.Asset asset)
         {
             if (asset == null)
             {
@@ -246,10 +240,7 @@ namespace T2G.Assistant
 
                 default:
                     {
-                        Debug.LogWarning(
-                            $"[AssetResolver] Unsupported AssetType: " +
-                            $"{asset.type}");
-
+                        Debug.LogWarning($"[AssetResolver] Unsupported AssetType: " + $"{asset.type}");
                         return false;
                     }
             }
@@ -259,27 +250,22 @@ namespace T2G.Assistant
         /// Identifier assets represent engine/system resources such as
         /// built-in components. They do not require Asset Library lookup.
         /// </summary>
-        private bool ResolveIdentifier(
-            Instruction.Asset asset)
+        private bool ResolveIdentifier(Instruction.Asset asset)
         {
-            if (string.IsNullOrWhiteSpace(asset.source))
+            if (string.IsNullOrWhiteSpace(asset.source) &&
+                !string.IsNullOrWhiteSpace(asset.desc))
             {
-                // If Interpretation supplied only the semantic description,
-                // use it as the identifier.
-                if (!string.IsNullOrWhiteSpace(asset.desc))
-                {
-                    asset.source = asset.desc;
-                }
+                asset.source = asset.desc;
             }
 
             if (string.IsNullOrWhiteSpace(asset.source))
             {
-                Debug.LogWarning(
-                    "[AssetResolver] Identifier asset contains neither " +
+                Debug.LogWarning("[AssetResolver] Identifier asset contains neither " +
                     "a source nor a description.");
-
                 return false;
             }
+
+
 
             return true;
         }
@@ -293,8 +279,6 @@ namespace T2G.Assistant
         {
             if (string.IsNullOrWhiteSpace(asset.source))
             {
-                // A script may currently be represented by its description
-                // when no explicit source has been assigned.
                 if (!string.IsNullOrWhiteSpace(asset.desc))
                 {
                     asset.source = asset.desc;
@@ -303,10 +287,8 @@ namespace T2G.Assistant
 
             if (string.IsNullOrWhiteSpace(asset.source))
             {
-                Debug.LogWarning(
-                    "[AssetResolver] ScriptFile asset contains neither " +
+                Debug.LogWarning("[AssetResolver] ScriptFile asset contains neither " +
                     "a source nor a description.");
-
                 return false;
             }
 
@@ -321,13 +303,10 @@ namespace T2G.Assistant
         {
             if (string.IsNullOrWhiteSpace(asset.source))
             {
-                Debug.LogWarning(
-                    $"[AssetResolver] SourceAsset '{asset.desc}' " +
+                Debug.LogWarning($"[AssetResolver] SourceAsset '{asset.desc}' " +
                     "does not contain a resolved source.");
-
                 return false;
             }
-
             return true;
         }
 
@@ -340,16 +319,12 @@ namespace T2G.Assistant
         {
             if (string.IsNullOrWhiteSpace(asset.desc))
             {
-                Debug.LogWarning(
-                    "[AssetResolver] Unknown asset has no semantic " +
-                    "description.");
+                Debug.LogWarning("[AssetResolver] Unknown asset has no semantic " + "description.");
 
                 return false;
             }
 
-            Debug.Log(
-                $"[AssetResolver] Searching Asset Library for " +
-                $"'{asset.desc}'.");
+            Debug.Log($"[AssetResolver] Searching Asset Library for " + $"'{asset.desc}'.");
 
             var response =
                 await AssetSearchClient.SearchAssets(asset.desc);
@@ -358,10 +333,7 @@ namespace T2G.Assistant
                 response.assetPaths == null ||
                 response.assetPaths.Length == 0)
             {
-                Debug.LogWarning(
-                    $"[AssetResolver] No asset found for " +
-                    $"'{asset.desc}'.");
-
+                Debug.LogWarning($"[AssetResolver] No asset found for " + $"'{asset.desc}'.");
                 return false;
             }
 
@@ -372,20 +344,14 @@ namespace T2G.Assistant
 
             if (string.IsNullOrWhiteSpace(source))
             {
-                Debug.LogWarning(
-                    $"[AssetResolver] Asset Library returned an empty " +
-                    $"source for '{asset.desc}'.");
-
+                Debug.LogWarning($"[AssetResolver] Asset Library returned an empty " + $"source for '{asset.desc}'.");
                 return false;
             }
 
             asset.source = source;
             asset.type = AssetType.SourceAsset;
 
-            Debug.Log(
-                $"[AssetResolver] Resolved '{asset.desc}' -> " +
-                $"'{asset.source}'.");
-
+            Debug.Log($"[AssetResolver] Resolved '{asset.desc}' -> " + $"'{asset.source}'.");
             return true;
         }
     }

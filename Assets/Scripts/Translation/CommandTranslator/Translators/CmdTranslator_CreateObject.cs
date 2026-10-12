@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace T2G.Assistant
 {
@@ -14,6 +13,7 @@ namespace T2G.Assistant
 
             string objectName = Utils.GetParamFromArguments(args, "name").Trim();
             instruction.desc = Utils.GetParamFromArguments(args, "desc").Trim();
+            instruction.assets.Add(new T2G.Instruction.Asset() { desc = instruction.desc, type = AssetType.SourceAsset } );
 
             if (string.IsNullOrEmpty(objectName))
             {

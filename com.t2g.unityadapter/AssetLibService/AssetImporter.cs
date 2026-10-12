@@ -28,18 +28,28 @@ namespace T2G
 
         public static async Awaitable ImportAssets(string objName, List<Instruction.Asset> assets, Vector3? position)
         {
+            if(assets.Count < 2)
+            {
+                _createObjectsList.Add((objName, "sphere", string.Empty));
+                return;
+            }
+
+            string primarySource = assets[0].source;
+            string secondarySource = assets.Count > 1 ? assets[1].source : string.Empty;
+
             if (position.HasValue)
             {
                 var pos = position.Value;
-                _createObjectsList.Add((objName, assets[1].source, string.Format("({0},{1},{2})", pos.x, pos.y, pos.z)));
+                _createObjectsList.Add((objName, secondarySource, string.Format("({0},{1},{2})", pos.x, pos.y, pos.z)));
             }
             else
             {
-                _createObjectsList.Add((objName, assets[1].source, string.Empty));
+                _createObjectsList.Add((objName, secondarySource, string.Empty));
             }
 
-            _importAssetList.Add((assets[0].source, assets[1].source));
+            _importAssetList.Add((primarySource, secondarySource));
             SaveLists();
+
             await SimImportAssetsImpl();
         }
 
