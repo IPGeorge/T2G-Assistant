@@ -164,8 +164,7 @@ namespace T2G.Assistant
                     return instruction;
                 }
 
-                bool succeeded =
-                    await _assetResolver.Resolve(asset);
+                bool succeeded = await _assetResolver.Resolve(asset);
 
                 if (!succeeded)
                 {
@@ -269,9 +268,7 @@ namespace T2G.Assistant
                 return false;
             }
 
-            asset.desc = ComponentResolver.GetComponentTypeName(asset.source);
-
-            return !string.IsNullOrWhiteSpace(asset.desc);
+            return true;
         }
 
         /// <summary>
