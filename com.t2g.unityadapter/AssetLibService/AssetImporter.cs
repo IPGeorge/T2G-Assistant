@@ -28,14 +28,16 @@ namespace T2G
 
         public static async Awaitable ImportAssets(string objName, List<Instruction.Asset> assets, Vector3? position)
         {
-            if(assets.Count < 2)
+            if(assets.Count < 1)
             {
                 _createObjectsList.Add((objName, "sphere", string.Empty));
                 return;
             }
 
-            string primarySource = assets[0].source;
-            string secondarySource = assets.Count > 1 ? assets[1].source : string.Empty;
+            string[] assetSources = assets[0].source.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            string primarySource = assetSources[0];
+            string secondarySource = assetSources.Length > 1 ? assetSources[1] : string.Empty;
 
             if (position.HasValue)
             {

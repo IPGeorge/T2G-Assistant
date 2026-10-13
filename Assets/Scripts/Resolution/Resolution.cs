@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using T2G;
+using System.IO;
 
 namespace T2G.Assistant
 {
@@ -50,9 +51,7 @@ namespace T2G.Assistant
         {
             if (instructions == null)
             {
-                Debug.LogWarning(
-                    "[Resolution] Instruction list is null.");
-
+                Debug.LogWarning("[Resolution] Instruction list is null.");
                 return null;
             }
 
@@ -137,6 +136,8 @@ namespace T2G.Assistant
         private async Awaitable<Instruction> ResolveRawInstruction(
             Instruction instruction)
         {
+            // An instruction without asset requirements does not require
+            // resource resolution.
             if (instruction.assets == null ||
                 instruction.assets.Count == 0)
             {
@@ -155,14 +156,16 @@ namespace T2G.Assistant
 
                 if (asset == null)
                 {
-                    Debug.LogWarning($"[Resolution] Instruction '{instruction.id}' " +
+                    Debug.LogWarning(
+                        $"[Resolution] Instruction '{instruction.id}' " +
                         $"contains a null asset requirement at index {i}.");
 
                     // Do not mark the instruction Resolved.
                     return instruction;
                 }
 
-                bool succeeded = await _assetResolver.Resolve(asset);
+                bool succeeded =
+                    await _assetResolver.Resolve(asset);
 
                 if (!succeeded)
                 {
@@ -209,7 +212,8 @@ namespace T2G.Assistant
     /// </summary>
     public class AssetResolver
     {
-        public async Awaitable<bool> Resolve(Instruction.Asset asset)
+        public async Awaitable<bool> Resolve(
+            Instruction.Asset asset)
         {
             if (asset == null)
             {
@@ -229,10 +233,6 @@ namespace T2G.Assistant
                     }
 
                 case AssetType.SourceAsset:
-                    {
-                        return ValidateSourceAsset(asset);
-                    }
-
                 case AssetType.Unknown:
                     {
                         return await ResolveUnknownAsset(asset);
@@ -240,7 +240,10 @@ namespace T2G.Assistant
 
                 default:
                     {
-                        Debug.LogWarning($"[AssetResolver] Unsupported AssetType: " + $"{asset.type}");
+                        Debug.LogWarning(
+                            $"[AssetResolver] Unsupported AssetType: " +
+                            $"{asset.type}");
+
                         return false;
                     }
             }
@@ -250,7 +253,8 @@ namespace T2G.Assistant
         /// Identifier assets represent engine/system resources such as
         /// built-in components. They do not require Asset Library lookup.
         /// </summary>
-        private bool ResolveIdentifier(Instruction.Asset asset)
+        private bool ResolveIdentifier(
+            Instruction.Asset asset)
         {
             if (string.IsNullOrWhiteSpace(asset.source) &&
                 !string.IsNullOrWhiteSpace(asset.desc))
@@ -265,9 +269,9 @@ namespace T2G.Assistant
                 return false;
             }
 
+            asset.desc = ComponentResolver.GetComponentTypeName(asset.source);
 
-
-            return true;
+            return !string.IsNullOrWhiteSpace(asset.desc);
         }
 
         /// <summary>
@@ -277,18 +281,20 @@ namespace T2G.Assistant
         private bool ResolveScriptFile(
             Instruction.Asset asset)
         {
-            if (string.IsNullOrWhiteSpace(asset.source))
+            if (string.IsNullOrWhiteSpace(asset.source) && !string.IsNullOrWhiteSpace(asset.desc))
             {
-                if (!string.IsNullOrWhiteSpace(asset.desc))
-                {
-                    asset.source = asset.desc;
-                }
+                asset.source = asset.desc;
             }
 
             if (string.IsNullOrWhiteSpace(asset.source))
             {
-                Debug.LogWarning("[AssetResolver] ScriptFile asset contains neither " +
-                    "a source nor a description.");
+                Debug.LogWarning("[AssetResolver] ScriptFile doesn't exist.");
+                return false;
+            }
+
+            if (!File.Exists(asset.source))
+            {
+                Debug.LogWarning("[AssetResolver] ScriptFile doesn't exist.");
                 return false;
             }
 
@@ -303,10 +309,13 @@ namespace T2G.Assistant
         {
             if (string.IsNullOrWhiteSpace(asset.source))
             {
-                Debug.LogWarning($"[AssetResolver] SourceAsset '{asset.desc}' " +
+                Debug.LogWarning(
+                    $"[AssetResolver] SourceAsset '{asset.desc}' " +
                     "does not contain a resolved source.");
+
                 return false;
             }
+
             return true;
         }
 
@@ -319,39 +328,36 @@ namespace T2G.Assistant
         {
             if (string.IsNullOrWhiteSpace(asset.desc))
             {
-                Debug.LogWarning("[AssetResolver] Unknown asset has no semantic " + "description.");
-
+                Debug.LogWarning("[AssetResolver] Unknown asset has no semantic description.");
                 return false;
             }
 
-            Debug.Log($"[AssetResolver] Searching Asset Library for " + $"'{asset.desc}'.");
+            Debug.Log($"[AssetResolver] Searching Asset Library for '{asset.desc}'.");
 
-            var response =
-                await AssetSearchClient.SearchAssets(asset.desc);
+            var response = await AssetSearchClient.SearchAssets(asset.desc);
 
             if (!response.succeeded ||
                 response.assetPaths == null ||
                 response.assetPaths.Length == 0)
             {
-                Debug.LogWarning($"[AssetResolver] No asset found for " + $"'{asset.desc}'.");
+                Debug.LogWarning($"[AssetResolver] No asset found for '{asset.desc}'.");
                 return false;
             }
 
-            // AssetSearchClient returns the search results in relevance
-            // order. The first result is therefore selected as the best
-            // match.
             string source = response.assetPaths[0];
 
             if (string.IsNullOrWhiteSpace(source))
             {
-                Debug.LogWarning($"[AssetResolver] Asset Library returned an empty " + $"source for '{asset.desc}'.");
+                Debug.LogWarning(
+                    $"[AssetResolver] Asset Library returned an empty " +
+                    $"source for '{asset.desc}'.");
                 return false;
             }
 
             asset.source = source;
             asset.type = AssetType.SourceAsset;
 
-            Debug.Log($"[AssetResolver] Resolved '{asset.desc}' -> " + $"'{asset.source}'.");
+            Debug.Log($"[AssetResolver] Resolved '{asset.desc}' -> '{asset.source}'.");
             return true;
         }
     }

@@ -370,6 +370,21 @@ namespace T2G.Assistant
             CurrentObject = null;
         }
 
+        public (bool succeeded, string message) SetCurrentSpaceByName(string currentSpaceName)
+        {
+            Space space = FindSpaceByName(currentSpaceName);
+
+            if (space == null)
+            {
+                return (false, "Space '" + currentSpaceName + "' does not exist.");
+            }
+ 
+            CurrentSpace = space;
+            CurrentObject = null;
+
+            return (true, "Space '" + currentSpaceName + "' does not exist.");
+        }
+
         private void ApplyRenameSpace(Instruction instruction, Response response)
         {
             RequireCurrentSpace();
@@ -608,7 +623,7 @@ namespace T2G.Assistant
         {
             RequireCurrentSpace();
 
-            string ownerName = GetParameterString(instruction, "ObjName");
+            string ownerName = GetParameterString(instruction, "Name");
             string propertyName = GetParameterString(instruction, "Property");
             Instruction.Parameter valueParameter = GetParameter(instruction, "Value");
 
@@ -1154,7 +1169,16 @@ namespace T2G.Assistant
         private void RequireCurrentSpace()
         {
             if (CurrentSpace == null)
-                throw new InvalidOperationException("No current Space has been selected.");
+            {
+                if (CurrentGameDesc.Spaces.Count > 0)
+                {
+                    CurrentSpace = CurrentGameDesc.Spaces[0];
+                }
+                else
+                {
+                    throw new InvalidOperationException("No current Space has been selected.");
+                }
+            }
         }
 
         private static void NormalizeSpace(Space space)

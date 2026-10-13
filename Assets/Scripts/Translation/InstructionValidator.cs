@@ -203,6 +203,12 @@ namespace T2G.Assistant
                 string foundParameter = null;
                 foreach (var parameter in instruction.parameters)
                 {
+                    if(string.Compare(parameter.name, "Name", true) == 0 &&
+                        GameDescManager.Instance.FindObjectByName(parameter.name) == null)
+                    {
+                        break;
+                    }
+
                     if(string.Compare(parameter.name, param) == 0)
                     {
                         foundParameter = param;

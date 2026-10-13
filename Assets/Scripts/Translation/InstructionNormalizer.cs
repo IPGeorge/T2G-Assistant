@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 
 namespace T2G.Assistant
@@ -30,7 +30,6 @@ namespace T2G.Assistant
         {
             // A translated instruction has not yet passed validation.
             instruction.state = InstructionState.Init;
-
             instruction.action = NormalizeString(instruction.action);
             instruction.desc = NormalizeString(instruction.desc);
 
@@ -47,6 +46,11 @@ namespace T2G.Assistant
 
                     NormalizeParameterValue(parameter);
                 }
+            }
+
+            if (instruction.assets == null)
+            {
+                instruction.assets = new List<Instruction.Asset>();
             }
 
             // Normalize asset metadata only.

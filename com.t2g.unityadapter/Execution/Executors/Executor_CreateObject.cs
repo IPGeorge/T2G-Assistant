@@ -13,11 +13,10 @@ namespace T2G
     public class Executor_CreateObject : ExecutorBase
     {
         static GameObject _newObj = null;
-
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string name = instruction.parameters.GetString("Name");
-            string desc = instruction.desc;
+            string source = instruction.assets != null && instruction.assets.Count > 0 ? instruction.assets[0].source : string.Empty;
             string positionStr = instruction.parameters.GetString("Position");
             Vector3? position = null;
 
@@ -29,20 +28,20 @@ namespace T2G
 
             _newObj = null;
 
-            if (string.Compare(desc, "object", true) == 0)
+            if (string.Compare(source, "object", true) == 0)  //Add gameobject
             {
                 _newObj = new GameObject(name);
             }
-            else if (T2G.Utils.IsCameraDesc(desc))
+            else if (T2G.Utils.IsCameraDesc(source))  //Add camera
             {
                 _newObj = new GameObject(name);
                 Camera camera = _newObj.AddComponent<Camera>();
-                camera.orthographic = T2G.Utils.IsOrthographicsCameraDesc(desc);
+                camera.orthographic = T2G.Utils.IsOrthographicsCameraDesc(source);
                 if (camera.orthographic)
                 {
                     camera.orthographicSize = 5;
                 }
-                else
+                else  
                 {
                     camera.clearFlags = CameraClearFlags.Skybox;
                     camera.backgroundColor = Color.black;
@@ -52,11 +51,11 @@ namespace T2G
                 camera.farClipPlane = 1000f;
                 _newObj.AddComponent<AudioListener>();
             }
-            else if (T2G.Utils.IsLightDesc(desc))
+            else if (T2G.Utils.IsLightDesc(source))   //add light
             {
                 _newObj = new GameObject(name);
                 Light light = _newObj.AddComponent<Light>();
-                light.type = Utils.GetLightTypeFromDesc(desc);
+                light.type = Utils.GetLightTypeFromDesc(source);
                 light.shadows = LightShadows.Soft;
                 if (light.type == LightType.Directional)
                 {
@@ -70,12 +69,12 @@ namespace T2G
                 light.intensity = 1.0f;
                 light.range = 10f;
             }
-            else if (Utils.IsPrimitiveDesc(desc, out var primitiveType))
+            else if (Utils.IsPrimitiveDesc(source, out var primitiveType))        //add primitive
             {
                 _newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 _newObj.name = name;
             }
-            else if (desc.Contains("node object", System.StringComparison.OrdinalIgnoreCase))
+            else if (source.Contains("node object", System.StringComparison.OrdinalIgnoreCase)) //new node
             {
                 _newObj = new GameObject(name);
             }

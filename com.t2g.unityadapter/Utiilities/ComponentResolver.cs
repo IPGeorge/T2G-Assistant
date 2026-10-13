@@ -61,6 +61,19 @@ namespace T2G
             return null;
         }
 
+        /// <summary>
+        /// Gets the standard component type name from a component name string.
+        /// </summary>
+        public static string GetComponentTypeName(string componentName)
+        {
+            var type = GetComponentType(componentName);
+            if (type != null)
+            {
+                return type.Name;
+            }
+            return string.Empty;
+        }
+
 
         /// <summary>
         /// Gets all registered component types

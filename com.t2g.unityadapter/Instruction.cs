@@ -23,7 +23,7 @@ namespace T2G
 
     public enum AssetType
     {
-        Unknown = 0,
+        Unknown = 0,        //A semantic description that needs to be soulved to be SourceAsset
         Identifier = 1,     //System component, such as Unity rigidbody, camera, etc.
         ScriptFile = 2,     //A local script file
         SourceAsset = 3     //A resolved asset that can be imported from AssetService
@@ -75,6 +75,27 @@ namespace T2G
             public string desc = string.Empty;      // Semantic description used for asset resolution.
             public AssetType type = AssetType.Unknown;    
             public string source = string.Empty;    // resolved asset identifier, path, or URL.
+
+            public Asset()
+            {
+            }
+
+            public Asset(string description)
+            {
+                desc = description;
+
+                if (T2G.Utils.IsCameraDesc(desc) ||
+                    T2G.Utils.IsOrthographicsCameraDesc(desc) ||
+                    T2G.Utils.IsLightDesc(desc) ||
+                    T2G.Utils.IsPrimitiveDesc(desc, out var primitiveType))
+                {
+                    type = AssetType.Identifier;
+                }
+                else
+                {
+                    type = AssetType.Unknown;
+                }
+            }
         }
 
         public InstructionState state = InstructionState.Init;

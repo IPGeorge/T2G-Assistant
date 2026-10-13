@@ -91,7 +91,7 @@ namespace T2G
             s_actionsMap[Actions.place_on] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.attach_to] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Source", "Target" } };
             s_actionsMap[Actions.detach_from] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
-            s_actionsMap[Actions.set_property] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "Property", "Value" } };
+            s_actionsMap[Actions.set_property] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name", "Property", "Value" } };
             s_actionsMap[Actions.set_relationship] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Source", "Target", "Type", "Slot" } };
             s_actionsMap[Actions.add_component] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "Type" } };
             s_actionsMap[Actions.remove_component] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "ObjName", "ComponentType" } };
