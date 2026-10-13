@@ -766,7 +766,9 @@ namespace T2G.Assistant
             if (CurrentGameDesc == null ||
                 CurrentGameDesc.Spaces == null ||
                 string.IsNullOrWhiteSpace(name))
+            {
                 return null;
+            }
 
             foreach (Space space in CurrentGameDesc.Spaces)
             {

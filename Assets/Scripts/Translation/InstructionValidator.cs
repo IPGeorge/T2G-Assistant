@@ -203,10 +203,15 @@ namespace T2G.Assistant
                 string foundParameter = null;
                 foreach (var parameter in instruction.parameters)
                 {
-                    if(string.Compare(parameter.name, "Name", true) == 0 &&
-                        GameDescManager.Instance.FindObjectByName(parameter.name) == null)
+                    if(string.Compare(instruction.action, Actions.create_object) != 0 && 
+                        string.Compare(parameter.name, "Name", true) == 0 &&
+                        parameter.value.Type == Newtonsoft.Json.Linq.JTokenType.String)
                     {
-                        break;
+                        string objName = parameter.value.ToObject<string>();
+                        if (GameDescManager.Instance.FindObjectByName(objName) == null)
+                        {
+                            break;
+                        }
                     }
 
                     if(string.Compare(parameter.name, param) == 0)
