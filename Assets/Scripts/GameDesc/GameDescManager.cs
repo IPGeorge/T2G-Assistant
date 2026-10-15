@@ -562,6 +562,21 @@ namespace T2G.Assistant
 
             string slot = instruction.parameters.GetString("Socket");
 
+            // When Socket parameter exists, set localPosition/localRotation/localScale
+            // and remove any existing position/rotation/scale properties
+            if (!string.IsNullOrWhiteSpace(slot))
+            {
+                // Remove existing Position/Rotation/Scale and replace with their local* counterparts
+                ReplaceWorldOrLocalProperty(source.Properties, "localPosition");
+                ReplaceWorldOrLocalProperty(source.Properties, "localRotation");
+                ReplaceWorldOrLocalProperty(source.Properties, "localScale");
+
+                // Add localPosition=(0,0,0), localRotation=(0,0,0), localScale=(1,1,1)
+                SetProperty(source.Properties, "localPosition", "string", "(0,0,0)");
+                SetProperty(source.Properties, "localRotation", "string", "(0,0,0)");
+                SetProperty(source.Properties, "localScale", "string", "(1,1,1)");
+            }
+
             AddOrUpdateRelationship(
                 source,
                 GameDescRelationTypes.AttachedTo,
