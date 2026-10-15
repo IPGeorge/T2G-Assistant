@@ -164,33 +164,55 @@ namespace T2G
             Execution.Instance.SendExecutionResponse(true, "Assets were imported!");
         }
 
-        public static async Awaitable<int> BeginImportScripts(List<Instruction.Asset> assets)
+        public static async Awaitable<(bool succeeded, string componentTypeName)> BeginImportScripts(List<Instruction.Asset> assets)
         {
             EditorApplication.LockReloadAssemblies();
-            int importedCount = 0;
             string source, target;
+            string componentTypeName = null;
 
             foreach (var asset in assets)
             {
                 if (asset.type == AssetType.SourceAsset)
                 {
-                    source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, asset.source);
-                    target = Path.Combine(Application.dataPath, asset.source);
-                    string targetDir = Path.GetDirectoryName(target);
-                    if (File.Exists(source))
-                    {
-                        if (!Directory.Exists(targetDir))
-                        {
-                            Directory.CreateDirectory(targetDir);
-                        }
+                    string[] assetPaths = asset.source.Split(',');
 
-                        File.Copy(source, target, true);
-                        importedCount++;
+                    for (int i = assetPaths.Length - 1; i >= 0; --i)
+                    {
+                        source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPaths[i]);
+                        target = Path.Combine(Application.dataPath, assetPaths[i]);
+
+                        string targetDir = Path.GetDirectoryName(target);
+                        if (File.Exists(source))
+                        {
+                            if (i == 0)
+                            {
+                                string targetScript = Path.Combine(Application.dataPath, source);
+                                string script = File.ReadAllText(targetScript);
+                                componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                            }
+
+                            if (!Directory.Exists(targetDir))
+                            {
+                                Directory.CreateDirectory(targetDir);
+                            }
+                            Debug.LogError($"Importing asset {source} to {target}!");
+                            File.Copy(source, target, true);
+                        }
+                        else
+                        {
+                            Debug.LogError($"asset {source} is missing!");
+                            return (false, componentTypeName);
+                        }
                     }
+                }
+                else
+                {
+                    Debug.LogError($"Unexcepted asset type {asset.type}.");
+                    return (false, componentTypeName);
                 }
             }
             await Task.Yield();
-            return importedCount;
+            return (true, componentTypeName);
         }
 
         public static async Awaitable EndImportScripts(string componentName = null)

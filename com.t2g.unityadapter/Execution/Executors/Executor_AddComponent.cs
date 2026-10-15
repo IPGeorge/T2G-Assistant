@@ -119,27 +119,19 @@ namespace T2G
 
             if (scriptAssets.Count > 0)
             {
-                int imported = await AssetImporter.BeginImportScripts(scriptAssets);
-                if (imported != scriptAssets.Count)
+                var importResult = await AssetImporter.BeginImportScripts(scriptAssets);
+                if (!importResult.succeeded)
                 {
                     return (false, $"One or some scripts were not imported!", null);
                 }
 
-                string targetScript = Path.Combine(Application.dataPath, instruction.assets[0].source);
-                string script = File.ReadAllText(targetScript);
-                string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
-
-                Debug.LogWarning("targetScript=" + targetScript + ", Asset Count = " + instruction.assets.Count);
-
-                EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
+                EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + importResult.componentTypeName);
 
                 await AssetImporter.EndImportScripts(componentType);
 
-                Debug.LogWarning("after end complication. " + "componentTypeName: " + componentTypeName);
-
-                if (componentTypeName != null)
+                if (importResult.componentTypeName != null)
                 {
-                    var result = AddScriptComponent(obj, componentTypeName);
+                    var result = AddScriptComponent(obj, importResult.componentTypeName);
                     Debug.LogWarning("add script result = " + result);
                     if (result.succeeded)
                     {

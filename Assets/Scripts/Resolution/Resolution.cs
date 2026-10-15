@@ -234,7 +234,7 @@ namespace T2G.Assistant
                 case AssetType.SourceAsset:
                 case AssetType.Unknown:
                     {
-                        return await ResolveUnknownAsset(asset);
+                        return await ResolveAsset(asset);
                     }
 
                 default:
@@ -320,7 +320,7 @@ namespace T2G.Assistant
         /// Resolves an Unknown semantic asset requirement through the
         /// Asset Library Service.
         /// </summary>
-        private async Awaitable<bool> ResolveUnknownAsset(
+        private async Awaitable<bool> ResolveAsset(
             Instruction.Asset asset)
         {
             if (string.IsNullOrWhiteSpace(asset.desc))

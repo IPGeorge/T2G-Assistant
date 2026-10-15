@@ -308,6 +308,8 @@ namespace T2G.Assistant
                         "Unsupported GameDesc action: '" + instruction.action + "'.");
             }
 
+            SaveGameDesc();
+
             return true;
         }
 
