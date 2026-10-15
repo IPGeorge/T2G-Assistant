@@ -33,11 +33,11 @@ namespace T2G.Assistant
             string z = Utils.GetParamFromArguments(args, "z");
             if (!string.IsNullOrEmpty(x) && !string.IsNullOrEmpty(y) && !string.IsNullOrEmpty(z))
             {
-                instruction.parameters.Add(new Instruction.Parameter("Position", $"({x}, {y}, {z})"));
+                instruction.parameters.Add(new Instruction.Parameter("Position", $"({x},{y},{z})"));
             }
             else
             {
-                instruction.parameters.Add(new Instruction.Parameter("Position", $"(0, 0, 0)"));
+                instruction.parameters.Add(new Instruction.Parameter("Position", $"(0,0,0)"));
             }
 
             instruction.parameters.Add(new Instruction.Parameter("Name", objectName));

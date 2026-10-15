@@ -119,6 +119,8 @@ namespace T2G.Assistant
                     ProjectName = projectName,
                     Title = title ?? string.Empty
                 };
+
+                SaveGameDesc();
             }
 
             SetGameDesc(gameDesc);
@@ -370,13 +372,21 @@ namespace T2G.Assistant
             CurrentObject = null;
         }
 
-        public (bool succeeded, string message) SetCurrentSpaceByName(string currentSpaceName)
+        public (bool succeeded, string message) SetCurrentSpaceByName(string currentSpaceName, bool addSpaceIfMissing = false)
         {
             Space space = FindSpaceByName(currentSpaceName);
 
             if (space == null)
             {
-                return (false, "Space '" + currentSpaceName + "' does not exist.");
+                if (addSpaceIfMissing)
+                {
+                    space = new Space() { Name = currentSpaceName };
+                    CurrentGameDesc.Spaces.Add(space);
+                }
+                else
+                {
+                    return (false, "Space '" + currentSpaceName + "' does not exist.");
+                }
             }
  
             CurrentSpace = space;
@@ -441,8 +451,7 @@ namespace T2G.Assistant
             Instruction.Parameter position = GetParameter(instruction, "Position");
             if (position != null)
             {
-                JToken actualPosition = GetResponseValue(
-                    response, "Position", position.value);
+                JToken actualPosition = GetResponseValue(response, "Position", position.value);
 
                 SetProperty(
                     obj.Properties,
@@ -551,11 +560,13 @@ namespace T2G.Assistant
                 throw new InvalidOperationException(
                     "attach_to source or target could not be resolved.");
 
+            string slot = instruction.parameters.GetString("Socket");
+
             AddOrUpdateRelationship(
                 source,
                 GameDescRelationTypes.AttachedTo,
                 target.Id,
-                string.Empty);
+                slot);
         }
 
         private void ApplyDetachFrom(Instruction instruction, Response response)
@@ -674,11 +685,25 @@ namespace T2G.Assistant
                     throw new InvalidOperationException(
                         "Component '" + componentType + "' does not exist on object '" + ownerName + "'.");
 
+                // Remove local* property when setting Position/Rotation/Scale on the object
+                if (propertyName == "Position" || propertyName == "Rotation" || propertyName == "Scale" ||
+                    propertyName == "localPosition" || propertyName == "localRotation" || propertyName == "localScale")
+                {
+                    ReplaceWorldOrLocalProperty(obj.Properties, propertyName);
+                }
+
                 SetProperty(component.Properties, componentProperty, type, CloneToken(actualValue));
                 component.RebuildPropertyMap();
             }
             else
             {
+                // Remove local* property when setting Position/Rotation/Scale on the object
+                if (propertyName == "Position" || propertyName == "Rotation" || propertyName == "Scale" ||
+                    propertyName == "localPosition" || propertyName == "localRotation" || propertyName == "localScale")
+                {
+                    ReplaceWorldOrLocalProperty(obj.Properties, propertyName);
+                }
+
                 SetProperty(obj.Properties, propertyName, type, CloneToken(actualValue));
                 obj.RebuildPropertyMap();
             }
@@ -880,6 +905,45 @@ namespace T2G.Assistant
 
             existing.Type = type ?? string.Empty;
             existing.Value = value;
+        }
+
+        /// <summary>
+        /// Removes the corresponding Position/Rotation/Scale property
+        /// when setting localPosition, localRotation, or localScale, and vice versa.
+        /// </summary>
+        private static void ReplaceWorldOrLocalProperty(
+            List<PropertyDesc> properties,
+            string propertyName)
+        {
+            if (properties == null)
+                return;
+
+            // Map between local* and non-local property names
+            string counterpart = propertyName switch
+            {
+                "Position" => "localPosition",
+                "localPosition" => "Position",
+                "Rotation" => "localRotation",
+                "localRotation" => "Rotation",
+                "Scale" => "localScale",
+                "localScale" => "Scale",
+                _ => null
+            };
+
+            if (string.IsNullOrWhiteSpace(counterpart))
+                return;
+
+            // Remove the counterpart property if it exists
+            for (int i = 0; i < properties.Count; i++)
+            {
+                PropertyDesc prop = properties[i];
+                if (prop != null &&
+                    string.Equals(prop.Name, counterpart, StringComparison.OrdinalIgnoreCase))
+                {
+                    properties.RemoveAt(i);
+                    return;
+                }
+            }
         }
 
         private static void ApplyResponsePropertyIfPresent(

@@ -14,6 +14,7 @@ namespace T2G
     public static class ComponentResolver
     {
         private static Dictionary<string, List<Type>> _componentCache;
+
         private static readonly object _cacheLock = new object();
         private static bool _isInitialized = false;
 
@@ -33,7 +34,9 @@ namespace T2G
             if (_componentCache.TryGetValue(normalized, out List<Type> types))
             {
                 if (types.Count == 1)
+                {
                     return types[0];
+                }
 
                 return ResolveAmbiguousMatch(types, normalized);
             }
@@ -48,12 +51,16 @@ namespace T2G
                         continue;
                     }
 
-                    if (kvp.Key.Contains(normalized) || normalized.Contains(kvp.Key))
+                    if (kvp.Key.Contains(normalized) || (kvp.Key.Length >= 4 && normalized.Contains(kvp.Key)))
                     {
                         if (kvp.Value.Count == 1)
+                        {
+                            Debug.LogError($"found1 asset={normalized}, key={kvp.Key}. condition1={kvp.Key.Contains(normalized)}, condition2={normalized.Contains(kvp.Key)}");
                             return kvp.Value[0];
+                        }
 
-                        return ResolveAmbiguousMatch(kvp.Value, normalized);
+                        var type = ResolveAmbiguousMatch(types, normalized);
+                        return type;
                     }
                 }
             }
@@ -127,7 +134,7 @@ namespace T2G
             ScanAssembliesForComponents();
 
             // Finally, generate common aliases
-            GenerateAliases();
+            //GenerateAliases();  //Comment this line to avoid caching abreviation
 
             Debug.Log($"Component resolver initialized with {_componentCache.Count} unique names");
         }
@@ -418,7 +425,7 @@ namespace T2G
         {
             var aliases = new Dictionary<string, string[]>
             {
-                ["transform"] = new[] { "tr", "t", "xform" },
+                ["transform"] = new[] { "transform" },
                 ["rigidbody"] = new[] { "rb", "body", "rigid" },
                 ["rigidbody2d"] = new[] { "rb2d", "body2d", "rigidbody2d", "rigidbody 2d" },
                 ["collider"] = new[] { "col", "collide", "collision" },
@@ -589,7 +596,8 @@ namespace T2G
         /// </summary>
         public static bool IsValidComponentName(this string componentName)
         {
-            return ComponentResolver.GetComponentType(componentName) != null;
+            var componentType = ComponentResolver.GetComponentType(componentName);
+            return (componentType != null);
         }
 
         public static bool IsValidComponentName(ref string componentName)

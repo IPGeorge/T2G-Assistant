@@ -24,6 +24,9 @@ namespace T2G.Assistant
             if (!string.IsNullOrEmpty(socket))
             {
                 instruction.parameters.Add(new Instruction.Parameter("Socket", socket));
+                instruction.parameters.Add(new Instruction.Parameter("localPosition", "(0,0,0)"));
+                instruction.parameters.Add(new Instruction.Parameter("localRotation", "(0,0,0)"));
+                instruction.parameters.Add(new Instruction.Parameter("localScale", "(1,1,1)"));
             }
             
             return (true, instruction);

@@ -14,7 +14,7 @@ namespace T2G
     {
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("ObjName");
+            string objName = instruction.parameters.GetString("Name");
             string componentType = instruction.parameters.GetString("ScriptType");
 
             var obj = Utils.FindObjectByName(objName);

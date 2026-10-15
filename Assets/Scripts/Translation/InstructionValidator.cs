@@ -210,7 +210,8 @@ namespace T2G.Assistant
                         string objName = parameter.value.ToObject<string>();
                         if (GameDescManager.Instance.FindObjectByName(objName) == null)
                         {
-                            break;
+                            result.AddError($"Instruction {instruction.id}: " + $"Missing target object {objName}");
+                            return;
                         }
                     }
 
@@ -223,7 +224,7 @@ namespace T2G.Assistant
 
                 if(string.IsNullOrEmpty(foundParameter))
                 {
-                    result.AddError($"Instruction {instruction.id}: " + $"Missing required parameter {foundParameter}");
+                    result.AddError($"Instruction {instruction.id}: " + $"Missing required parameter {param}");
                 }
             }
         }

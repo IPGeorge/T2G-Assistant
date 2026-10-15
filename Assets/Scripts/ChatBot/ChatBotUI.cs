@@ -375,7 +375,11 @@ namespace T2G.Assistant
                 }
             }
 
-            string projInfo = Assistant.Instance.Settings.DefaultUnityProject + " (Space: " + GameDescManager.Instance.CurrentSpace.Name + ")";
+            
+            string projInfo = GameDescManager.Instance.CurrentSpace == null ?
+                Assistant.Instance.Settings.DefaultUnityProject + " (Space: N/A)" :
+                Assistant.Instance.Settings.DefaultUnityProject + " (Space: " + GameDescManager.Instance.CurrentSpace.Name + ")";
+
             GUI.Label(new Rect(windowX + (buttonWidth + spacing) * 4, buttonsY, buttonWidth * 10, buttonHeight), projInfo);
         }
 

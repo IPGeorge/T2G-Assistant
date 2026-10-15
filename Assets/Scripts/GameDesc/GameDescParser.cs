@@ -177,7 +177,7 @@ namespace T2G.Assistant
 
             var instruction = CreateInstruction(
                 Actions.add_component,
-                new Instruction.Parameter("ObjName", "String", JToken.FromObject(ownerName ?? string.Empty)),
+                new Instruction.Parameter("Name", "String", JToken.FromObject(ownerName ?? string.Empty)),
                 new Instruction.Parameter("Type", "String", JToken.FromObject(component.Type ?? string.Empty)));
 
             instruction.desc = component.Description ?? string.Empty;
@@ -231,7 +231,7 @@ namespace T2G.Assistant
 
                 result.Add(CreateInstruction(
                     Actions.set_property,
-                    new Instruction.Parameter("ObjName", "String", JToken.FromObject(ownerName ?? string.Empty)),
+                    new Instruction.Parameter("Name", "String", JToken.FromObject(ownerName ?? string.Empty)),
                     new Instruction.Parameter("Property", "String", JToken.FromObject(propertyName)),
                     new Instruction.Parameter(
                         "Value",

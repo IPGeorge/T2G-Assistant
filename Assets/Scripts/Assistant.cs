@@ -138,7 +138,8 @@ namespace T2G.Assistant
                         GameDescManager.SaveGameDesc();
                     }
                     OpenOrCreateProjectContext(pi);
-                    GameDescManager.Instance.SetCurrentSpaceByName(pi.CurrentSpace);
+                    GameDescManager.Instance.SetCurrentSpaceByName(pi.CurrentSpace, true);
+                    GameDescManager.Instance.SaveGameDesc();
                 }
                 Communicator.RemoveMessageFromReceiveBuffer();
                 CommunicatorClient.Instance.ShakeHand = true;

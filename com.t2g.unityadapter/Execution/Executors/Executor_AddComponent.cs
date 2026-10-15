@@ -18,7 +18,7 @@ namespace T2G
 
         public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
-            string objName = instruction.parameters.GetString("ObjName");
+            string objName = instruction.parameters.GetString("Name");
             string componentType = instruction.parameters.GetString("Type");
 
             var obj = Utils.FindObjectByName(objName);
@@ -27,104 +27,81 @@ namespace T2G
                 return (false, $"Couldn't find {objName}!", null);
             }
 
-            if (string.Compare(componentType, "component", true) == 0)
+            List<Instruction.Asset> scriptAssets = new List<Instruction.Asset>();
+
+            for (int i = 0; i < instruction.assets.Count; ++i)
             {
-                var result = AddScriptComponent(obj, instruction.desc);
-                if (result.succeeded)
+                if (instruction.assets[i] == null)
                 {
-                    Utils.UpdateEditorViews();
-                    return (true, result.responseMessage, null);
-                }
-                else
-                {
-                    return (false, result.responseMessage, null);
-                }
-            }
-            else if (string.Compare(componentType, "file", true) == 0)
-            {
-                string dest;
-                string source = instruction.desc;
-                var tcs = new TaskCompletionSource<bool>();
-                dest = Path.Combine(Application.dataPath, "Scripts", Path.GetFileName(source));
-                string script = File.ReadAllText(source);
-                string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
-                if (string.IsNullOrEmpty(componentTypeName))
-                {
-                    return (false, $"Invalid component type name.", null);
+                    continue;
                 }
 
-                if (!File.Exists(source))
+                if(i > 0 || instruction.assets[i].type == AssetType.SourceAsset)    
+                    //If adding component or local script, only one is suppoerted at this time
                 {
-                    return (false, $"Couldn't find the source file {source}.", null);
+                    scriptAssets.Add(instruction.assets[i]);
+                    continue;
                 }
 
-                //Directly add the component in case it is available
-                var result = AddScriptComponent(obj, componentTypeName);
-                if (result.succeeded)
+                if (instruction.assets[i].type == AssetType.Identifier)
                 {
-                    Utils.UpdateEditorViews();
-                    return (true, result.responseMessage, null);
-                }
-
-                EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
-                string directory = Path.GetDirectoryName(dest);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-                File.Copy(source, dest, true);
-
-                AssetDatabase.Refresh();
-                void OnCompilationFinished(object param)
-                {
-                    CompilationPipeline.compilationFinished -= OnCompilationFinished;
-                    tcs.SetResult(true);
-                }
-
-                CompilationPipeline.compilationFinished += OnCompilationFinished;
-                bool completed = await tcs.Task;
-                if (componentTypeName != null)
-                {
-                    result = AddScriptComponent(obj, componentTypeName);
+                    var result = AddScriptComponent(obj, instruction.assets[i].source);
                     if (result.succeeded)
                     {
-                        EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
                         Utils.UpdateEditorViews();
+                        return (true, result.responseMessage, null);
                     }
-                    return (result.succeeded, result.responseMessage, null);
-                }
-                else
-                {
-                    EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
-                    return (false, "Invalid component file.", null);
-                }
-            }
-            else
-            {
-                if (instruction.assets != null && instruction.assets.Count > 0)
-                {
-                    int imported = await AssetImporter.BeginImportScripts(instruction.assets);
-                    if (imported != instruction.assets.Count)
+                    else
                     {
-                        return (false, $"One or some scripts were not imported!", null);
+                        return (false, result.responseMessage, null);
+                    }
+                }
+                else if (instruction.assets[i].type == AssetType.ScriptFile)
+                {
+                    string dest;
+                    string source = instruction.assets[i].source;
+                    var tcs = new TaskCompletionSource<bool>();
+                    dest = Path.Combine(Application.dataPath, "Scripts", Path.GetFileName(source));
+                    string script = File.ReadAllText(source);
+                    string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                    if (string.IsNullOrEmpty(componentTypeName))
+                    {
+                        return (false, $"Invalid component type name.", null);
                     }
 
-                    string targetScript = Path.Combine(Application.dataPath, instruction.assets[0].source);
-                    string script = File.ReadAllText(targetScript);
-                    string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                    if (!File.Exists(source))
+                    {
+                        return (false, $"Couldn't find the source file {source}.", null);
+                    }
 
-                    Debug.LogWarning("targetScript=" + targetScript + ", Asset Count = " + instruction.assets.Count);
+                    //Directly add the component in case it is available
+                    var result = AddScriptComponent(obj, componentTypeName);
+                    if (result.succeeded)
+                    {
+                        Utils.UpdateEditorViews();
+                        return (true, result.responseMessage, null);
+                    }
 
                     EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
+                    string directory = Path.GetDirectoryName(dest);
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    File.Copy(source, dest, true);
 
-                    await AssetImporter.EndImportScripts(componentType);
+                    AssetDatabase.Refresh();
+                    void OnCompilationFinished(object param)
+                    {
+                        CompilationPipeline.compilationFinished -= OnCompilationFinished;
+                        tcs.SetResult(true);
+                    }
 
-                    Debug.LogWarning("after end complication. " + "componentTypeName: " + componentTypeName);
-
+                    CompilationPipeline.compilationFinished += OnCompilationFinished;
+                    bool completed = await tcs.Task;
                     if (componentTypeName != null)
                     {
-                        var result = AddScriptComponent(obj, componentTypeName);
-                        Debug.LogWarning("add script result = " + result);
+                        result = AddScriptComponent(obj, componentTypeName);
                         if (result.succeeded)
                         {
                             EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
@@ -138,11 +115,47 @@ namespace T2G
                         return (false, "Invalid component file.", null);
                     }
                 }
+            }
+
+            if (scriptAssets.Count > 0)
+            {
+                int imported = await AssetImporter.BeginImportScripts(scriptAssets);
+                if (imported != scriptAssets.Count)
+                {
+                    return (false, $"One or some scripts were not imported!", null);
+                }
+
+                string targetScript = Path.Combine(Application.dataPath, instruction.assets[0].source);
+                string script = File.ReadAllText(targetScript);
+                string componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+
+                Debug.LogWarning("targetScript=" + targetScript + ", Asset Count = " + instruction.assets.Count);
+
+                EditorPrefs.SetString(k_InitOnLoadAddComponentKey, objName + "," + componentTypeName);
+
+                await AssetImporter.EndImportScripts(componentType);
+
+                Debug.LogWarning("after end complication. " + "componentTypeName: " + componentTypeName);
+
+                if (componentTypeName != null)
+                {
+                    var result = AddScriptComponent(obj, componentTypeName);
+                    Debug.LogWarning("add script result = " + result);
+                    if (result.succeeded)
+                    {
+                        EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
+                        Utils.UpdateEditorViews();
+                    }
+                    return (result.succeeded, result.responseMessage, null);
+                }
                 else
                 {
-                    return (false, $"No resolved asset for {instruction.desc}.", null);
+                    EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
+                    return (false, "Invalid component file.", null);
                 }
             }
+
+            return (true, "", null);
         }
 
         static (bool succeeded, string responseMessage) AddScriptComponent(GameObject obj, string componentTypeName)

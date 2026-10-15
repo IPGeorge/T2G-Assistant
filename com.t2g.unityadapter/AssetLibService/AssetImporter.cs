@@ -168,20 +168,25 @@ namespace T2G
         {
             EditorApplication.LockReloadAssemblies();
             int importedCount = 0;
+            string source, target;
+
             foreach (var asset in assets)
             {
-                string source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, asset.source);
-                string target = Path.Combine(Application.dataPath, asset.source);
-                string targetDir = Path.GetDirectoryName(target);
-                if (File.Exists(source))
+                if (asset.type == AssetType.SourceAsset)
                 {
-                    if(!Directory.Exists(targetDir))
+                    source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, asset.source);
+                    target = Path.Combine(Application.dataPath, asset.source);
+                    string targetDir = Path.GetDirectoryName(target);
+                    if (File.Exists(source))
                     {
-                        Directory.CreateDirectory(targetDir);
-                    }
+                        if (!Directory.Exists(targetDir))
+                        {
+                            Directory.CreateDirectory(targetDir);
+                        }
 
-                    File.Copy(source, target, true);
-                    importedCount++;
+                        File.Copy(source, target, true);
+                        importedCount++;
+                    }
                 }
             }
             await Task.Yield();
