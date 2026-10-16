@@ -195,7 +195,6 @@ namespace T2G
                             {
                                 Directory.CreateDirectory(targetDir);
                             }
-                            Debug.LogError($"Importing asset {source} to {target}!");
                             File.Copy(source, target, true);
                         }
                         else

@@ -730,7 +730,7 @@ namespace T2G.Assistant
         {
             RequireCurrentSpace();
 
-            string ownerName = GetParameterString(instruction, "ObjName");
+            string ownerName = GetParameterString(instruction, "Name");
             string componentType = response.GetValue<string>("ComponentType", null);
 
             if (string.IsNullOrWhiteSpace(componentType))
