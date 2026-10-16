@@ -121,6 +121,7 @@ namespace T2G
                             {
                                 var executor = _executorMap[instruction.action];
                                 var result = await executor.Execute(instruction);
+                                response.InstructionId = instruction.id;
                                 response.Succeeded = result.succeeded;
                                 response.Message = result.message;
                                 // ObjectId is execution result data rather than

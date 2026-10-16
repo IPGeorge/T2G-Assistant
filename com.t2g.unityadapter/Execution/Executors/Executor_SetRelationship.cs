@@ -9,7 +9,10 @@ namespace T2G
     [Executor(Actions.set_relationship)]
     public class Executor_SetRelationship : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string sourceName = instruction.parameters.GetString("Source");
             string relType = instruction.parameters.GetString("Type");
@@ -17,22 +20,22 @@ namespace T2G
             string slotName = instruction.parameters.GetString("Slot");
 
             if (string.IsNullOrWhiteSpace(sourceName))
-                return (false, "source is required.", null);
+                return (false, "source is required.", null, null);
 
             var sourceObject = Utils.FindObjectByName(sourceName);
             if (sourceObject == null)
-                return (false, $"Couldn't find source object '{sourceName}'.", null);
+                return (false, $"Couldn't find source object '{sourceName}'.", null, null);
 
             // For hierarchy-affecting relationship types, do transform parenting
             if (string.Equals(relType, Actions.attach_to, System.StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(relType, "contains", System.StringComparison.OrdinalIgnoreCase))
             {
                 if (string.IsNullOrWhiteSpace(targetName))
-                    return (false, "target is required for attach/contain relationships.", null);
+                    return (false, "target is required for attach/contain relationships.", null, null);
 
                 var targetObject = Utils.FindObjectByName(targetName);
                 if (targetObject == null)
-                    return (false, $"Couldn't find target object '{targetName}'.", null);
+                    return (false, $"Couldn't find target object '{targetName}'.", null, null);
 
                 Transform targetTransform = targetObject.transform;
                 if (!string.IsNullOrWhiteSpace(slotName))
@@ -75,7 +78,7 @@ namespace T2G
                 ? $"Relationship '{relType}' set on {sourceName}."
                 : $"Relationship '{relType}' from {sourceName} to {targetName} set.";
 
-            return (true, message, null);
+            return (true, message, null, null);
         }
 
         private Transform FindChildByName(Transform parent, string name)

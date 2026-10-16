@@ -6,21 +6,24 @@ namespace T2G.Assistant
     [LocalExecutor(T2G.Actions.connect)]
     public class Executor_Connect : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             if(CommunicatorClient.Instance.IsConnected)
             {
-                return (true, "Is already connected!", null);
+                return (true, "Is already connected!", null, null);
             }
 
             await CommunicatorClient.Instance.StartClient();
             if (CommunicatorClient.Instance.IsConnected)
             {
-                return (true, "Connected!", null);
+                return (true, "Connected!", null, null);
             }
             else
             {
-                return (false, "Failed to establish connection!", null);
+                return (false, "Failed to establish connection!", null, null);
             }
         }
     }

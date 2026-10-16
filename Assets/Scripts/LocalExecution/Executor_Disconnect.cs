@@ -6,11 +6,14 @@ namespace T2G.Assistant
     [LocalExecutor(T2G.Actions.disconnect)]
     public class Executor_Diconnect : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             if (!CommunicatorClient.Instance.IsConnected)
             {
-                return (true, "Is already disconnected!", null);
+                return (true, "Is already disconnected!", null, null);
             }
 
             CommunicatorClient.Instance.Disconnect();
@@ -18,11 +21,11 @@ namespace T2G.Assistant
 
             if (CommunicatorClient.Instance.IsConnected)
             {
-                return (false, "Couldn't disconnect!", null);
+                return (false, "Couldn't disconnect!", null, null);
             }
             else
             {
-                return (true, "Disconnected!", null);
+                return (true, "Disconnected!", null, null);
             }
         }
     }

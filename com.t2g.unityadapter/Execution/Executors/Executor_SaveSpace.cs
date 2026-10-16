@@ -14,7 +14,10 @@ namespace T2G
         private readonly string k_Assets = "Assets";
         private readonly string k_SpacesDirectory = "Spaces";
 
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             var activeScene = EditorSceneManager.GetActiveScene();
             if (string.IsNullOrEmpty(activeScene.name))
@@ -27,7 +30,7 @@ namespace T2G
                 EditorSceneManager.SaveScene(activeScene);
             }
             await Task.Delay(100);
-            return (true, $"Space was saved!", null);
+            return (true, $"Space was saved!", null, null);
         }
     }
 }

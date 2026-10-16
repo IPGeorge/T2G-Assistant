@@ -9,13 +9,16 @@ namespace T2G.Assistant
     [LocalExecutor(T2G.Actions.create_from)]
     public class Executor_CreateFrom : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string gameDescPathFile = instruction.parameters.GetString("GameDesc");
             string spacesStr = instruction.parameters.GetString("Spaces");
 
             if (string.IsNullOrWhiteSpace(gameDescPathFile) || !File.Exists(gameDescPathFile))
-                return (false, $"GameDesc file not found: {gameDescPathFile}", null);
+                return (false, $"GameDesc file not found: {gameDescPathFile}", null, null);
 
             string[] spaceNames = null;
             if (!string.IsNullOrWhiteSpace(spacesStr))
@@ -27,7 +30,7 @@ namespace T2G.Assistant
 
             var gameDesc = GameDescManager.Instance.DeserializeGameDescFile(gameDescPathFile);
             if (gameDesc == null)
-                return (false, "Failed to parse GameDesc file.", null);
+                return (false, "Failed to parse GameDesc file.", null, null);
 
             var importAssetsInstruction = new Instruction
             {
@@ -105,7 +108,7 @@ namespace T2G.Assistant
             }
 
             if (instructions == null || instructions.Length == 0)
-                return (false, "No instructions generated from GameDesc.", null);
+                return (false, "No instructions generated from GameDesc.", null, null);
 
             var batchInstructions = new List<Instruction>(instructions);
 
@@ -114,7 +117,7 @@ namespace T2G.Assistant
 
             await Task.Yield();
 
-            return (true, $"{batchInstructions.Count} instructions are queued to be executed:", batchInstructions);
+            return (true, $"{batchInstructions.Count} instructions are queued to be executed:", null, batchInstructions);
         }
 
         private static AssetType ParseAssetType(string value)

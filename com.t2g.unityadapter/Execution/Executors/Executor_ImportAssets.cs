@@ -10,16 +10,19 @@ namespace T2G
     [Executor(Actions.import_assets)]
     public class Executor_ImportAssets : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             if(instruction.assets == null || instruction.assets.Count <= 0)
             {
-                return (false, "0 assets need to be imported.", null);
+                return (false, "0 assets need to be imported.", null, null);
             }
 
             int count = await AssetImporter.BeginImportAssets(instruction.assets);
             await AssetImporter.EndImportAssets();
-            return (true, $"{count} assets were imported!", null);
+            return (true, $"{count} assets were imported!", null, null);
         }
     }
 }

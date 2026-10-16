@@ -16,7 +16,10 @@ namespace T2G
         private readonly string k_SpacesDirectory = "Spaces";
         private readonly string k_DefaultSpaceName = "MetaSpace";
 
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string spacesPath = Path.Combine(Application.dataPath, k_SpacesDirectory);
             if (!Directory.Exists(spacesPath))
@@ -76,7 +79,7 @@ namespace T2G
                 await Task.Run(() => { while (!isCreated) { Task.Yield(); } });
             }
             Utils.UpdateEditorViews();
-            return (true, $"Entered {spaceName} space.", null);
+            return (true, $"Entered {spaceName} space.", null, null);
         }
     }
 }

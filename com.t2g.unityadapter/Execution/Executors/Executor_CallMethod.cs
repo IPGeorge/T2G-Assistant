@@ -12,7 +12,10 @@ namespace T2G
     [Executor(Actions.call_method)]
     public class Executor_CallMethod : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results,
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string objName = instruction.parameters.GetString("Name");
             string methodFullName = instruction.parameters.GetString("Method");
@@ -21,13 +24,13 @@ namespace T2G
 
             if (string.IsNullOrEmpty(objName) || string.IsNullOrEmpty(methodFullName))
             {
-                return (false, "Missing objName or method parameter.", null);
+                return (false, "Missing objName or method parameter.", null, null);
             }
 
             var obj = Utils.FindObjectByName(objName);
             if (obj == null)
             {
-                return (false, $"Couldn't find GameObject '{objName}'!", null);
+                return (false, $"Couldn't find GameObject '{objName}'!", null, null);
             }
 
             string componentTypeName = null;
@@ -66,25 +69,31 @@ namespace T2G
             }
         }
 
-        private (bool succeeded, string message, List<Instruction> additionalInstructions) CallMethodOnComponent(
+        private (bool succeeded, 
+            string message, 
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions) CallMethodOnComponent(
             GameObject obj, string componentTypeName, string methodName, Dictionary<string, string> parameters)
         {
             var componentType = ComponentResolver.GetComponentType(componentTypeName);
             if (componentType == null)
             {
-                return (false, $"Component type '{componentTypeName}' not found in project.", null);
+                return (false, $"Component type '{componentTypeName}' not found in project.", null, null);
             }
 
             var component = obj.GetComponent(componentType);
             if (component == null)
             {
-                return (false, $"Component '{componentTypeName}' not found on GameObject '{obj.name}'.", null);
+                return (false, $"Component '{componentTypeName}' not found on GameObject '{obj.name}'.", null, null);
             }
 
             return InvokeMethod(component, methodName, parameters, $"Component '{componentTypeName}'");
         }
 
-        private (bool succeeded, string message, List<Instruction> additionalInstructions) CallMethodOnAllComponents(
+        private (bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions) CallMethodOnAllComponents(
             GameObject obj, string methodName, Dictionary<string, string> parameters)
         {
             var components = obj.GetComponents<Component>();
@@ -100,10 +109,13 @@ namespace T2G
                 }
             }
 
-            return (false, $"Method '{methodName}' not found on any component of GameObject '{obj.name}'.", null);
+            return (false, $"Method '{methodName}' not found on any component of GameObject '{obj.name}'.", null, null);
         }
 
-        private (bool succeeded, string message, List<Instruction> additionalInstructions) InvokeMethod(
+        private (bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions) InvokeMethod(
             object target, string methodName, Dictionary<string, string> parameters, string sourceDescription)
         {
             var type = target.GetType();
@@ -111,18 +123,18 @@ namespace T2G
 
             if (method == null)
             {
-                return (false, $"Method '{methodName}' not found on {sourceDescription}.", null);
+                return (false, $"Method '{methodName}' not found on {sourceDescription}.", null, null);
             }
 
             var methodParams = method.GetParameters();
             if (methodParams.Length == 0 && parameters.Count > 0)
             {
-                return (false, $"Method '{methodName}' on {sourceDescription} takes no parameters, but parameters were provided.", null);
+                return (false, $"Method '{methodName}' on {sourceDescription} takes no parameters, but parameters were provided.", null, null);
             }
 
             if (methodParams.Length > 0 && parameters.Count == 0)
             {
-                return (false, $"Method '{methodName}' on {sourceDescription} requires {methodParams.Length} parameter(s): {string.Join(", ", methodParams.Select(p => p.Name))}.", null);
+                return (false, $"Method '{methodName}' on {sourceDescription} requires {methodParams.Length} parameter(s): {string.Join(", ", methodParams.Select(p => p.Name))}.", null, null);
             }
 
             object[] args = new object[methodParams.Length];
@@ -137,23 +149,23 @@ namespace T2G
                     }
                     catch (Exception ex)
                     {
-                        return (false, $"Cannot convert parameter '{paramInfo.Name}' with value '{valueStr}': {ex.Message}", null);
+                        return (false, $"Cannot convert parameter '{paramInfo.Name}' with value '{valueStr}': {ex.Message}", null, null);
                     }
                 }
                 else
                 {
-                    return (false, $"Missing required parameter '{paramInfo.Name}' for method '{methodName}'.", null);
+                    return (false, $"Missing required parameter '{paramInfo.Name}' for method '{methodName}'.", null, null);
                 }
             }
 
             try
             {
                 method.Invoke(target, args);
-                return (true, $"Successfully called {sourceDescription}.{methodName}()", null);
+                return (true, $"Successfully called {sourceDescription}.{methodName}()", null, null);
             }
             catch (Exception ex)
             {
-                return (false, $"Error invoking method '{methodName}': {ex.InnerException?.Message ?? ex.Message}", null);
+                return (false, $"Error invoking method '{methodName}': {ex.InnerException?.Message ?? ex.Message}", null, null);
             }
         }
 

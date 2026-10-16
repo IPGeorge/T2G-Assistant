@@ -13,7 +13,10 @@ namespace T2G
     public class Executor_CreateObject : ExecutorBase
     {
         static GameObject _newObj = null;
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message, 
+            List<Response.Result> results,
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string name = instruction.parameters.GetString("Name");
             string source = instruction.assets != null && instruction.assets.Count > 0 ? instruction.assets[0].source : string.Empty;
@@ -96,12 +99,12 @@ namespace T2G
                             ResultObjectId = _newObj?.GetComponent<T2GIdentifier>()?.Id ?? string.Empty;
                             AssetImporter.CreateObjectsList.RemoveAt(0);
                             AssetImporter.SaveLists();
-                            return (true, $"{name} was created.", null);
+                            return (true, $"{name} was created.", null, null);
                         }
                     }
                     await Task.Delay(1000);
                 }
-                return (false, $"Failed to create {name}!", null);
+                return (false, $"Failed to create {name}!", null, null);
             }
             else
             {
@@ -117,7 +120,7 @@ namespace T2G
                 identifier.Id = System.Guid.NewGuid().ToString();
                 ResultObjectId = identifier.Id;
                 Utils.UpdateEditorViews();
-                return (true, $"{name} was created.", null);
+                return (true, $"{name} was created.", null, null);
             }
         }
 

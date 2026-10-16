@@ -15,7 +15,10 @@ namespace T2G
         private readonly string k_SpacesDirectory = "Spaces";
 
         private bool _isSpaceOpened;
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string spaceName = instruction.parameters.GetString("SpaceName");
             string spacesPath = Path.Combine(Application.dataPath, k_SpacesDirectory);
@@ -24,7 +27,7 @@ namespace T2G
 
             if (!Directory.Exists(spacesPath) || string.IsNullOrWhiteSpace(spaceName) || !File.Exists(spaceFile))
             {
-                return (false, "Space doesn't exist!", null);
+                return (false, "Space doesn't exist!", null, null);
             }
 
             var activeScene = EditorSceneManager.GetActiveScene();
@@ -47,7 +50,7 @@ namespace T2G
 
             await WaitForSpaceIsOpened();
 
-            return (true, $"Entered {spaceName} space.", null);
+            return (true, $"Entered {spaceName} space.", null, null);
         }
 
         async Awaitable WaitForSpaceIsOpened()

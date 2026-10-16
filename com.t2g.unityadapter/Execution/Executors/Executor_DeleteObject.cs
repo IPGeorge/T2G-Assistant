@@ -11,7 +11,10 @@ namespace T2G
     [Executor(Actions.delete_object)]
     public class Executor_DeleteObject : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string objName = instruction.parameters.GetString("Name");
 
@@ -19,14 +22,14 @@ namespace T2G
 
             if (gameObject == null)
             {
-                return (true, $"Couldn't find {objName}!", null);
+                return (true, $"Couldn't find {objName}!", null, null);
             }
 
             GameObject.DestroyImmediate(gameObject);
             Utils.UpdateEditorViews();
             await Task.Yield();
             T2G.Utils.UpdateEditorViews();
-            return (true, $"{objName} was destroyed.", null);
+            return (true, $"{objName} was destroyed.", null, null);
         }
     }
 }

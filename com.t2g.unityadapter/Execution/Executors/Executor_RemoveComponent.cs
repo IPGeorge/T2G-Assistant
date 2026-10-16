@@ -12,7 +12,10 @@ namespace T2G
     [Executor(Actions.remove_component)]
     public class Executor_RemoveScript : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string objName = instruction.parameters.GetString("Name");
             string componentType = instruction.parameters.GetString("ScriptType");
@@ -20,7 +23,7 @@ namespace T2G
             var obj = Utils.FindObjectByName(objName);
             if (obj == null)
             {
-                return (false, $"Couldn't find {objName}!", null);
+                return (false, $"Couldn't find {objName}!", null, null);
             }
 
             Component componentObj = null;
@@ -30,10 +33,10 @@ namespace T2G
                 componentObj = obj.GetComponent(componentType);
                 DestroyComponent(componentObj);
                 await Task.Delay(100);
-                return (true, $"{componentType} was removed from {objName}.", null);
+                return (true, $"{componentType} was removed from {objName}.", null, null);
             }
           
-            return (false, $"Couldn't remove {componentType} from {objName}.", null);
+            return (false, $"Couldn't remove {componentType} from {objName}.", null, null);
         }
 
         public Component FindComponentByName(GameObject gameObject, ref string componentTypeName)

@@ -14,15 +14,18 @@ namespace T2G.Assistant
         private string _projectName; 
         private string _projectPathName;
 
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string unityEditorPath = Assistant.Instance.Settings.UnityEditorPath;
             if (string.IsNullOrEmpty(unityEditorPath) || !File.Exists(unityEditorPath))
-                return (false, "Please setup Unity Editor path before creating a new project.", null);
+                return (false, "Please setup Unity Editor path before creating a new project.", null, null);
 
             string pluginPath = Assistant.Instance.Settings.T2G_UnityPluginPath;
             if (string.IsNullOrEmpty(pluginPath))
-                return (false, "Please setup the T2G plugin path for Unity before creating a new project.", null);
+                return (false, "Please setup the T2G plugin path for Unity before creating a new project.", null, null);
 
             _projectPath = instruction.parameters.GetString("Path");
             _projectName = instruction.parameters.GetString("ProjectName");
@@ -66,16 +69,16 @@ namespace T2G.Assistant
                     Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
                     ChatBotUI.Instance.SaveSettings();
 
-                    return (true, $"Project {_projectPathName} was created!", additionals);
+                    return (true, $"Project {_projectPathName} was created!", null, additionals);
                 }
                 else
                 {
-                    return (false, $"Failed to create project! Exit Code: {_process.ExitCode}", null);
+                    return (false, $"Failed to create project! Exit Code: {_process.ExitCode}", null, null);
                 }
             }
             catch (Exception e)
             {
-                return (false, "Failed to create project: " + e.Message, null);
+                return (false, "Failed to create project: " + e.Message, null, null);
             }
             finally
             {

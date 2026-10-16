@@ -11,7 +11,10 @@ namespace T2G
     [Executor(Actions.attach_to)]
     public class Executor_Attach : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string sourceObjName = instruction.parameters.GetString("Source");
             string targetObjName = instruction.parameters.GetString("Target");
@@ -20,12 +23,12 @@ namespace T2G
             var sourceObject = Utils.FindObjectByName(sourceObjName);
             if(sourceObject == null)
             {
-                return (false, $"Couldn't find {sourceObjName}!", null);
+                return (false, $"Couldn't find {sourceObjName}!", null, null);
             }
             var targetObject = Utils.FindObjectByName(targetObjName);
             if (targetObject == null)
             {
-                return (false, $"Couldn't find {targetObjName}!", null);
+                return (false, $"Couldn't find {targetObjName}!", null, null);
             }
 
             Transform targetTransform = targetObject.transform;
@@ -74,7 +77,7 @@ namespace T2G
                 $"localRotation={sourceObject.transform.localRotation.eulerAngles};" + 
                 $"localScale={sourceObject.transform.localScale}";
 
-            return (true, message, null);
+            return (true, message, null, null);
         }
 
         private Transform FindChildByName(Transform parent, string name)

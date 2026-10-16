@@ -731,15 +731,12 @@ namespace T2G.Assistant
             RequireCurrentSpace();
 
             string ownerName = GetParameterString(instruction, "ObjName");
-            string componentType = response.GetValue<string>(
-                "ComponentType",
-                GetParameterString(instruction, "Type"));
+            string componentType = response.GetValue<string>("ComponentType", null);
 
             if (string.IsNullOrWhiteSpace(componentType))
-                throw new InvalidOperationException("add_component requires Type.");
+                throw new InvalidOperationException("add_component requires ComponentType.");
 
-            Component component = CreateComponentFromInstruction(
-                instruction, response, componentType);
+            Component component = CreateComponentFromInstruction(instruction, response, componentType);
 
             if (string.Equals(
                 CurrentSpace.Name,

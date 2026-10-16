@@ -11,14 +11,17 @@ namespace T2G
 
     public class Executor_Set : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string objName = instruction.parameters.GetString("Name");
 
             var obj = Utils.FindObjectByName(objName);
             if (obj == null)
             {
-                return (false, $"Couldn't find {objName}!", null);
+                return (false, $"Couldn't find {objName}!", null, null);
             }
 
             string propertyName = instruction.parameters.GetString("Property");
@@ -30,7 +33,7 @@ namespace T2G
                 Utils.UpdateEditorViews();
                 await Task.Delay(100);
             }
-            return (succeeded, resultMessage, null);
+            return (succeeded, resultMessage, null, null);
         }
     }
 }

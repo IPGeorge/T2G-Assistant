@@ -10,12 +10,15 @@ namespace T2G.Assistant
     [LocalExecutor(T2G.Actions.open_project)]
     public class Executor_OpenProject : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string unityEditorPath = Assistant.Instance.Settings.UnityEditorPath;
             if (string.IsNullOrEmpty(unityEditorPath) || !File.Exists(unityEditorPath))
             {
-                return (false, "Please setup Unity Editor path before opening a project.", null);
+                return (false, "Please setup Unity Editor path before opening a project.", null, null);
             }
 
             string projectPath = instruction.parameters.GetString("Path");
@@ -32,7 +35,7 @@ namespace T2G.Assistant
 
             if (!Directory.Exists(projectPathName))
             {
-                return (false, $"Project {projectPathName} was not found.", null);
+                return (false, $"Project {projectPathName} was not found.", null, null);
             }
 
             var arguments = $"-projectPath {projectPathName}";
@@ -49,7 +52,7 @@ namespace T2G.Assistant
             catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e.Message);
-                return (false, "Failed to start Unity Editor process.", null);
+                return (false, "Failed to start Unity Editor process.", null, null);
             }
 
             bool connected = await CommunicatorClient.Instance.WaitForConnected();
@@ -59,11 +62,11 @@ namespace T2G.Assistant
                 Assistant.Instance.Settings.DefaultUnityProject = projectPathName;
                 ChatBotUI.Instance.SaveSettings();
 
-                return (true, "Project is opened!", null);
+                return (true, "Project is opened!", null, null);
             }
             else
             {
-                return (false, "Failed to open the project!", null);
+                return (false, "Failed to open the project!", null, null);
             }
         }
     }

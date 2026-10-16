@@ -20,26 +20,29 @@ namespace T2G.Assistant
         private string _projectName;
         private string _projectPathName;
 
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string unityEditorPath = Assistant.Instance.Settings.UnityEditorPath;
             if (string.IsNullOrEmpty(unityEditorPath) || !File.Exists(unityEditorPath))
-                return (false, "Please setup Unity Editor path before initializing a project.", null);
+                return (false, "Please setup Unity Editor path before initializing a project.", null, null);
 
             string pluginPath = Assistant.Instance.Settings.T2G_UnityPluginPath;
             if (string.IsNullOrEmpty(pluginPath) || pluginPath.IndexOf(k_T2G_UnityAdapter_Package, StringComparison.OrdinalIgnoreCase) < 0)
-                return (false, "Please setup the T2G plugin path for Unity before initializing a project.", null);
+                return (false, "Please setup the T2G plugin path for Unity before initializing a project.", null, null);
 
             _projectPath = instruction.parameters.GetString("Path");
             _projectName = instruction.parameters.GetString("ProjectName");
             _projectPathName = Path.Combine(_projectPath, _projectName);
 
             if (!Directory.Exists(_projectPathName))
-                return (false, "Project was not found!", null);
+                return (false, "Project was not found!", null, null);
 
             string manifestFilePath = Path.Combine(_projectPathName, "Packages", "manifest.json");
             if (!File.Exists(manifestFilePath))
-                return (false, "Failed to open the manifest.json file for project initialization!", null);
+                return (false, "Failed to open the manifest.json file for project initialization!", null, null);
 
             // Retry file operations in case the OS hasn't fully released locks from project creation
             const int maxRetries = 5;
@@ -90,7 +93,7 @@ namespace T2G.Assistant
                     Assistant.Instance.Settings.DefaultUnityProject = _projectPathName;
                     ChatBotUI.Instance.SaveSettings();
 
-                    return (true, "Project has been initialized!", null);
+                    return (true, "Project has been initialized!", null, null);
                 }
                 catch (IOException) when (i < maxRetries - 1)
                 {
@@ -98,7 +101,7 @@ namespace T2G.Assistant
                 }
             }
 
-            return (false, "Failed to initialize project: file is locked by another process.", null);
+            return (false, "Failed to initialize project: file is locked by another process.", null, null);
         }
 
         public class Dependencies

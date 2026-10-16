@@ -54,13 +54,16 @@ namespace T2G.Assistant
             Register_Executors();
         }
 
-        public async Awaitable<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public async Awaitable<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             if(_executorMap.TryGetValue(instruction.action, out var executor))
             {
                 return await executor.Execute(instruction);
             }
-            return (false, null, null);
+            return (false, null, null, null);
         }
     }
 }

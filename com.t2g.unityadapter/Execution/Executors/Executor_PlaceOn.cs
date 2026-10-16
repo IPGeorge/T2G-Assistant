@@ -11,7 +11,10 @@ namespace T2G
     [Executor(Actions.place_on)]
     public class Executor_PlaceOn : ExecutorBase
     {
-        public override async Task<(bool succeeded, string message, List<Instruction> additionalInstructions)> Execute(Instruction instruction)
+        public override async Task<(bool succeeded, 
+            string message,
+            List<Response.Result> results, 
+            List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string objName = instruction.parameters.GetString("Name");
 
@@ -19,12 +22,12 @@ namespace T2G
             var gameObject = rootObjects.Where(obj => obj.name == objName).FirstOrDefault();
             if (gameObject == null)
             {
-                return (false, $"Couldn't find {objName}!", null);
+                return (false, $"Couldn't find {objName}!", null, null);
             }
             Utils.PlaceOnGround(gameObject);
             Utils.UpdateEditorViews();
             await Task.Delay(100);
-            return (true, $"{objName} is put down.", null);
+            return (true, $"{objName} is put down.", null, null);
         }
     }
 }
