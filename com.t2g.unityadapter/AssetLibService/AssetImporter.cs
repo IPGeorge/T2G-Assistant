@@ -174,33 +174,49 @@ namespace T2G
             {
                 if (asset.type == AssetType.SourceAsset)
                 {
-                    string[] assetPaths = asset.source.Split(',');
+                    string script = asset.source;
 
-                    for (int i = assetPaths.Length - 1; i >= 0; --i)
+                    if (string.Equals(script.Substring(script.Length - 1), "}"))
                     {
-                        source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPaths[i]);
-                        target = Path.Combine(Application.dataPath, assetPaths[i]);
-
+                        componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                        target = Path.Combine(Application.dataPath, "Scripts", componentTypeName + ".cs");
                         string targetDir = Path.GetDirectoryName(target);
-                        if (File.Exists(source))
+                        if (!Directory.Exists(targetDir))
                         {
-                            if (i == 0)
-                            {
-                                string targetScript = Path.Combine(Application.dataPath, source);
-                                string script = File.ReadAllText(targetScript);
-                                componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
-                            }
-
-                            if (!Directory.Exists(targetDir))
-                            {
-                                Directory.CreateDirectory(targetDir);
-                            }
-                            File.Copy(source, target, true);
+                            Directory.CreateDirectory(targetDir);
                         }
-                        else
+                        File.WriteAllText(target, script);
+                    }
+                    else
+                    {
+                        string[] assetPaths = asset.source.Split(',');
+
+                        for (int i = assetPaths.Length - 1; i >= 0; --i)
                         {
-                            Debug.LogError($"asset {source} is missing!");
-                            return (false, componentTypeName);
+                            source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPaths[i]);
+                            target = Path.Combine(Application.dataPath, assetPaths[i]);
+
+                            string targetDir = Path.GetDirectoryName(target);
+                            if (File.Exists(source))
+                            {
+                                if (i == 0)
+                                {
+                                    string targetScript = Path.Combine(Application.dataPath, source);
+                                    script = File.ReadAllText(targetScript);
+                                    componentTypeName = T2G.Utils.GetMonoBehaviourClassName(script);
+                                }
+
+                                if (!Directory.Exists(targetDir))
+                                {
+                                    Directory.CreateDirectory(targetDir);
+                                }
+                                File.Copy(source, target, true);
+                            }
+                            else
+                            {
+                                Debug.LogError($"asset {source} is missing!");
+                                return (false, componentTypeName);
+                            }
                         }
                     }
                 }
@@ -217,15 +233,16 @@ namespace T2G
         public static async Awaitable EndImportScripts(string componentName = null)
         {
             EditorApplication.UnlockReloadAssemblies();
-            CompilationPipeline.RequestScriptCompilation();
             AssetDatabase.Refresh();
+            CompilationPipeline.RequestScriptCompilation();
 
             if (componentName != null)
             {
                 bool isValidComponentName = false;
                 while (!isValidComponentName) //Wait for InitializeOnLoadMethod is triggered
                 {
-                    await Task.Delay(100);
+                    //await Task.Delay(100);
+                    await Task.Yield();
                     isValidComponentName = Utils.IsValidComponentName(componentName);
                 }
             }

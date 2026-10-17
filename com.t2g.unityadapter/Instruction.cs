@@ -26,7 +26,8 @@ namespace T2G
         Unknown = 0,        //A semantic description that needs to be soulved to be SourceAsset
         Identifier = 1,     //System component, such as Unity rigidbody, camera, etc.
         ScriptFile = 2,     //A local script file
-        SourceAsset = 3     //A resolved asset that can be imported from AssetService
+        Script = 3,         //A script code block
+        SourceAsset = 4     //A resolved asset that can be imported from AssetService
     }
 
     [Serializable]

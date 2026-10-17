@@ -55,7 +55,7 @@ namespace T2G
                     {
                         if (kvp.Value.Count == 1)
                         {
-                            Debug.LogError($"found1 asset={normalized}, key={kvp.Key}. condition1={kvp.Key.Contains(normalized)}, condition2={normalized.Contains(kvp.Key)}");
+                            Debug.LogError($"found 1 asset={normalized}, key={kvp.Key}. condition1={kvp.Key.Contains(normalized)}, condition2={normalized.Contains(kvp.Key)}");
                             return kvp.Value[0];
                         }
 

@@ -227,7 +227,12 @@ namespace T2G.Assistant
                         Communicator.EmptyReceiveBuffer();
                         string jsonInstruction = JsonConvert.SerializeObject(instruction);
                         Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
-                        var response = await WaitForResponse();
+
+                        var response = new Response();
+                        if(string.IsNullOrEmpty(response.InstructionId))
+                        {
+                            response = await WaitForResponse();
+                        }
 
                         // GameDesc evolves only through the structured execution
                         // Response. Apply() records both successful and failed
@@ -251,6 +256,11 @@ namespace T2G.Assistant
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
         {
             var translatedInstructions = await _tanslation.Translate(intent.Trim());
+
+            if(translatedInstructions == null)
+            {
+                return (false, "Sorry, I don't understand!");
+            }
 
             _instructionLocalGlobalIdMap.Clear();
             _instructions.Clear();

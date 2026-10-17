@@ -62,7 +62,7 @@ namespace T2G.Assistant
             (@"^(select)(?:\s+(?:object))?\s+(?<name>""[^""]+""|'[^']+'|[\w\-\s]+?)(?:\.)?$", T2G.Actions.select_object),
 
             //Game object component cammands
-            (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>""[^""]+""|'[^']+'|[\w\\\.:\- ]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.add_component),
+            (@"^add\s+(?:behavior|behaviour|script|component)\s+(?<component>[\s\S]+?)\s+to\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.add_component),
             (@"^remove\s+(?:behavior|behaviour|script|component)\s+(?<componentType>[^\s]+)\s+from\s+(?<objName>""[^""]+""|'[^']+'|[\w\- ]+)\s*$", T2G.Actions.remove_component),
             (@"^set\s+(?<objName>""[^""]+""|'[^']+'|[\w\-]+)(?:\s+(?:property|attribute))?\s+(?<property>.+?)\s*(?:=|to)?\s*(?<value>(?:\([\d,\.\-]+\)|[0-9][^\s]*|""[^""]*""|'[^']*'))(?:\s+for\s+(?<script>\w+))?$", T2G.Actions.set_property),
             (@"^(call|invoke|execute)\s+(?<name>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))\s+(?:(method|function)\s+)?(?<method>(?:""[^""]+"")|(?:'[^']+')|(?:[\w\-]+))(?:\s+(?<parameters>.+))?$", T2G.Actions.call_method),

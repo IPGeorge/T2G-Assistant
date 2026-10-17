@@ -121,9 +121,16 @@ namespace T2G
                             {
                                 var executor = _executorMap[instruction.action];
                                 var result = await executor.Execute(instruction);
+
+                                if(result.results != null && result.results.Count == 0)
+                                {
+                                    return;     //We are supposed to receive at least 1 result when the list is not null. Ignore this response
+                                }
+
                                 response.InstructionId = instruction.id;
                                 response.Succeeded = result.succeeded;
                                 response.Message = result.message;
+                                response.Results = result.results;
                                 // ObjectId is execution result data rather than
                                 // a fixed Response field.
                                 if (!string.IsNullOrWhiteSpace(executor.ResultObjectId))

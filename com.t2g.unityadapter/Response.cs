@@ -14,7 +14,7 @@ namespace T2G
         public string InstructionId = string.Empty;
         public bool Succeeded = true;
         public string Message = string.Empty;
-        public List<Result> Results = new List<Result>();
+        public List<Result> Results = null;
 
         public Response()
         {

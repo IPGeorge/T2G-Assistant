@@ -54,13 +54,13 @@ namespace T2G.Assistant
             }
 
             // Normalize asset metadata only.
-            if (instruction.assets != null)
+            foreach (var asset in instruction.assets)
             {
-                foreach (var asset in instruction.assets)
-                {
-                    if (asset == null)
-                        continue;
+                if (asset == null)
+                    continue;
 
+                if (asset.type != AssetType.Script)
+                {
                     asset.desc = NormalizeString(asset.desc);
                     asset.source = NormalizeString(asset.source);
                 }

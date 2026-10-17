@@ -230,7 +230,10 @@ namespace T2G.Assistant
                     {
                         return ResolveScriptFile(asset);
                     }
-
+                case AssetType.Script:
+                    {
+                        return ResolveScript(asset);
+                    }
                 case AssetType.SourceAsset:
                 case AssetType.Unknown:
                     {
@@ -295,6 +298,13 @@ namespace T2G.Assistant
                 return false;
             }
 
+            return true;
+        }
+
+        private bool ResolveScript(
+            Instruction.Asset asset)
+        {
+            asset.source = asset.desc;
             return true;
         }
 

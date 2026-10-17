@@ -29,14 +29,21 @@ namespace T2G.Assistant
             }
             else
             {
-                string newComponent = component.ToLowerInvariant();
-                if (ComponentResolver.IsValidComponentName(newComponent))
+                if (string.Equals(asset.desc.Substring(instruction.desc.Length - 1), "}", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    asset.type = AssetType.Identifier;
+                    asset.type = AssetType.Script;
                 }
                 else
                 {
-                    asset.type = AssetType.SourceAsset;      //Will need semantic resolution
+                    string newComponent = component.ToLowerInvariant();
+                    if (ComponentResolver.IsValidComponentName(newComponent))
+                    {
+                        asset.type = AssetType.Identifier;
+                    }
+                    else
+                    {
+                        asset.type = AssetType.SourceAsset;      //Will need semantic resolution
+                    }
                 }
             }
 
