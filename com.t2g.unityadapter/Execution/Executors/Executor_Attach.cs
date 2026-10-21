@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -77,7 +78,28 @@ namespace T2G
                 $"localRotation={sourceObject.transform.localRotation.eulerAngles};" + 
                 $"localScale={sourceObject.transform.localScale}";
 
-            return (true, message, null, null);
+            List<Response.Result> results = new List<Response.Result>();
+            Transform sourceTransform = sourceObject.transform;
+            results.Add(new Response.Result()
+            {
+                name = "localPosition",
+                type = "float3",
+                value = $"({sourceTransform.localPosition.x}, {sourceTransform.localPosition.y}, {sourceTransform.localPosition.z})"
+            });
+            results.Add(new Response.Result()
+            {
+                name = "localRotation",
+                type = "float3",
+                value = $"({sourceTransform.eulerAngles.x}, {sourceTransform.eulerAngles.y}, {sourceTransform.eulerAngles.z})"
+            });
+            results.Add(new Response.Result()
+            {
+                name = "localScale",
+                type = "float3",
+                value = $"({sourceTransform.localScale.x}, {sourceTransform.localScale.y}, {sourceTransform.localScale.z})"
+            });
+
+            return (true, message, results, null);
         }
 
         private Transform FindChildByName(Transform parent, string name)

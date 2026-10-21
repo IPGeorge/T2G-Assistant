@@ -505,8 +505,78 @@ namespace T2G.Assistant
                 return;
 
             string removedId = obj.Id;
-            CurrentSpace.Objects.Remove(removedId);
 
+            RemoveObjectAndChildren(removedId, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
+            CurrentSpace.RebuildNameIndex();
+
+            if (CurrentObject != null &&
+                string.Equals(CurrentObject.Id, removedId, StringComparison.OrdinalIgnoreCase))
+                CurrentObject = null;
+        }
+
+        /// <summary>
+        /// Removes an object and every object attached to it through a
+        /// hierarchy-affecting relationship (attach_to / contains), mirroring
+        /// Unity, where deleting a GameObject also deletes its transform children.
+        /// </summary>
+        private void RemoveObjectAndChildren(
+            string objectId,
+            HashSet<string> visited)
+        {
+            if (string.IsNullOrWhiteSpace(objectId) || !visited.Add(objectId))
+                return;
+
+            List<string> childIds = FindChildObjectIds(objectId);
+            foreach (string childId in childIds)
+                RemoveObjectAndChildren(childId, visited);
+
+            CurrentSpace.Objects.Remove(objectId);
+            CleanupRelationships(objectId);
+        }
+
+        private List<string> FindChildObjectIds(string parentId)
+        {
+            List<string> childIds = new List<string>();
+
+            foreach (Object remaining in CurrentSpace.Objects.Values)
+            {
+                if (remaining == null || remaining.Relationships == null)
+                    continue;
+
+                if (string.Equals(remaining.Id, parentId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (Relationship rel in remaining.Relationships)
+                {
+                    if (rel == null)
+                        continue;
+
+                    if (IsHierarchyAffectingRelationship(rel.Type) &&
+                        string.Equals(rel.Target, parentId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        childIds.Add(remaining.Id);
+                        break;
+                    }
+                }
+            }
+
+            return childIds;
+        }
+
+        /// <summary>
+        /// Relationship types that represent Unity transform hierarchy, where
+        /// deleting the parent also deletes the child.
+        /// </summary>
+        private static bool IsHierarchyAffectingRelationship(string type)
+        {
+            return string.Equals(type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(type, Actions.attach_to, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(type, GameDescRelationTypes.Contains, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void CleanupRelationships(string removedId)
+        {
             foreach (Object remaining in CurrentSpace.Objects.Values)
             {
                 if (remaining == null || remaining.Relationships == null)
@@ -519,12 +589,6 @@ namespace T2G.Assistant
                              removedId,
                              StringComparison.OrdinalIgnoreCase));
             }
-
-            CurrentSpace.RebuildNameIndex();
-
-            if (CurrentObject != null &&
-                string.Equals(CurrentObject.Id, removedId, StringComparison.OrdinalIgnoreCase))
-                CurrentObject = null;
         }
 
         private void ApplyPlaceOn(Instruction instruction, Response response)
@@ -564,19 +628,29 @@ namespace T2G.Assistant
 
             string slot = instruction.parameters.GetString("Socket");
 
-            // When Socket parameter exists, set localPosition/localRotation/localScale
-            // and remove any existing position/rotation/scale properties
-            if (!string.IsNullOrWhiteSpace(slot))
+            // The execution result reports the local transform that the engine
+            // established for the attached object. When it is available, drop the
+            // world-space transform properties and store the reported values.
+            if (response != null && response.Succeeded)
             {
-                // Remove existing Position/Rotation/Scale and replace with their local* counterparts
-                ReplaceWorldOrLocalProperty(source.Properties, "localPosition");
-                ReplaceWorldOrLocalProperty(source.Properties, "localRotation");
-                ReplaceWorldOrLocalProperty(source.Properties, "localScale");
+                Response.Result localPositionResult = response.GetResultOrNull("localPosition");
+                Response.Result localRotationResult = response.GetResultOrNull("localRotation");
+                Response.Result localScaleResult = response.GetResultOrNull("localScale");
 
-                // Add localPosition=(0,0,0), localRotation=(0,0,0), localScale=(1,1,1)
-                SetProperty(source.Properties, "localPosition", "string", "(0,0,0)");
-                SetProperty(source.Properties, "localRotation", "string", "(0,0,0)");
-                SetProperty(source.Properties, "localScale", "string", "(1,1,1)");
+                if (localPositionResult != null &&
+                    localRotationResult != null &&
+                    localScaleResult != null)
+                {
+                    // Remove global position/rotation/scale properties
+                    ReplaceWorldOrLocalProperty(source.Properties, "localPosition");
+                    ReplaceWorldOrLocalProperty(source.Properties, "localRotation");
+                    ReplaceWorldOrLocalProperty(source.Properties, "localScale");
+
+                    // Store the local transform reported by the execution result
+                    ApplyResponsePropertyIfPresent(response, source.Properties, "localPosition", "float3");
+                    ApplyResponsePropertyIfPresent(response, source.Properties, "localRotation", "float3");
+                    ApplyResponsePropertyIfPresent(response, source.Properties, "localScale", "float3");
+                }
             }
 
             AddOrUpdateRelationship(
@@ -595,7 +669,35 @@ namespace T2G.Assistant
                 "SourceObjectId",
                 GetParameterString(instruction, "Name"));
 
-            if (source == null || source.Relationships == null)
+            if (source == null)
+                return;
+
+            // Detaching restores the world-space transform of the object. When the
+            // execution result reports it, drop the local transform properties
+            // and store the reported world values.
+            if (response != null && response.Succeeded)
+            {
+                Response.Result positionResult = response.GetResultOrNull("Position");
+                Response.Result rotationResult = response.GetResultOrNull("Rotation");
+                Response.Result scaleResult = response.GetResultOrNull("Scale");
+
+                if (positionResult != null &&
+                    rotationResult != null &&
+                    scaleResult != null)
+                {
+                    // Remove local position/rotation/scale properties
+                    ReplaceWorldOrLocalProperty(source.Properties, "Position");
+                    ReplaceWorldOrLocalProperty(source.Properties, "Rotation");
+                    ReplaceWorldOrLocalProperty(source.Properties, "Scale");
+
+                    // Store the world transform reported by the execution result
+                    ApplyResponsePropertyIfPresent(response, source.Properties, "Position", "float3");
+                    ApplyResponsePropertyIfPresent(response, source.Properties, "Rotation", "float3");
+                    ApplyResponsePropertyIfPresent(response, source.Properties, "Scale", "float3");
+                }
+            }
+
+            if (source.Relationships == null)
                 return;
 
             string targetId = response.GetValue<string>("TargetObjectId", string.Empty);

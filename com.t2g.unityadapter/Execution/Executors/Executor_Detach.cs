@@ -3,6 +3,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace T2G
 {
@@ -30,7 +31,29 @@ namespace T2G
             message += $"\nposition={obj.transform.localPosition};" +
                 $"rotation={obj.transform.localRotation.eulerAngles};" +
                 $"scale={obj.transform.localScale}";
-            return (true, message, null, null);
+
+            List<Response.Result> results = new List<Response.Result>();
+            Transform objTransform = obj.transform;
+            results.Add(new Response.Result()
+            {
+                name = "Position",
+                type = "string",
+                value = $"({objTransform.position.x}, {objTransform.position.y}, {objTransform.position.z})"
+            });
+            results.Add(new Response.Result()
+            {
+                name = "Rotation",
+                type = "string",
+                value = $"({objTransform.rotation.eulerAngles.x}, {objTransform.rotation.eulerAngles.y}, {objTransform.rotation.eulerAngles.z})"
+            });
+            results.Add(new Response.Result()
+            {
+                name = "Scale",
+                type = "string",
+                value = $"({objTransform.localScale.x}, {objTransform.localScale.y}, {objTransform.localScale.z})"
+            });
+
+            return (true, message, results, null);
         }
     }
 }
