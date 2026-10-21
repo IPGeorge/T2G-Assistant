@@ -225,7 +225,6 @@ namespace T2G.Assistant
                     {
                         return ResolveIdentifier(asset);
                     }
-
                 case AssetType.ScriptFile:
                     {
                         return ResolveScriptFile(asset);
@@ -340,6 +339,12 @@ namespace T2G.Assistant
             }
 
             Debug.Log($"[AssetResolver] Searching Asset Library for '{asset.desc}'.");
+
+            if(T2G.Utils.IsNodeObjectDesc(asset.desc))
+            {
+                asset.type = AssetType.Node;
+                return true;
+            }
 
             var response = await AssetSearchClient.SearchAssets(asset.desc);
 

@@ -18,7 +18,7 @@ MonoBehaviour:
   botMessageColor: {r: 1, g: 1, b: 1, a: 1}
   autoSaveHistory: 1
   autoSaveInterval: 300
-  UnityEditorPath: C:\Program Files\Unity\Hub\Editor\6000.0.50f1\Editor\Unity.exe
+  UnityEditorPath: C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
-  DefaultUnityProject: c:\tmp\Shooter
+  DefaultUnityProject: c:\tmp\Shooting

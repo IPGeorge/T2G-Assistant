@@ -19,7 +19,18 @@ namespace T2G
             List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string name = instruction.parameters.GetString("Name");
-            string source = instruction.assets != null && instruction.assets.Count > 0 ? instruction.assets[0].source : string.Empty;
+            string source;
+            AssetType assetType = AssetType.Unknown;
+            if (instruction.assets != null && instruction.assets.Count > 0)
+            {
+                source = instruction.assets[0].source;
+                assetType = instruction.assets[0].type;
+            }
+            else
+            {
+                source = string.Empty;
+            }
+
             string positionStr = instruction.parameters.GetString("Position");
             Vector3? position = null;
 
@@ -31,7 +42,7 @@ namespace T2G
 
             _newObj = null;
 
-            if (string.Compare(source, "object", true) == 0)  //Add gameobject
+            if (assetType == AssetType.Node)  //Add node object
             {
                 _newObj = new GameObject(name);
             }

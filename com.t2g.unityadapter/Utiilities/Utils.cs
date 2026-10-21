@@ -238,13 +238,13 @@ namespace T2G
             }
         }
 
-        public static bool IsObjectDesc(string desc)
+        public static bool IsNodeObjectDesc(string desc)
         {
             if(string.IsNullOrEmpty(desc))
             {
                 return false;
             }
-            return (string.Compare(desc.Trim(), "object", true) == 0);
+            return (desc.IndexOf("node object", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
 

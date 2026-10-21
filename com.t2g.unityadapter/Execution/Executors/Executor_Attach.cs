@@ -90,7 +90,7 @@ namespace T2G
             {
                 name = "localRotation",
                 type = "float3",
-                value = $"({sourceTransform.eulerAngles.x}, {sourceTransform.eulerAngles.y}, {sourceTransform.eulerAngles.z})"
+                value = $"({sourceTransform.localRotation.eulerAngles.x}, {sourceTransform.localRotation.eulerAngles.y}, {sourceTransform.localRotation.eulerAngles.z})"
             });
             results.Add(new Response.Result()
             {

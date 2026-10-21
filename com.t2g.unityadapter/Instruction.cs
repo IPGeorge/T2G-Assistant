@@ -27,7 +27,8 @@ namespace T2G
         Identifier = 1,     //System component, such as Unity rigidbody, camera, etc.
         ScriptFile = 2,     //A local script file
         Script = 3,         //A script code block
-        SourceAsset = 4     //A resolved asset that can be imported from AssetService
+        SourceAsset = 4,    //A resolved asset that can be imported from AssetService
+        Node = 5            //A scene graph node/node object
     }
 
     [Serializable]
