@@ -210,7 +210,7 @@ namespace T2G.Assistant
 
                     if (result.additionalInstructions != null && result.additionalInstructions.Count > 0)
                     {
-                        InsertAdditionalInstructions(i, result.additionalInstructions);
+                        InsertAdditionalInstructions(i, PrepareAdditionalInstructions(result.additionalInstructions));
                     }
                 }
                 else
@@ -253,6 +253,108 @@ namespace T2G.Assistant
             return _completed;
         }
 
+        /// <summary>
+        /// Assigns a globally unique id to a translated instruction and records
+        /// the local -> global mapping used to resolve dependsOn references.
+        /// Instructions without an id always receive a fresh one.
+        /// </summary>
+        private string RegisterInstructionId(string localId)
+        {
+            if (string.IsNullOrWhiteSpace(localId))
+                return InstructionIdGenerator.Instance.NextId();
+
+            string globalId;
+            if (_instructionLocalGlobalIdMap.TryGetValue(localId, out globalId))
+                return globalId;
+
+            globalId = InstructionIdGenerator.Instance.NextId();
+            _instructionLocalGlobalIdMap.Add(localId, globalId);
+            return globalId;
+        }
+
+        /// <summary>
+        /// Assigns ids to instructions produced by a local executor and orders
+        /// them before they are inserted into the pending queue. These
+        /// instructions bypass translation, so they have no ids yet.
+        /// </summary>
+        private List<Instruction> PrepareAdditionalInstructions(
+            List<Instruction> instructions)
+        {
+            var prepared = new List<Instruction>(instructions.Count);
+
+            foreach (var instruction in instructions)
+            {
+                if (instruction == null)
+                    continue;
+
+                instruction.id = RegisterInstructionId(instruction.id);
+                prepared.Add(instruction);
+            }
+
+            return OrderInstructions(prepared);
+        }
+
+        /// <summary>
+        /// Orders an already validated batch. Deferred instructions (cycles)
+        /// are appended in their original order so callers can still execute
+        /// or retry them.
+        /// </summary>
+        private List<Instruction> OrderInstructions(List<Instruction> instructions)
+        {
+            if (instructions == null || instructions.Count <= 1)
+                return instructions;
+
+            var plan = InstructionPlanner.BuildPlan(instructions);
+
+            foreach (var diagnostic in plan.Diagnostics)
+            {
+                Debug.LogWarning($"[InstructionPlanner] {diagnostic}");
+            }
+
+            Debug.Log(
+                $"[InstructionPlanner] Planned {instructions.Count} instruction(s) " +
+                $"-> [{string.Join(", ", plan.Ordered.ConvertAll(item => item.id))}]" +
+                (plan.HasDeferred
+                    ? $" | deferred [{string.Join(", ", plan.Deferred.ConvertAll(item => item.id))}]"
+                    : string.Empty) +
+                $" | edges: {plan.Edges.Count}");
+
+            var ordered = new List<Instruction>(
+                plan.Ordered.Count + plan.Deferred.Count);
+
+            ordered.AddRange(plan.Ordered);
+            ordered.AddRange(plan.Deferred);
+            return ordered;
+        }
+
+        /// <summary>
+        /// Orders the pending instruction list in place. Lists containing
+        /// non-Instruction entries (for example InstructionSequence) are left
+        /// untouched.
+        /// </summary>
+        private void OrderPendingInstructions()
+        {
+            if (_instructions == null || _instructions.Count <= 1)
+                return;
+
+            foreach (var instruction in _instructions)
+            {
+                if (!(instruction is Instruction))
+                    return;
+            }
+
+            var batch = new List<Instruction>(_instructions.Count);
+
+            foreach (var instruction in _instructions)
+                batch.Add((Instruction)instruction);
+
+            var ordered = OrderInstructions(batch);
+
+            _instructions.Clear();
+            foreach (var instruction in ordered)
+                _instructions.Add(instruction);
+        }
+
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
         {
             var translatedInstructions = await _tanslation.Translate(intent.Trim());
@@ -266,12 +368,7 @@ namespace T2G.Assistant
             _instructions.Clear();
             foreach (var translatedInstruction in translatedInstructions)
             {
-                if (string.IsNullOrEmpty(translatedInstruction.id))
-                {
-                    _instructionLocalGlobalIdMap[translatedInstruction.id] =
-                        translatedInstruction.id =
-                        InstructionIdGenerator.Instance.NextId();
-                }
+                translatedInstruction.id = RegisterInstructionId(translatedInstruction.id);
 
                 var normailizedInstruction = InstructionNormalizer.Normalize(translatedInstruction);
                 var result = InstructionValidator.Validate(normailizedInstruction, _instructionLocalGlobalIdMap);
@@ -285,6 +382,8 @@ namespace T2G.Assistant
                     return (_completed, string.Join("\n", result.Errors));
                 }
             }
+
+            OrderPendingInstructions();
 
             _completed = true;
 

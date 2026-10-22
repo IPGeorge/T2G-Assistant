@@ -123,7 +123,7 @@ namespace T2G.Assistant
                     }
                     else
                     {
-                        result.AddError($"The denpended local instruction {localToGlobalIdsMap[instId]} doesn't exist.");
+                        result.AddError($"The depended instruction {instId} doesn't exist.");
                     }
                 }
                 instruction.dependsOn = globalDependenciesIds;
