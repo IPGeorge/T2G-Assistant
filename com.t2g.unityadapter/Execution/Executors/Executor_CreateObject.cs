@@ -19,6 +19,21 @@ namespace T2G
             List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
             string name = instruction.parameters.GetString("Name");
+
+            // create_object is a no-op when the object already exists in the
+            // active space. Returning success keeps create_from replayable
+            // without producing duplicate GameObjects.
+            GameObject existing = string.IsNullOrWhiteSpace(name)
+                ? null
+                : Utils.FindObjectByName(name);
+
+            if (existing != null)
+            {
+                ResultObjectId =
+                    existing.GetComponent<T2GIdentifier>()?.Id ?? string.Empty;
+                return (true, $"{name} already exists.", null, null);
+            }
+
             string source;
             AssetType assetType = AssetType.Unknown;
             if (instruction.assets != null && instruction.assets.Count > 0)

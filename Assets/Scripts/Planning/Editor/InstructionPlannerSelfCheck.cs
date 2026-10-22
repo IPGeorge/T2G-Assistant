@@ -37,6 +37,7 @@ namespace T2G.Assistant
             SelectBarrier(failures);
             AttachReferences(failures);
             AttachToLaterDefinition(failures);
+            AttachBeforeLocalTransform(failures);
             DanglingExplicitDependency(failures);
             SelfDependency(failures);
             DuplicateIds(failures);
@@ -246,6 +247,37 @@ namespace T2G.Assistant
                 "attach_to follows a later create_object definition", failures);
             Expect(HasEdge(plan, "3", "2", PlanEdgeKind.Implicit),
                 "declared-later edge is implicit", failures);
+        }
+
+        private static void AttachBeforeLocalTransform(List<string> failures)
+        {
+            var rifle = Make("1", Actions.create_object, ("Name", "AK_Rifle"));
+            var position = Make("2", Actions.set_property,
+                ("Name", "AK_Rifle"),
+                ("Property", "localPosition"),
+                ("Value", "(0,0,0)"));
+            var rotation = Make("3", Actions.set_property,
+                ("Name", "AK_Rifle"),
+                ("Property", "localRotation"),
+                ("Value", "(0,0,0)"));
+            var scale = Make("4", Actions.set_property,
+                ("Name", "AK_Rifle"),
+                ("Property", "localScale"),
+                ("Value", "(1,1,1)"));
+            var attach = Make("5", Actions.attach_to,
+                ("Source", "AK_Rifle"),
+                ("Target", "Swat"),
+                ("Socket", "GunSocket"));
+            var swat = Make("6", Actions.create_object, ("Name", "Swat"));
+
+            var plan = Build(rifle, position, rotation, scale, attach, swat);
+
+            Expect(HasEdge(plan, "5", "2", PlanEdgeKind.Implicit) &&
+                   HasEdge(plan, "5", "3", PlanEdgeKind.Implicit) &&
+                   HasEdge(plan, "5", "4", PlanEdgeKind.Implicit),
+                "attach_to precedes local transform writes", failures);
+            Expect(Ids(plan.Ordered) == "1,6,5,2,3,4",
+                "attach is ordered before local transforms", failures);
         }
 
         private static void DanglingExplicitDependency(List<string> failures)

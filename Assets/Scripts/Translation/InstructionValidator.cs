@@ -189,6 +189,25 @@ namespace T2G.Assistant
             Actions.ActionMeta actionMeta, 
             InstructionValidationResult result)
         {
+            // A create_object whose object already exists in the current space
+            // is already satisfied. Skip the required-parameter checks
+            // (notably Position) so replaying a GameDesc batch does not fail
+            // validation for objects that are already present. Execution
+            // treats such an instruction as a successful no-op.
+            if (string.Equals(
+                instruction.action,
+                Actions.create_object,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                string existingName = GetParameterValue(instruction, "Name");
+
+                if (!string.IsNullOrWhiteSpace(existingName) &&
+                    GameDescManager.Instance.FindObjectByName(existingName) != null)
+                {
+                    return;
+                }
+            }
+
             if (instruction.parameters == null || instruction.parameters.Count == 0)
             {
                 if (actionMeta != null && actionMeta.parameters != null && actionMeta.parameters.Length > 0)
@@ -227,6 +246,35 @@ namespace T2G.Assistant
                     result.AddError($"Instruction {instruction.id}: " + $"Missing required parameter {param}");
                 }
             }
+        }
+
+        private static string GetParameterValue(Instruction instruction, string name)
+        {
+            if (instruction == null ||
+                instruction.parameters == null ||
+                string.IsNullOrWhiteSpace(name))
+            {
+                return null;
+            }
+
+            foreach (var parameter in instruction.parameters)
+            {
+                if (parameter == null || parameter.value == null)
+                    continue;
+
+                if (!string.Equals(parameter.name, name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (parameter.value.Type == Newtonsoft.Json.Linq.JTokenType.Null ||
+                    parameter.value.Type == Newtonsoft.Json.Linq.JTokenType.Undefined)
+                {
+                    return null;
+                }
+
+                return parameter.value.ToString();
+            }
+
+            return null;
         }
 
         // ---------------------------------------------------------

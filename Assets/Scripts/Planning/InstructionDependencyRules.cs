@@ -8,12 +8,15 @@ namespace T2G.Assistant
     /// <summary>
     /// Derives advisory ordering edges from action semantics.
     ///
-    /// The rules run in two passes:
+    /// The rules run in three passes:
     ///  - forward: an edge is added when the producer appears before the
     ///    consumer, so references map to the definition currently in effect;
     ///  - declared-later: a reference with no earlier definition is linked to
     ///    a unique create_object that appears later in the batch, which lets
-    ///    the planner move that definition ahead of its consumer.
+    ///    the planner move that definition ahead of its consumer;
+    ///  - attach ordering: local transform writes follow every attach_to of
+    ///    the same source, because attaching resets or re-parents the local
+    ///    transform.
     ///
     /// References without a definition anywhere in the batch are left alone,
     /// because they may refer to objects that already exist in the scene.
@@ -225,6 +228,98 @@ namespace T2G.Assistant
             // to a unique later definition so the planner can move the
             // definition ahead of the consumer.
             ApplyDeclaredLaterEdges(keys, instructions, graph, diagnostics);
+
+            // An attach resets the source's local transform (zero position,
+            // identity rotation, unit scale) when it targets a socket, and
+            // changes the coordinate space otherwise. Local transform writes
+            // must therefore run after every attach of the same object.
+            ApplyAttachTransformOrdering(keys, instructions, graph);
+        }
+
+        private static readonly HashSet<string> LocalTransformProperties =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "localPosition",
+                "localRotation",
+                "localScale"
+            };
+
+        private static void ApplyAttachTransformOrdering(
+            string[] keys,
+            IReadOnlyList<Instruction> instructions,
+            DependencyGraph graph)
+        {
+            if (keys == null || instructions == null || graph == null)
+                return;
+
+            var attachesBySource =
+                new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < instructions.Count && i < keys.Length; i++)
+            {
+                Instruction instruction = instructions[i];
+
+                if (instruction == null ||
+                    string.IsNullOrEmpty(keys[i]) ||
+                    !Is(instruction.action, Actions.attach_to))
+                {
+                    continue;
+                }
+
+                string source = GetParameter(instruction, "Source");
+
+                if (string.IsNullOrWhiteSpace(source))
+                    continue;
+
+                List<string> attaches;
+
+                if (!attachesBySource.TryGetValue(source, out attaches))
+                {
+                    attaches = new List<string>();
+                    attachesBySource.Add(source, attaches);
+                }
+
+                attaches.Add(keys[i]);
+            }
+
+            if (attachesBySource.Count == 0)
+                return;
+
+            for (int i = 0; i < instructions.Count && i < keys.Length; i++)
+            {
+                Instruction instruction = instructions[i];
+
+                if (instruction == null ||
+                    string.IsNullOrEmpty(keys[i]) ||
+                    !Is(instruction.action, Actions.set_property))
+                {
+                    continue;
+                }
+
+                string name = GetParameter(instruction, "Name");
+                string property = GetParameter(instruction, "Property");
+
+                if (string.IsNullOrWhiteSpace(name) ||
+                    string.IsNullOrWhiteSpace(property) ||
+                    !LocalTransformProperties.Contains(property))
+                {
+                    continue;
+                }
+
+                List<string> attaches;
+
+                if (!attachesBySource.TryGetValue(name, out attaches))
+                    continue;
+
+                foreach (string attachKey in attaches)
+                {
+                    graph.AddEdge(
+                        attachKey,
+                        keys[i],
+                        PlanEdgeKind.Implicit,
+                        $"attach_to({name}) -> set_property({property})");
+                }
+            }
         }
 
         private static void ApplyDeclaredLaterEdges(

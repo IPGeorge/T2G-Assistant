@@ -148,10 +148,27 @@ namespace T2G.Assistant
 
                     if (string.Equals(relation.Type, GameDescRelationTypes.AttachedTo, StringComparison.OrdinalIgnoreCase))
                     {
+                        // attach_to expects the socket under the "Socket"
+                        // parameter, while the persistent relation stores it as
+                        // "Slot". Without this mapping the executor attaches to
+                        // the target root instead of the socket.
+                        var attachParameters = new List<Instruction.Parameter>
+                        {
+                            new Instruction.Parameter("Source", "ObjectRef", JToken.FromObject(obj.Name ?? string.Empty)),
+                            new Instruction.Parameter("Target", "ObjectRef", JToken.FromObject(targetName ?? string.Empty))
+                        };
+
+                        if (!string.IsNullOrWhiteSpace(relation.Slot))
+                        {
+                            attachParameters.Add(new Instruction.Parameter(
+                                "Socket",
+                                "String",
+                                JToken.FromObject(relation.Slot)));
+                        }
+
                         var attach = CreateInstruction(
                             Actions.attach_to,
-                            new Instruction.Parameter("Source", "ObjectRef", JToken.FromObject(obj.Name ?? string.Empty)),
-                            new Instruction.Parameter("Target", "ObjectRef", JToken.FromObject(targetName ?? string.Empty)));
+                            attachParameters.ToArray());
                         result.Add(attach);
                     }
                     else
