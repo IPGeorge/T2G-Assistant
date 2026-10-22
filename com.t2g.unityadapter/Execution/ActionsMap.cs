@@ -80,7 +80,7 @@ namespace T2G
             s_actionsMap[Actions.connect] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
             s_actionsMap[Actions.disconnect] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
             s_actionsMap[Actions.clear] = new ActionMeta() { instructionType = InstructionType.Local, instructionState = InstructionState.Resolved, parameters = null };
-            s_actionsMap[Actions.import_assets] = new ActionMeta() { instructionType = InstructionType.Sequence, instructionState = InstructionState.Resolved, parameters = new string[] { "Path", "ProjectName" } };
+            s_actionsMap[Actions.import_assets] = new ActionMeta() { instructionType = InstructionType.Composite, instructionState = InstructionState.Resolved, parameters = new string[] { "Path", "ProjectName" } };
             s_actionsMap[Actions.create_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
             s_actionsMap[Actions.goto_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
             s_actionsMap[Actions.save_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = null };

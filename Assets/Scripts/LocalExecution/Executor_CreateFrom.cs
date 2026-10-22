@@ -35,6 +35,8 @@ namespace T2G.Assistant
             var importAssetsInstruction = new Instruction
             {
                 action = T2G.Actions.import_assets,
+                type = Actions.ActionMap[T2G.Actions.import_assets].instructionType,
+                state = Actions.ActionMap[T2G.Actions.import_assets].instructionState
             };
 
             foreach (var space in gameDesc.Spaces)
@@ -48,7 +50,7 @@ namespace T2G.Assistant
                     foreach (var assetPair in space.Assets)
                     {
                         GameAsset gameAsset = assetPair.Value;
-                        if (gameAsset == null)
+                        if (gameAsset == null || !string.Equals(gameAsset.Type, AssetType.SourceAsset.ToString()))
                             continue;
 
                         // Persistent GameAsset is converted back to the transient
@@ -96,7 +98,9 @@ namespace T2G.Assistant
                         result.Add(new Instruction
                         {
                             action = T2G.Actions.save_space,
-                        });
+                            state = Actions.ActionMap[T2G.Actions.save_space].instructionState,
+                            type = Actions.ActionMap[T2G.Actions.save_space].instructionType
+                        });; ;
 
                     }
                 }

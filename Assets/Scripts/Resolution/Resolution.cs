@@ -115,7 +115,6 @@ namespace T2G.Assistant
                     {
                         return await ResolveRawInstruction(instruction);
                     }
-
                 default:
                     {
                         Debug.LogWarning(
@@ -238,7 +237,6 @@ namespace T2G.Assistant
                     {
                         return await ResolveAsset(asset);
                     }
-
                 default:
                     {
                         Debug.LogWarning(

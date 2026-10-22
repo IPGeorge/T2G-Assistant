@@ -107,10 +107,12 @@ namespace T2G
                             continue;
                         }
                         
-                        string target = Path.Combine(Application.dataPath, source);
+                        string target = Path.Combine(Application.dataPath, assetSource);
                         string targetDir = Path.GetDirectoryName(target);
                         if (File.Exists(sourcePath))
                         {
+                            CommunicatorServerEditor.AddConsoleText($"SourcePath={sourcePath}, target={target}, targetDir={targetDir}");
+
                             if (!Directory.Exists(targetDir))
                             {
                                 Directory.CreateDirectory(targetDir);
@@ -118,6 +120,10 @@ namespace T2G
                             File.Copy(sourcePath, target, true);
                             CommunicatorServerEditor.AddConsoleText($"Imported {Path.GetFileName(target)}.");
                             importCount++;
+                        }
+                        else
+                        {
+                            CommunicatorServerEditor.AddConsoleText($"Missing the source file {Path.GetFileName(target)}. Failed to import this asset!");
                         }
                     }
                 }
