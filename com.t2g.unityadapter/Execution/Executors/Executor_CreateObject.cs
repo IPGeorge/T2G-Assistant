@@ -18,6 +18,10 @@ namespace T2G
             List<Response.Result> results,
             List<Instruction> additionalInstructions)> Execute(Instruction instruction)
         {
+            // Never let a previous execution leak its ObjectId into this
+            // response, especially when this execution fails.
+            ResultObjectId = string.Empty;
+
             string name = instruction.parameters.GetString("Name");
 
             // create_object is a no-op when the object already exists in the
@@ -45,6 +49,11 @@ namespace T2G
             {
                 source = string.Empty;
             }
+
+            // GameDesc-generated create_object instructions carry the semantic
+            // description in "desc" rather than in an asset source. A node
+            // object has no asset at all, so check both places.
+            string desc = instruction.desc ?? string.Empty;
 
             string positionStr = instruction.parameters.GetString("Position");
             Vector3? position = null;
@@ -103,7 +112,8 @@ namespace T2G
                 _newObj = GameObject.CreatePrimitive(primitiveType.Value);
                 _newObj.name = name;
             }
-            else if (source.Contains("node object", System.StringComparison.OrdinalIgnoreCase)) //new node
+            else if (source.Contains("node object", System.StringComparison.OrdinalIgnoreCase) ||
+                     desc.Contains("node object", System.StringComparison.OrdinalIgnoreCase)) //new node
             {
                 _newObj = new GameObject(name);
             }
