@@ -179,6 +179,12 @@ namespace T2G
             Response response = new Response(succeded, responseMessage);
             SendExecutionResponse(response);
         }
+
+        public void SendExecutionResponse(bool succeded, string responseMessage, string instructionId)
+        {
+            Response response = new Response(instructionId, succeded, responseMessage);
+            SendExecutionResponse(response);
+        }
     }
 }
 #endif

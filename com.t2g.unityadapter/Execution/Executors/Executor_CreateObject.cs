@@ -110,7 +110,7 @@ namespace T2G
 
             if (_newObj == null)
             {
-                await AssetImporter.ImportAssets(name, instruction.assets, position);
+                await AssetImporter.ImportAssets(name, instruction.assets, position, instruction.id);
                 await Utils.WaitForUnityIdle();
 
                 // Try to create the object from the queue (may need to wait for package import)
@@ -151,7 +151,7 @@ namespace T2G
         }
 
 
-        static bool CreateObject((string name, string targetRelPath, string position) objPrefab)
+        static bool CreateObject((string name, string targetRelPath, string position, string instructionId) objPrefab)
         {
             string prefabPath = Path.Combine("Assets", objPrefab.targetRelPath);
             GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -203,8 +203,15 @@ namespace T2G
 
             while (AssetImporter.CreateObjectsList.Count > 0)
             {
-                Response response = new Response(); //Send delayed execution  response to the assistant
                 var objPrefab = AssetImporter.CreateObjectsList[0];
+
+                // Send delayed execution response to the assistant. The id is
+                // restored from the persisted list so the response is matched
+                // to the create_object instruction that started this work.
+                Response response = new Response
+                {
+                    InstructionId = objPrefab.instructionId ?? string.Empty
+                };
                 if (CreateObject(objPrefab))
                 {
                     response.Succeeded = true;

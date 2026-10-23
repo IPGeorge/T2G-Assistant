@@ -153,22 +153,30 @@ namespace T2G.Assistant
 
         #endregion Communicator event handlers
 
-        async Awaitable<Response> WaitForResponse()
+        async Awaitable<Response> WaitForResponse(Instruction instruction)
         {
-            int timeoutMiniSeconds = 60000;
-            int waitInterval = 100;
-            while (Communicator.IsReceiveBufferEmpty ||
-                Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
-            {
-                await Task.Delay(waitInterval);
-                timeoutMiniSeconds -= waitInterval;
-                if (timeoutMiniSeconds < 0)
+            Response response;
+
+            do {
+                int timeoutMiniSeconds = 60000;
+                int waitInterval = 100;
+                while (Communicator.IsReceiveBufferEmpty ||
+                    Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
                 {
-                    return new Response(false, "Timeout waiting for the response!");
+                    await Task.Delay(waitInterval);
+                    timeoutMiniSeconds -= waitInterval;
+                    if (timeoutMiniSeconds < 0)
+                    {
+                        return new Response(
+                            instruction?.id,
+                            false,
+                            "Timeout waiting for the response!");
+                    }
                 }
-            }
-            Communicator.RetriveMessageFromReceiveBuffer(out var responseData);
-            return JsonConvert.DeserializeObject<Response>(responseData.Message.ToString());
+                Communicator.RetriveMessageFromReceiveBuffer(out var responseData);
+                response = JsonConvert.DeserializeObject<Response>(responseData.Message.ToString());
+            } while (instruction != null && !string.Equals(instruction.id, response.InstructionId, StringComparison.OrdinalIgnoreCase));
+            return response;
         }
 
 
@@ -228,11 +236,7 @@ namespace T2G.Assistant
                         string jsonInstruction = JsonConvert.SerializeObject(instruction);
                         Communicator.SendMessage(CommunicatorBase.eMessageType.Instruction, jsonInstruction);
 
-                        var response = new Response();
-                        if(string.IsNullOrEmpty(response.InstructionId))
-                        {
-                            response = await WaitForResponse();
-                        }
+                        var response = await WaitForResponse(instruction);
 
                         // GameDesc evolves only through the structured execution
                         // Response. Apply() records both successful and failed

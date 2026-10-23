@@ -280,7 +280,7 @@ namespace T2G
             _receiveBufferHead = _receiveBufferTail = 0;
         }
 
-        public async Awaitable<bool> WaitForConnected(float timeoutSeconds = 30.0f)
+        public async Awaitable<bool> WaitForConnected(float timeoutSeconds = 60.0f)
         {
             while(timeoutSeconds > 0.0f)
             {

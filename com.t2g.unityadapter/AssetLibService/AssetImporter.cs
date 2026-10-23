@@ -17,20 +17,48 @@ namespace T2G
         public static readonly string GameObjectsToCreateListFileName = "CreateGameObjectsList.txt";
         public static readonly string PackagesToImportListFileName = "ImportPackagesList.txt";
 
+        // Delayed responses are sent after a domain reload, so the instruction
+        // id has to survive the reload. SessionState keeps it scoped to this
+        // editor instance, unlike EditorPrefs which is shared by all projects.
+        const string k_ImportInstructionIdKey = "ImportAssetsInstructionId";
+
 
         static List<(string sourcePath, string targetRelPath)> _importAssetList = new List<(string, string)>();
-        static List<(string name, string targetRelPath, string position)> _createObjectsList = new List<(string, string, string)>();
+        static List<(string name, string targetRelPath, string position, string instructionId)> _createObjectsList = new List<(string, string, string, string)>();
 
         public static List<(string sourcePath, string targetRelPath)> ImportAssetList => _importAssetList;
-        public static List<(string name, string targetRelPath, string position)> CreateObjectsList => _createObjectsList;
+        public static List<(string name, string targetRelPath, string position, string instructionId)> CreateObjectsList => _createObjectsList;
 
         static List<string> _importPackagesList = new List<string>();
 
-        public static async Awaitable ImportAssets(string objName, List<Instruction.Asset> assets, Vector3? position)
+        public static void SetPendingImportInstructionId(string instructionId)
+        {
+            if (string.IsNullOrEmpty(instructionId))
+            {
+                SessionState.EraseString(k_ImportInstructionIdKey);
+                return;
+            }
+
+            SessionState.SetString(k_ImportInstructionIdKey, instructionId);
+        }
+
+        public static void ClearPendingImportInstructionId()
+        {
+            SessionState.EraseString(k_ImportInstructionIdKey);
+        }
+
+        static string TakePendingImportInstructionId()
+        {
+            string instructionId = SessionState.GetString(k_ImportInstructionIdKey, string.Empty);
+            SessionState.EraseString(k_ImportInstructionIdKey);
+            return instructionId;
+        }
+
+        public static async Awaitable ImportAssets(string objName, List<Instruction.Asset> assets, Vector3? position, string instructionId)
         {
             if(assets.Count < 1)
             {
-                _createObjectsList.Add((objName, "sphere", string.Empty));
+                _createObjectsList.Add((objName, "sphere", string.Empty, instructionId));
                 return;
             }
 
@@ -42,11 +70,11 @@ namespace T2G
             if (position.HasValue)
             {
                 var pos = position.Value;
-                _createObjectsList.Add((objName, secondarySource, string.Format("({0},{1},{2})", pos.x, pos.y, pos.z)));
+                _createObjectsList.Add((objName, secondarySource, string.Format("({0},{1},{2})", pos.x, pos.y, pos.z), instructionId));
             }
             else
             {
-                _createObjectsList.Add((objName, secondarySource, string.Empty));
+                _createObjectsList.Add((objName, secondarySource, string.Empty, instructionId));
             }
 
             _importAssetList.Add((primarySource, secondarySource));
@@ -145,11 +173,16 @@ namespace T2G
             AssetDatabase.Refresh();
 
             await Utils.WaitForUnityIdle();
-            await ProcessPackageImportsImpl();
+            await ProcessPackageImportsImpl(false);
         }
 
         [InitializeOnLoadMethod]
-        static async Awaitable ProcessPackageImportsImpl()
+        static async Awaitable ProcessImportsOnLoad()
+        {
+            await ProcessPackageImportsImpl(true);
+        }
+
+        static async Awaitable ProcessPackageImportsImpl(bool sendResponse)
         {
             LoadImportPackagesList();
 
@@ -163,11 +196,29 @@ namespace T2G
                 CommunicatorServerEditor.AddConsoleText($"{_importPackagesList.Count} packages left ...");
             }
 
+            if (!sendResponse)
+            {
+                return;
+            }
+
+            // Only answer when this reload was caused by an instruction that
+            // is still waiting for a response (e.g. import_assets). Otherwise
+            // the response would not belong to any instruction and the console
+            // would be polluted on every unrelated domain reload.
+            string instructionId = TakePendingImportInstructionId();
+            if (string.IsNullOrEmpty(instructionId))
+            {
+                return;
+            }
+
             CommunicatorServerEditor.AddConsoleText("Wait to be ready ...");
             await Utils.WaitForUnityIdle();
             await CommunicatorServer.Instance.WaitForConnected();
             await CommunicatorServer.Instance.WaitForShakeHand();
-            Execution.Instance.SendExecutionResponse(true, "Assets were imported!");
+            Execution.Instance.SendExecutionResponse(
+                true,
+                "Assets were imported!",
+                instructionId);
         }
 
         public static async Awaitable<(bool succeeded, string componentTypeName)> BeginImportScripts(List<Instruction.Asset> assets)
@@ -300,7 +351,7 @@ namespace T2G
             if (File.Exists(path))
             {
                 string json = File.ReadAllText(path);
-                var tmp = JsonConvert.DeserializeObject<List<(string, string, string)>>(json);
+                var tmp = JsonConvert.DeserializeObject<List<(string, string, string, string)>>(json);
                 _createObjectsList = tmp ?? _createObjectsList;
             }
             else

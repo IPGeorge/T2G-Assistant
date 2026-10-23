@@ -22,6 +22,11 @@ namespace T2G
         static bool _repaintText = false;
         static CommunicatorServerEditor _CommunicatorWindow = null;
 
+        // Unity GUI text is limited to ~16383 characters per control (65535
+        // vertices / 4). A long instruction log otherwise gets truncated, so
+        // keep only the most recent part of the console.
+        const int MaxConsoleCharacters = 16000;
+
 
         [MenuItem(MENU_PATH, false)]
         public static void OpenCloseDashboard()
@@ -73,6 +78,12 @@ namespace T2G
         {
             Debug.Log("[ServerEditor] before assemble reload: called after code change (1-new code doesn't take effect)");
 
+            // SessionState is scoped to this editor instance/project and survives
+            // domain reloads. EditorPrefs are shared by every Unity project on
+            // the machine, so multiple editors (e.g. the Assistant and the game
+            // project) would overwrite each other's console text.
+            SessionState.SetString(PrefsKeys.k_ServerConsoleText, _text);
+
             if (_server != null)
             {
                 EditorPrefs.SetBool(PrefsKeys.k_StartListener, _server.IsActive);
@@ -82,7 +93,6 @@ namespace T2G
                     EditorPrefs.SetBool(PrefsKeys.k_StartListener, true);
                 }
             }
-            EditorPrefs.SetString(PrefsKeys.k_DefaultSpaceName, _text);
             Uninit();
         }
 
@@ -116,7 +126,8 @@ namespace T2G
         public static void InitOnLoadMethod()
         {
             Debug.Log($"[CommunicatorServerEditor] InitOnLoadMethod is called.");
-            _text = EditorPrefs.GetString(PrefsKeys.k_DefaultSpaceName, string.Empty);
+            _text = SessionState.GetString(PrefsKeys.k_ServerConsoleText, string.Empty);
+            TrimConsoleText();
 
             Init();
 
@@ -243,7 +254,22 @@ namespace T2G
         public static void AddConsoleText(string textToAdd)
         {
             _text += textToAdd + "\n";
+            TrimConsoleText();
             _repaintText = true;
+        }
+
+        static void TrimConsoleText()
+        {
+            if (_text.Length <= MaxConsoleCharacters)
+            {
+                return;
+            }
+
+            int excess = _text.Length - MaxConsoleCharacters;
+            int lineStart = _text.IndexOf('\n', excess);
+            _text = lineStart >= 0 && lineStart + 1 < _text.Length
+                ? _text.Substring(lineStart + 1)
+                : _text.Substring(excess);
         }
 
         public static void Uninit()
@@ -300,6 +326,7 @@ namespace T2G
             if (GUILayout.Button("Clear"))
             {
                 _text = string.Empty;
+                _scroll = Vector2.zero;
                 _repaintText = true;
                 Repaint();
                 GUI.FocusControl(null);
@@ -312,8 +339,39 @@ namespace T2G
             }
             EditorGUILayout.EndHorizontal();
 
-            _scroll = EditorGUILayout.BeginScrollView(_scroll);
-            _text = EditorGUILayout.TextArea(_text, GUILayout.ExpandHeight(true));
+            // Use a read-only selectable label instead of a TextArea. An
+            // editable TextArea keeps its own TextEditor state while focused,
+            // so when new console text is appended in the background it can
+            // render as empty until the control loses focus.
+            GUIStyle consoleStyle = new GUIStyle(EditorStyles.textArea)
+            {
+                wordWrap = false,
+                richText = false
+            };
+
+            // The label must be as wide as the longest line, otherwise the
+            // ScrollView has nothing to scroll horizontally.
+            float viewportWidth = Mathf.Max(100f, EditorGUIUtility.currentViewWidth - 50f);
+            float contentWidth = viewportWidth;
+            string[] lines = _text.Split('\n');
+            for (int i = 0; i < lines.Length; ++i)
+            {
+                float lineWidth = consoleStyle.CalcSize(new GUIContent(lines[i])).x;
+                if (lineWidth > contentWidth)
+                {
+                    contentWidth = lineWidth;
+                }
+            }
+            contentWidth += 8f;
+
+            float contentHeight = consoleStyle.CalcHeight(new GUIContent(_text), contentWidth);
+
+            _scroll = EditorGUILayout.BeginScrollView(_scroll, true, true);
+            EditorGUILayout.SelectableLabel(
+                _text,
+                consoleStyle,
+                GUILayout.Width(contentWidth),
+                GUILayout.Height(Mathf.Max(contentHeight + 8f, 100f)));
             EditorGUILayout.EndScrollView();
         }
 
@@ -326,6 +384,8 @@ namespace T2G
         {
             if (_repaintText)
             {
+                _repaintText = false;
+
                 if (_CommunicatorWindow == null)
                 {
                     _CommunicatorWindow = GetWindow<CommunicatorServerEditor>();

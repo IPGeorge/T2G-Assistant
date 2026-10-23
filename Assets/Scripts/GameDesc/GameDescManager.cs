@@ -836,7 +836,7 @@ namespace T2G.Assistant
             string componentType = response.GetValue<string>("ComponentType", null);
 
             if (string.IsNullOrWhiteSpace(componentType))
-                throw new InvalidOperationException("add_component requires ComponentType.");
+                throw new InvalidOperationException($"add_component requires ComponentType.");
 
             Component component = CreateComponentFromInstruction(instruction, response, componentType);
 

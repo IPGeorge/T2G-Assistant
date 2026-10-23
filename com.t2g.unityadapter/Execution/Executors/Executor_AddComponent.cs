@@ -70,11 +70,12 @@ namespace T2G
                         return (result.succeeded, result.responseMessage, resultList, null);
                     }
 
-                    EditorPrefs.SetString(k_InitOnLoadAddComponentKey, $"{instruction.id},{objName},{componentTypeName}");
+                    SessionState.SetString(k_InitOnLoadAddComponentKey, $"{instruction.id},{objName},{componentTypeName}");
                     File.WriteAllText(target, script);
                     AssetDatabase.Refresh();
                     CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-                    return (true, "This line should be ignored by the execution", resultList, null);    //This line won't be reached
+                    resultList.Add(new Response.Result() { name = "ComponentType", type = "string", value = componentTypeName });
+                    return (true, $"{componentType} was added to {objName}. ", resultList, null);    //This line won't be reached
                 }
 
                 if (instruction.assets[i].type == AssetType.Identifier)
@@ -116,8 +117,9 @@ namespace T2G
                         {
                             Utils.UpdateEditorViews();
                             resultList.Add(new Response.Result() { name = "ComponentType", type = "string", value = componentTypeName });
+                            return (true, result.responseMessage, resultList, null);
                         }
-                        return (result.succeeded, result.responseMessage, resultList, null);
+                        return (false, result.responseMessage, null, null);
                     }
 
                     string directory = Path.GetDirectoryName(dest);
@@ -126,13 +128,13 @@ namespace T2G
                         Directory.CreateDirectory(directory);
                     }
 
-                    EditorPrefs.SetString(k_InitOnLoadAddComponentKey, $"{instruction.id},{objName},{componentTypeName}");
+                    SessionState.SetString(k_InitOnLoadAddComponentKey, $"{instruction.id},{objName},{componentTypeName}");
                     File.Copy(source, dest, true);
 
                     AssetDatabase.Refresh();
                     CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-
-                    return (true, "This line should be ignored by the execution", resultList, null);    //This line won't be reached
+                    resultList.Add(new Response.Result() { name = "ComponentType", type = "string", value = componentTypeName });
+                    return (true, $"{componentType} was added to {objName}", resultList, null);    //This line won't be reached
                 }
             }
 
@@ -146,11 +148,11 @@ namespace T2G
                     return (false, $"One or some scripts were not imported!", null, null);
                 }
                 componentTypeName = importResult.componentTypeName;
-                EditorPrefs.SetString(k_InitOnLoadAddComponentKey, $"{instruction.id},{objName},{componentTypeName}");
-
+                SessionState.SetString(k_InitOnLoadAddComponentKey, $"{instruction.id},{objName},{componentTypeName}");
                 await AssetImporter.EndImportScripts(componentType);
-                
-                return (true, "This line should be ignored by the execution", resultList, null);    //This line won't be reached
+
+                resultList.Add(new Response.Result() { name = "ComponentType", type = "string", value = componentTypeName });
+                return (true, $"{componentType} was added to {objName}", resultList, null);
             }
 
             return (false, "No component needs to be added.", null, null);
@@ -182,7 +184,8 @@ namespace T2G
         {
             List<Response.Result> resultList = new List<Response.Result>();
 
-            if (!EditorPrefs.HasKey(k_InitOnLoadAddComponentKey))
+            string keyValue = SessionState.GetString(k_InitOnLoadAddComponentKey, string.Empty);
+            if (string.IsNullOrEmpty(keyValue))
             {
                 return;
             }
@@ -194,9 +197,9 @@ namespace T2G
 
             Response response = new Response();
             response.Results = resultList;
-            string keyValue = EditorPrefs.GetString(k_InitOnLoadAddComponentKey);
             string[] keyPair = keyValue.Split(',');
-            EditorPrefs.DeleteKey(k_InitOnLoadAddComponentKey);
+            SessionState.EraseString(k_InitOnLoadAddComponentKey);
+            response.InstructionId = keyPair.Length > 0 ? keyPair[0] : string.Empty;
             if (keyPair.Length != 3)
             {
                 response.Succeeded = false;
@@ -204,7 +207,6 @@ namespace T2G
                 Execution.Instance.SendExecutionResponse(response);
                 return;
             }
-            response.InstructionId = keyPair[0];
             string objName = keyPair[1];
             string componentTypeName = keyPair[2];
             var obj = Utils.FindObjectByName(objName);
