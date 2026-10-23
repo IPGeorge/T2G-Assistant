@@ -42,21 +42,24 @@ namespace T2G.Assistant
                 return null;
 
             var result = new List<Instruction>();
+            var propertyInstructions = new List<Instruction>();
 
             // 1. Create the space.
             result.Add(CreateInstruction(
                 Actions.create_space,
                 new Instruction.Parameter("SpaceName", "String", JToken.FromObject(space.Name ?? string.Empty))));
 
-            // 2. Restore space-level properties.
-            AddPropertyInstructions(result, space.Name, space.Properties, null);
-
-            // 3. Restore space-level components and their properties.
+            // 2. Restore space-level components before any property that may
+            // target them.
             if (space.Components != null)
             {
                 foreach (Component component in space.Components)
-                    AddComponentInstructions(result, component, space.Name, space);
+                    AddComponentInstructions(result, propertyInstructions, component, space.Name, space);
             }
+
+            // 3. Restore space-level properties after the components exist.
+            AddPropertyInstructions(propertyInstructions, space.Name, space.Properties, null);
+            result.AddRange(propertyInstructions);
 
             // Build GUID -> Name map for relationship targets.
             var guidToName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -88,6 +91,7 @@ namespace T2G.Assistant
                 return null;
 
             var result = new List<Instruction>();
+            var propertyInstructions = new List<Instruction>();
 
             var create = new Instruction
             {
@@ -122,14 +126,11 @@ namespace T2G.Assistant
             create.assets = BuildInstructionAssets(obj.Assets, space);
             result.Add(create);
 
-            // Restore remaining object properties. Position is already supplied to create_object.
-            AddPropertyInstructions(result, obj.Name, obj.Properties, "Position");
-
-            // Restore components and their component properties.
+            // Restore components before any property that may target them.
             if (obj.Components != null)
             {
                 foreach (Component component in obj.Components)
-                    AddComponentInstructions(result, component, obj.Name, space);
+                    AddComponentInstructions(result, propertyInstructions, component, obj.Name, space);
             }
 
             // Restore semantic/structural relationships after the object exists.
@@ -184,6 +185,11 @@ namespace T2G.Assistant
                 }
             }
 
+            // Restore remaining object properties last, after components and
+            // relationships. Position is already supplied to create_object.
+            AddPropertyInstructions(propertyInstructions, obj.Name, obj.Properties, "Position");
+            result.AddRange(propertyInstructions);
+
             return result.ToArray();
         }
 
@@ -208,6 +214,7 @@ namespace T2G.Assistant
 
         private static void AddComponentInstructions(
             List<Instruction> result,
+            List<Instruction> propertyInstructions,
             Component component,
             string ownerName,
             Space space)
@@ -220,7 +227,7 @@ namespace T2G.Assistant
             result.Add(add);
 
             // Component properties use the established dotted-property convention.
-            AddPropertyInstructions(result, ownerName, component.Properties, null, component.Type);
+            AddPropertyInstructions(propertyInstructions, ownerName, component.Properties, null, component.Type);
         }
 
         private static void AddPropertyInstructions(
