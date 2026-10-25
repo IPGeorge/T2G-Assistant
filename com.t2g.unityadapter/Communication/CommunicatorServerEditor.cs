@@ -23,8 +23,7 @@ namespace T2G
         static CommunicatorServerEditor _CommunicatorWindow = null;
 
         // Unity GUI text is limited to ~16383 characters per control (65535
-        // vertices / 4). A long instruction log otherwise gets truncated, so
-        // keep only the most recent part of the console.
+        // vertices / 4). A long instruction log otherwise gets truncated, so keep only the most recent part of the console.
         const int MaxConsoleCharacters = 16000;
 
 

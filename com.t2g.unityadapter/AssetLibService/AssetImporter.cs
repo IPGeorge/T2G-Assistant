@@ -124,18 +124,19 @@ namespace T2G
                     }
 
                     string[] assetArray = source.Split(",");
-                    foreach (var assetSource in assetArray)
+                    for (int i = 0; i < assetArray.Length; ++ i)
                     {
-                        string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetSource);
+                        string sourcePath = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetArray[i]);
 
-                        if (assetSource.IndexOf(".unitypackage", System.StringComparison.OrdinalIgnoreCase) > 0)
+                        if (assetArray[i].IndexOf(".unitypackage", System.StringComparison.OrdinalIgnoreCase) > 0)
                         {
                             _importPackagesList.Add(sourcePath);
                             importCount++;
-                            continue;
+                            i ++;       //skip the next because it is the prefab loading path
+                            continue;   
                         }
                         
-                        string target = Path.Combine(Application.dataPath, assetSource);
+                        string target = Path.Combine(Application.dataPath, assetArray[i]);
                         string targetDir = Path.GetDirectoryName(target);
                         if (File.Exists(sourcePath))
                         {
@@ -211,9 +212,11 @@ namespace T2G
                 return;
             }
 
-            CommunicatorServerEditor.AddConsoleText("Wait to be ready ...");
+            CommunicatorServerEditor.AddConsoleText("Wait for the engine to be ready ...");
             await Utils.WaitForUnityIdle();
+            CommunicatorServerEditor.AddConsoleText("Wait for reconnection ...");
             await CommunicatorServer.Instance.WaitForConnected();
+            CommunicatorServerEditor.AddConsoleText("Wait for Shake hand ...");
             await CommunicatorServer.Instance.WaitForShakeHand();
             Execution.Instance.SendExecutionResponse(
                 true,
@@ -248,6 +251,16 @@ namespace T2G
                     {
                         string[] assetPaths = asset.source.Split(',');
 
+                        foreach (var assetPath in assetPaths)
+                        {
+                            source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPath);
+                            target = Path.Combine(Application.dataPath, assetPath);
+                            if (File.Exists(source))
+                            {
+                                return (false, null);
+                            }
+                        }
+
                         for (int i = assetPaths.Length - 1; i >= 0; --i)
                         {
                             source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPaths[i]);
@@ -272,7 +285,7 @@ namespace T2G
                             else
                             {
                                 Debug.LogError($"asset {source} is missing!");
-                                return (false, componentTypeName);
+                                return (false, null);
                             }
                         }
                     }
