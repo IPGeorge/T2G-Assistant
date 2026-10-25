@@ -55,13 +55,12 @@ namespace T2G
             // object has no asset at all, so check both places.
             string desc = instruction.desc ?? string.Empty;
 
-            string positionStr = instruction.parameters.GetString("Position");
+            // Position may be delivered as a string ("(x, y, z)") or as an
+            // array ([x, y, z]); accept both.
             Vector3? position = null;
-
-            // Parse position if provided (format: "(x, y, z)")
-            if (!string.IsNullOrEmpty(positionStr))
+            if (instruction.parameters.TryGetVector3("Position", out var parsedPosition))
             {
-                position = T2G.Utils.ParseVector3(positionStr);
+                position = parsedPosition;
             }
 
             _newObj = null;
@@ -174,7 +173,20 @@ namespace T2G
                 {
                     var canvas = Utils.CreateCanvasSystem();
                     rectTransform.parent = canvas.transform;
-                    rectTransform.localPosition = Vector3.zero;
+
+                    // Position uses the same world-space convention as the
+                    // non-UI branch, so the value reported back in the response
+                    // and stored in GameDesc round-trips exactly. Without an
+                    // explicit position the previous centered default is kept.
+                    Vector3? uiPosition = T2G.Utils.ParseVector3(objPrefab.position);
+                    if (uiPosition.HasValue)
+                    {
+                        _newObj.transform.position = uiPosition.Value;
+                    }
+                    else
+                    {
+                        rectTransform.localPosition = Vector3.zero;
+                    }
                 }
                 else if (string.IsNullOrEmpty(objPrefab.position))
                 {

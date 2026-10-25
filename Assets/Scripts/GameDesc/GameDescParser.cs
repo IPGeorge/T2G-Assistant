@@ -116,10 +116,16 @@ namespace T2G.Assistant
             PropertyDesc position = FindProperty(obj.Properties, "Position");
             if (position != null && position.Value != null)
             {
+                // Persisted values may still be arrays (older GameDesc files or
+                // external edits). Emit the canonical instruction form so the
+                // parameter never mixes a scalar type with a container value.
+                JToken positionValue =
+                    GameDescPropertyValue.ToInstructionValue(position.Value.DeepClone());
+
                 create.parameters.Add(new Instruction.Parameter(
                     "Position",
-                    NormalizeInstructionType(position.Type, position.Value),
-                    position.Value.DeepClone()));
+                    NormalizeInstructionType(position.Type, positionValue),
+                    positionValue));
             }
 
             // create_object is the correct place to restore object asset requirements.
@@ -253,14 +259,18 @@ namespace T2G.Assistant
                     ? property.Name
                     : componentType + "." + property.Name;
 
+                JToken value = property.Value != null
+                    ? GameDescPropertyValue.ToInstructionValue(property.Value.DeepClone())
+                    : JValue.CreateNull();
+
                 result.Add(CreateInstruction(
                     Actions.set_property,
                     new Instruction.Parameter("Name", "String", JToken.FromObject(ownerName ?? string.Empty)),
                     new Instruction.Parameter("Property", "String", JToken.FromObject(propertyName)),
                     new Instruction.Parameter(
                         "Value",
-                        NormalizeInstructionType(property.Type, property.Value),
-                        property.Value != null ? property.Value.DeepClone() : JValue.CreateNull())));
+                        NormalizeInstructionType(property.Type, value),
+                        value)));
             }
         }
 

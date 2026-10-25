@@ -341,10 +341,12 @@ namespace T2G
 
         public static Vector3? ParseVector3(string vector3Str)
         {
+            if (string.IsNullOrWhiteSpace(vector3Str)) return null;
+
             try
             {
-                // Remove parentheses and parse
-                vector3Str = vector3Str.Trim('(', ')', ' ');
+                // Accept "(x, y, z)", "x,y,z", "[x, y, z]" and similar forms.
+                vector3Str = vector3Str.Trim('(', ')', '[', ']', ' ');
                 var parts = vector3Str.Split(',');
                 if (parts.Length == 3)
                 {

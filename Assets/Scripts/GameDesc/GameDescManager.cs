@@ -1024,7 +1024,10 @@ namespace T2G.Assistant
             }
 
             existing.Type = type ?? string.Empty;
-            existing.Value = value;
+            // Responses report transforms as arrays; keep the persisted value
+            // in the representation implied by the declared type so a later
+            // GameDesc replay cannot produce a mixed type/value pair.
+            existing.Value = GameDescPropertyValue.Coerce(existing.Type, value);
         }
 
         /// <summary>
