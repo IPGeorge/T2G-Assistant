@@ -32,11 +32,11 @@ namespace T2G
             }
         }
 
-        public async Awaitable StartClient()
+        public async Awaitable<bool> StartClient()
         {
             if (_networkDriver.IsCreated && ConnectionState != NetworkConnection.State.Disconnected)
             {
-                return;
+                return false;
             }
 
             if (IsActive)
@@ -56,10 +56,11 @@ namespace T2G
             _connection[0] = _networkDriver.Connect(endPoint);
             while (ConnectionState == NetworkConnection.State.Connecting)
             {
-                await Task.Delay(300);
+                await Task.Delay(100);
             }
 
-            if (ConnectionState == NetworkConnection.State.Connected)
+            bool result = (ConnectionState == NetworkConnection.State.Connected);
+            if (result)
             {
                 OnConnectedToServer?.Invoke();
             }
@@ -67,6 +68,7 @@ namespace T2G
             {
                 OnFailedToConnectToServer?.Invoke();
             }
+            return result;
         }
 
         public void Disconnect()

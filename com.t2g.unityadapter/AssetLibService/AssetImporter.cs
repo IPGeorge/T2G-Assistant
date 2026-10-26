@@ -174,6 +174,7 @@ namespace T2G
             AssetDatabase.Refresh();
 
             await Utils.WaitForUnityIdle();
+
             await ProcessPackageImportsImpl(false);
         }
 
@@ -202,10 +203,6 @@ namespace T2G
                 return;
             }
 
-            // Only answer when this reload was caused by an instruction that
-            // is still waiting for a response (e.g. import_assets). Otherwise
-            // the response would not belong to any instruction and the console
-            // would be polluted on every unrelated domain reload.
             string instructionId = TakePendingImportInstructionId();
             if (string.IsNullOrEmpty(instructionId))
             {
@@ -216,7 +213,7 @@ namespace T2G
             await Utils.WaitForUnityIdle();
             CommunicatorServerEditor.AddConsoleText("Wait for reconnection ...");
             await CommunicatorServer.Instance.WaitForConnected();
-            CommunicatorServerEditor.AddConsoleText("Wait for Shake hand ...");
+            CommunicatorServerEditor.AddConsoleText("Wait for Handshake ...");
             await CommunicatorServer.Instance.WaitForShakeHand();
             Execution.Instance.SendExecutionResponse(
                 true,
@@ -255,9 +252,9 @@ namespace T2G
                         {
                             source = Path.Combine(Execution.Instance.Settings.AssetLibraryRootPath, assetPath);
                             target = Path.Combine(Application.dataPath, assetPath);
-                            if (File.Exists(source))
+                            if (!File.Exists(source))
                             {
-                                return (false, null);
+                                return (false, source);
                             }
                         }
 

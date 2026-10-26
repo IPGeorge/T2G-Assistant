@@ -116,8 +116,6 @@ namespace T2G
             }
             else if(asset.type == AssetType.SourceAsset)
             {
-                List<string> scriptAssets = new List<string>(asset.source.Split(","));
-
                 var result = await AssetImporter.BeginImportScripts(instruction.assets);
                 if(result.succeeded)
                 {
@@ -126,11 +124,16 @@ namespace T2G
                     await AssetImporter.EndImportScripts(result.componentTypeName);
 
                     resultList.Clear(); //ensure it is empty, so the execution result message is defered after the reload.
-                    return (true, $"Wait for reload to add {componentType} to {objName}", resultList, null);
+                    return (true, $"Wait for reload to add {result.componentTypeName} to {objName}", resultList, null);
+                }
+                else
+                {
+                    await AssetImporter.EndImportScripts();
+                    return (false, $"Failed to add assets {result.componentTypeName} as a component to {objName}", null, null);
                 }
             }
 
-            return (false, $"Failed to add invalid asset {componentType} as a component to {objName}", null, null);
+            return (false, $"Failed to add invalid asset {componentType} as a component to {objName}.", null, null);
         }
 
         static (bool succeeded, string responseMessage) AddScriptComponent(GameObject obj, string componentTypeName, string caller = null)

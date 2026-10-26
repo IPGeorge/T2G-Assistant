@@ -164,6 +164,7 @@ namespace T2G.Assistant
                     Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
                 {
                     await Task.Delay(waitInterval);
+
                     timeoutMiniSeconds -= waitInterval;
                     if (timeoutMiniSeconds < 0)
                     {
@@ -238,9 +239,6 @@ namespace T2G.Assistant
 
                         var response = await WaitForResponse(instruction);
 
-                        // GameDesc evolves only through the structured execution
-                        // Response. Apply() records both successful and failed
-                        // executions, but mutates persistent state only on success.
                         GameDescManager.Apply(instruction, response);
 
                         _completed &= response.Succeeded;

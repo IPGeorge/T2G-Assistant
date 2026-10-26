@@ -298,7 +298,7 @@ namespace T2G
         {
             while (timeoutSeconds > 0.0f)
             {
-                if(ShakeHand)
+                if(IsConnected && ShakeHand)
                 {
                     return true;
                 }

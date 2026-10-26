@@ -70,10 +70,10 @@ namespace T2G.Assistant
                             source = source
                         };
 
-                        if (importAssetsInstruction.HasAssetSource(instructionAsset))
-                            continue;
-
-                        importAssetsInstruction.assets.Add(instructionAsset);
+                        if (!importAssetsInstruction.HasAssetSource(instructionAsset))
+                        {
+                            importAssetsInstruction.assets.Add(instructionAsset);
+                        }
                     }
                 }
             }
@@ -100,7 +100,7 @@ namespace T2G.Assistant
                             action = T2G.Actions.save_space,
                             state = Actions.ActionMap[T2G.Actions.save_space].instructionState,
                             type = Actions.ActionMap[T2G.Actions.save_space].instructionType
-                        });; ;
+                        });
 
                     }
                 }
@@ -116,8 +116,9 @@ namespace T2G.Assistant
 
             var batchInstructions = new List<Instruction>(instructions);
 
-            if (importAssetsInstruction.assets.Count > 0)
-                batchInstructions.Insert(0, importAssetsInstruction);
+            //(TODO) Enable this for better performance
+            //if (importAssetsInstruction.assets.Count > 0)
+            //    batchInstructions.Insert(0, importAssetsInstruction);
 
             await Task.Yield();
 
