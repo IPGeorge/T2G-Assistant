@@ -33,7 +33,7 @@ namespace T2G.Assistant
             _translators.Add(new LLMTranslator());
         }
 
-        public async Awaitable<List<Instruction>> Translate(string text)
+        public async Awaitable<List<InstructionBase>> Translate(string text)
         {
             for (int i = 0; i < _translators.Count; ++i)
             {

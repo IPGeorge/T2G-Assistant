@@ -7,6 +7,6 @@ namespace T2G.Assistant
 {
     public abstract class TranslatorBase
     {
-        public abstract Task<(bool succeeded, List<Instruction> instructions)> Translate(string text);
+        public abstract Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string text);
     }
 }

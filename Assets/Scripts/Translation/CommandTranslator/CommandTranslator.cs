@@ -109,18 +109,18 @@ namespace T2G.Assistant
             Register_Executors();
         }
 
-        public override async Task<(bool succeeded, List<Instruction> instructions)> Translate(string command)
+        public override async Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string command)
         {
             if(MatchAction(command, out var action, out var arguments))
             {
                 Debug.Log($"[CommandTranslator] Matched action: {action}");
                 if (_translatorMap.ContainsKey(action))
                 {
-                    List<Instruction> instructions = new List<Instruction>();
+                    List<InstructionBase> instructions = new List<InstructionBase>();
                     var result = _translatorMap[action].Translate(arguments);
                     if (result.succeeded)
                     {
-                        instructions.Add(result.instructionBase as Instruction);
+                        instructions.Add(result.instructionBase);
                         await Task.Yield();
                         return (true, instructions);
                     }

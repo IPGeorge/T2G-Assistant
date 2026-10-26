@@ -31,13 +31,13 @@ namespace T2G.Assistant
             };
         }
 
-        public override async Task<(bool succeeded, List<Instruction> instructions)> Translate(string text)
+        public override async Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string text)
         {
             Instruction instruction = await TranslatePromptAsync(text);
             if (instruction == null)
                 return (false, null);
 
-            return (true, new List<Instruction> { instruction });
+            return (true, new List<InstructionBase> { instruction });
         }
 
         public async Task<Instruction> TranslatePromptAsync(string userPrompt, List<object> conversationHistory = null)
