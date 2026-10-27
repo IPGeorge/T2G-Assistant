@@ -158,7 +158,7 @@ namespace T2G.Assistant
             Response response;
 
             do {
-                int timeoutMiniSeconds = 60000;
+                int timeoutMiniSeconds = 180000;
                 int waitInterval = 100;
                 while (Communicator.IsReceiveBufferEmpty ||
                     Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
@@ -181,6 +181,18 @@ namespace T2G.Assistant
         }
 
 
+        void InsertAdditionalInstructions(int i, List<InstructionBase> additionalInstructions)
+        {
+            if (i < _instructions.Count - 1)
+            {
+                _instructions.InsertRange(i + 1, additionalInstructions);
+            }
+            else
+            {
+                _instructions.AddRange(additionalInstructions);
+            }
+        }
+
         void InsertAdditionalInstructions(int i, List<Instruction> additionalInstructions)
         {
             if (i < _instructions.Count - 1)
@@ -201,7 +213,19 @@ namespace T2G.Assistant
             {
                 InstructionSequence instructionSequence = instructionBase as InstructionSequence;
                 ExponentialBackoffFocusRestorer.NeedFocus = true;
-                _sb.AppendLine($"Start batching {instructionSequence.instructions.Count} instructions:");
+                _sb.AppendLine($"Start batching {instructionSequence.instructions.Count} instructions.");
+
+                List<Instruction> instructions = new List<Instruction>();
+                foreach(var instruction in instructionSequence.instructions)
+                {
+                    var inst = instruction as Instruction;
+                    if(inst != null)    //TODO: currently doesn't support sub-sequence. Can consider improve it later.
+                    {
+                        instructions.Add(inst);
+                    }
+                }
+
+                InsertAdditionalInstructions(i, PrepareAdditionalInstructions(instructions));
                 _completed = true;
             }
             else
@@ -279,10 +303,9 @@ namespace T2G.Assistant
         /// them before they are inserted into the pending queue. These
         /// instructions bypass translation, so they have no ids yet.
         /// </summary>
-        private List<Instruction> PrepareAdditionalInstructions(
-            List<Instruction> instructions)
+        private List<Instruction> PrepareAdditionalInstructions(List<Instruction> instructions)
         {
-            var prepared = new List<Instruction>(instructions.Count);
+            List<Instruction> prepared = new List<Instruction>(instructions.Count);
 
             foreach (var instruction in instructions)
             {
@@ -295,6 +318,7 @@ namespace T2G.Assistant
 
             return OrderInstructions(prepared);
         }
+
 
         /// <summary>
         /// Orders an already validated batch. Deferred instructions (cycles)

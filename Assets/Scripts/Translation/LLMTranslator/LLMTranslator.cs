@@ -47,7 +47,8 @@ namespace T2G.Assistant
         //  Record response time, valid JSON rate, correct response classification, and instruction accuracy.
         //  A smaller model is only a practical improvement if it remains reliable.
 
-        public LLMTranslator(string baseUrl = "http://localhost:1234", string modelName = "qwen3-4B-Instruct-2507", string systemPrompt = null)
+        //public LLMTranslator(string baseUrl = "http://localhost:1234", string modelName = "qwen3-4B-Instruct-2507", string systemPrompt = null)
+        public LLMTranslator(string baseUrl = "http://localhost:1234", string modelName = "qwen3.5-9b", string systemPrompt = null)
         {
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(180) };
             _endpointUrl = baseUrl.TrimEnd('/') + "/v1/chat/completions";
