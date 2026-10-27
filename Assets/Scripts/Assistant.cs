@@ -359,12 +359,28 @@ namespace T2G.Assistant
 
         public async Awaitable<(bool succeeded, string response)> ProcessEnteredIntent(string intent)
         {
-            var translatedInstructions = await _tanslation.Translate(intent.Trim());
+            var translateResult = await _tanslation.Translate(intent.Trim());
 
-            if(translatedInstructions == null)
+            switch(translateResult.responsType)
             {
-                return (false, "Sorry, I don't understand!");
+                case TranslationResponseType.Clarification:
+                case TranslationResponseType.Conversation:
+                    return (true, translateResult.message); 
+                case TranslationResponseType.Instruction:
+                    if(translateResult.instructions != null && translateResult.instructions.Count > 0)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        return (false, "Sorry, I don't understand!");
+                    }
+                case TranslationResponseType.Error:
+                default:
+                    return (false, "Sorry, I don't understand!");
             }
+
+            var translatedInstructions = translateResult.instructions;
 
             _instructionLocalGlobalIdMap.Clear();
             _instructions.Clear();

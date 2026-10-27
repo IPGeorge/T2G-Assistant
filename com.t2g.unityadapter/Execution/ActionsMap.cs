@@ -88,7 +88,7 @@ namespace T2G
             s_actionsMap[Actions.create_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Raw, parameters = new string[] { "Position", "Name" } };
             s_actionsMap[Actions.select_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.delete_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
-            s_actionsMap[Actions.place_on] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
+            s_actionsMap[Actions.place_on] = new ActionMeta() { instructionType = InstructionType.Composite, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.attach_to] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Source", "Target" } };
             s_actionsMap[Actions.detach_from] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.set_property] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name", "Property", "Value" } };

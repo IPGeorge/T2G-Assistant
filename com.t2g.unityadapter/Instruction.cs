@@ -158,7 +158,7 @@ namespace T2G
     [Serializable]
     public class InstructionSequence : InstructionBase
     {
-        public List<Instruction> instructions = new();  // Ordered instructions required to satisfy the user intent.
+        public List<InstructionBase> instructions = new();  // Ordered instructions required to satisfy the user intent.
 
         public InstructionSequence()
         {

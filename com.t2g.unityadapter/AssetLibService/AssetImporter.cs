@@ -174,6 +174,7 @@ namespace T2G
             AssetDatabase.Refresh();
 
             await Utils.WaitForUnityIdle();
+            await Task.Delay(100);
 
             await ProcessPackageImportsImpl(false);
         }

@@ -77,7 +77,7 @@ namespace T2G.Assistant
             {
                 for (int i = 0; i < sequence.instructions.Count; i++)
                 {
-                    sequence.instructions[i] = NormalizeInstruction(sequence.instructions[i]);
+                    sequence.instructions[i] = NormalizeInstruction(sequence.instructions[i] as Instruction);
                 }
             }
 

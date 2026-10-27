@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using T2G;
+using System.Threading.Tasks;
 
 namespace T2G.Assistant
 {
@@ -12,7 +13,7 @@ namespace T2G.Assistant
         {
             get
             {
-                if(_instance == null)
+                if (_instance == null)
                 {
                     _instance = new Translation();
                 }
@@ -20,7 +21,11 @@ namespace T2G.Assistant
             }
         }
 
-         List<TranslatorBase> _translators = new List<TranslatorBase>();
+        List<TranslatorBase> _translators = new List<TranslatorBase>();
+        
+        private LLMTranslator _llmTranslator;
+        public bool AwaitingClarification => _llmTranslator != null && _llmTranslator.AwaitingClarification;
+
 
         public Translation()
         {
@@ -29,28 +34,106 @@ namespace T2G.Assistant
 
         public void RegisterTranslators()
         {
+            _translators.Clear();
             _translators.Add(new CommandTranslator());
-            _translators.Add(new LLMTranslator());
+            _llmTranslator = new LLMTranslator();
+            _translators.Add(_llmTranslator);
         }
 
-        public async Awaitable<List<InstructionBase>> Translate(string text)
+        public async Awaitable<(TranslationResponseType responsType, List<InstructionBase> instructions, string message)> Translate(string text)
         {
+            (bool succeeded, List<InstructionBase> instructions) output;
             for (int i = 0; i < _translators.Count; ++i)
             {
                 Debug.Log($"[Translation] Trying translator {i}: {_translators[i].GetType().Name}");
-                var output = await _translators[i].Translate(text);
 
-                if(output.succeeded && output.instructions != null)
+                if (i == 0)
                 {
-                    Debug.Log($"[Translation] Translator {i} succeeded with {output.instructions.Count} instructions");
-                    return output.instructions;
+                    output = await _translators[i].Translate(text);
+
+                    if (output.succeeded && output.instructions != null)
+                    {
+                        Debug.Log($"[Translation] Translator {i} succeeded with {output.instructions.Count} instructions");
+                        return (TranslationResponseType.Instruction, output.instructions, null);
+                    }
+                    else
+                    {
+                        Debug.Log($"[Translation] Translator {i} failed: succeeded={output.succeeded}, instructions={(output.instructions != null ? output.instructions.Count.ToString() : "null")}");
+                    }
                 }
                 else
                 {
-                    Debug.Log($"[Translation] Translator {i} failed: succeeded={output.succeeded}, instructions={(output.instructions != null ? output.instructions.Count.ToString() : "null")}");
+                    TranslationResponse result = await TranslateWithDialogueAsync(text);
+
+                    switch (result.Type)
+                    {
+                        case TranslationResponseType.Instruction:
+                            if(result.HasInstructions && result.Instructions.Count > 0)
+                            {
+                                return (TranslationResponseType.Instruction, result.Instructions, null);
+                            }
+                            break;
+                        case TranslationResponseType.Clarification:
+                        case TranslationResponseType.Conversation:
+                            return (TranslationResponseType.Conversation, null, result.Message);
+                        default:
+                            break;
+                    }
                 }
             }
-            return null;
+            return (TranslationResponseType.Error, null, null);
+        }
+
+        // New API for the Chat UI: supports instructions, clarification, and conversation.
+        public async Task<TranslationResponse> TranslateWithDialogueAsync(string text, string gameDescContext = null)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return TranslationResponse.Error("Empty prompt.");
+
+            if (_llmTranslator == null)
+                return TranslationResponse.Error("LLMTranslator is not registered.");
+
+            // A follow-up answer belongs to the pending LLM dialogue. Do not let CommandTranslator intercept it.
+            if (AwaitingClarification)
+            {
+                Debug.Log("[Translation] Continuing pending clarification with LLMTranslator");
+                return await _llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
+            }
+
+            for (int i = 0; i < _translators.Count; ++i)
+            {
+                TranslatorBase translator = _translators[i];
+                Debug.Log($"[Translation] Trying translator {i}: {translator.GetType().Name}");
+
+                // The LLM has a richer response contract than TranslatorBase.Translate().
+                if (translator == _llmTranslator)
+                {
+                    TranslationResponse response =
+                        await _llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
+                    Debug.Log($"[Translation] LLM response type: {response.Type}");
+                    return response;
+                }
+
+                var output = await translator.Translate(text);
+                if (output.succeeded && output.instructions != null && output.instructions.Count > 0)
+                {
+                    Debug.Log($"[Translation] Translator {i} succeeded with {output.instructions.Count} instructions");
+                    return new TranslationResponse
+                    {
+                        Type = TranslationResponseType.Instruction,
+                        Instructions = output.instructions
+                    };
+                }
+
+                Debug.Log($"[Translation] Translator {i} failed: succeeded={output.succeeded}, instructions={(output.instructions != null ? output.instructions.Count.ToString() : "null")}");
+            }
+
+            return TranslationResponse.Error("No translator could handle the request.");
+        }
+
+        public void CancelClarification()
+        {
+            _llmTranslator?.ClearPendingClarification();
         }
     }
 }

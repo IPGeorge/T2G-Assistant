@@ -111,7 +111,11 @@ namespace T2G.Assistant
 
         public override async Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string command)
         {
-            if(MatchAction(command, out var action, out var arguments))
+            // Defer quantity-based object creation to the LLM, which can expand it.
+            if (Regex.IsMatch(command, @"^\s*(create|instantiate)\s+\d+\s+", RegexOptions.IgnoreCase))
+                return (false, null);
+
+            if (MatchAction(command, out var action, out var arguments))
             {
                 Debug.Log($"[CommandTranslator] Matched action: {action}");
                 if (_translatorMap.ContainsKey(action))
@@ -120,6 +124,10 @@ namespace T2G.Assistant
                     var result = _translatorMap[action].Translate(arguments);
                     if (result.succeeded)
                     {
+                        if (result.instructionBase == null)
+                        {
+                            return (false, null);
+                        }
                         instructions.Add(result.instructionBase);
                         await Task.Yield();
                         return (true, instructions);
