@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System;
 
 namespace T2G.Assistant
@@ -105,6 +105,9 @@ namespace T2G.Assistant
             yPos = DrawAutoSaveSection(yPos, content.width);
 
             yPos = DrawPathsSection(yPos, content.width);
+
+            yPos += 36;
+            yPos = DrawAISettingsSection(yPos, content.width);
 
             GUI.EndScrollView();
 
@@ -230,6 +233,23 @@ namespace T2G.Assistant
             return yPos;
         }
 
+        private float DrawAISettingsSection(float yPos, float width)
+        {
+            DrawSectionHeader(new Rect(0, yPos, width, 36), "AI Settings");
+            yPos += 42;
+
+            ComboSelectionField.DrawComboSelectionField("Model:", editingSettings.UsingLLMModel,
+                value => editingSettings.UsingLLMModel = value, yPos, width);
+            yPos += 36;
+
+            DrawBoolToggleField("GemeDesc:", editingSettings.EnableGameDesc,
+                value => editingSettings.EnableGameDesc = value, yPos, width);
+            yPos += 36;
+
+            return yPos;
+        }
+
+
         private void DrawActionButtons(float windowX, float buttonY)
         {
             float buttonWidth = 140f;
@@ -294,9 +314,193 @@ namespace T2G.Assistant
             return color;
         }
 
+
+        private float DrawBoolToggleField(string label, bool currentValue, Action<bool> setter, float yPos, float width)
+        {
+            GUI.Label(new Rect(0, yPos, 150, 30), label);
+
+            var cbStyle = new GUIStyle(GUI.skin.toggle)
+            {
+                fixedWidth = 132,
+                fixedHeight = 20,
+                alignment = TextAnchor.MiddleCenter,
+            };
+
+            float toggleY = yPos + (36f - 20f) / 2f;
+            bool newValue = GUI.Toggle(new Rect(160, toggleY, width - 160, 20), currentValue, "Enabled", cbStyle);
+
+            setter(newValue);
+            return yPos + 36;
+        }
+
         private void ApplyChanges()
         {
             chatBotUI?.SaveSettings(editingSettings);
+        }
+    }
+
+    public static class ComboSelectionField
+    {
+        // The selectable options for this specific field
+        public static readonly string[] ModelOptions = new[]
+        {
+        "qwen3.5-9b",
+        "llama-3.2-3b-instruct",
+        "qwen3-4B-Instruct-2507",
+        "qwen3.5-4B",
+        "gemma-3-4b-it",
+    };
+
+        private const float LabelWidth = 150f;
+        private const float FieldGap = 10f;
+        private const float RowHeight = 30f;
+        private const float ItemHeight = 24f;
+        private const float MaxDropdownHeight = 200f;
+
+        // Per-field combo state. Key by a stable ID so multiple calls don't collide.
+        private static readonly System.Collections.Generic.Dictionary<string, ComboState> _states
+            = new System.Collections.Generic.Dictionary<string, ComboState>();
+
+        private class ComboState
+        {
+            public bool IsOpen;
+            public int OpenFrame = -1;
+            public Rect DropdownRect;
+            public Vector2 Scroll;
+        }
+
+        private static GUIStyle _buttonStyle;
+        private static GUIStyle _itemStyle;
+        private static GUIStyle _dropdownBg;
+
+        private static void EnsureStyles()
+        {
+            if (_buttonStyle != null) return;
+
+            _buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(8, 20, 0, 0)
+            };
+
+            _itemStyle = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(8, 0, 0, 0),
+                margin = new RectOffset(0, 0, 0, 0)
+            };
+
+            _dropdownBg = new GUIStyle(GUI.skin.box);
+        }
+
+        /// <summary>
+        /// Draws a labeled combo box for selecting a string from a fixed list.
+        /// Returns the next yPos.
+        /// </summary>
+        /// <param name="label">Row label.</param>
+        /// <param name="currentValue">Current selected value.</param>
+        /// <param name="setter">Called only when selection actually changes.</param>
+        /// <param name="yPos">Row y position.</param>
+        /// <param name="width">Available width for this row.</param>
+        /// <param name="options">Optional override list; defaults to <see cref="ModelOptions"/>.</param>
+        /// <param name="fieldKey">Unique key for state isolation; defaults to label.</param>
+        public static float DrawComboSelectionField(
+            string label,
+            string currentValue,
+            Action<string> setter,
+            float yPos,
+            float width,
+            string[] options = null,
+            string fieldKey = null)
+        {
+            EnsureStyles();
+
+            options = options ?? ModelOptions;
+            fieldKey = fieldKey ?? label;
+
+            if (!_states.TryGetValue(fieldKey, out var state))
+            {
+                state = new ComboState();
+                _states[fieldKey] = state;
+            }
+
+            // --- Label ---
+            GUI.Label(new Rect(0, yPos, LabelWidth, RowHeight), label);
+
+            // --- Button ---
+            float fieldX = LabelWidth + FieldGap;
+            float fieldW = width - fieldX;
+            Rect buttonRect = new Rect(fieldX, yPos, fieldW, RowHeight);
+
+            string display = string.IsNullOrEmpty(currentValue) ? "(none)" : currentValue;
+
+            if (GUI.Button(buttonRect, display + "  ▼", _buttonStyle))
+            {
+                state.IsOpen = !state.IsOpen;
+                state.OpenFrame = Time.frameCount;
+
+                // Position dropdown below button
+                float ddH = Mathf.Min(options.Length * ItemHeight + 4f, MaxDropdownHeight);
+                state.DropdownRect = new Rect(buttonRect.x, buttonRect.y + buttonRect.height, fieldW, ddH);
+
+                // If dropdown would go off bottom of screen, open upward
+                if (state.DropdownRect.yMax > Screen.height)
+                    state.DropdownRect.y = buttonRect.y - state.DropdownRect.height;
+            }
+
+            // --- Dropdown ---
+            if (state.IsOpen)
+            {
+                // Register a GUI group so clicks inside are captured
+                GUI.Box(state.DropdownRect, GUIContent.none, _dropdownBg);
+
+                Rect innerViewport = new Rect(
+                    state.DropdownRect.x + 1,
+                    state.DropdownRect.y + 1,
+                    state.DropdownRect.width - 2,
+                    state.DropdownRect.height - 2);
+
+                Rect content = new Rect(
+                    0, 0,
+                    innerViewport.width - (options.Length * ItemHeight + 4f > MaxDropdownHeight ? 16f : 0f),
+                    options.Length * ItemHeight);
+
+                state.Scroll = GUI.BeginScrollView(innerViewport, state.Scroll, content);
+
+                for (int i = 0; i < options.Length; i++)
+                {
+                    Rect itemRect = new Rect(0, i * ItemHeight, content.width, ItemHeight);
+                    bool isCurrent = options[i] == currentValue;
+
+                    // Highlight current item
+                    var prevBg = GUI.backgroundColor;
+                    if (isCurrent) GUI.backgroundColor = new Color(0.3f, 0.5f, 0.8f);
+
+                    if (GUI.Button(itemRect, options[i], _itemStyle))
+                    {
+                        if (options[i] != currentValue)
+                            setter?.Invoke(options[i]);
+
+                        state.IsOpen = false;
+                    }
+
+                    GUI.backgroundColor = prevBg;
+                }
+
+                GUI.EndScrollView();
+
+                // Close on outside click (but not on the frame it was opened)
+                if (Time.frameCount != state.OpenFrame &&
+                    Event.current.type == EventType.MouseDown &&
+                    !state.DropdownRect.Contains(Event.current.mousePosition) &&
+                    !buttonRect.Contains(Event.current.mousePosition))
+                {
+                    state.IsOpen = false;
+                    Event.current.Use();
+                }
+            }
+
+            return yPos + RowHeight;
         }
     }
 }

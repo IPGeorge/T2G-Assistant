@@ -18,8 +18,8 @@ namespace T2G.Assistant
         public string PersistentDataPath { get; private set; }
 
         private ChatBotUI _chatBot;
-        private Translation _tanslation = Translation.Instance;
-        private Resolution _resolution = Resolution.Instance;
+        private Translation _tanslation;
+        private Resolution _resolution;
 
         public CommunicatorClient Communicator { get; private set; }
 
@@ -35,6 +35,9 @@ namespace T2G.Assistant
         {
             PersistentDataPath = Application.persistentDataPath;
             Instance = this;
+            _tanslation = Translation.Instance;
+            _resolution = Resolution.Instance;
+
             DontDestroyOnLoad(gameObject);
         }
 

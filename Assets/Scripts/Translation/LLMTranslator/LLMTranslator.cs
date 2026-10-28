@@ -48,11 +48,11 @@ namespace T2G.Assistant
         //  A smaller model is only a practical improvement if it remains reliable.
 
         //public LLMTranslator(string baseUrl = "http://localhost:1234", string modelName = "qwen3-4B-Instruct-2507", string systemPrompt = null)
-        public LLMTranslator(string baseUrl = "http://localhost:1234", string modelName = "qwen3.5-9b", string systemPrompt = null)
+        public LLMTranslator(string baseUrl = "http://localhost:1234", string systemPrompt = null)
         {
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(180) };
             _endpointUrl = baseUrl.TrimEnd('/') + "/v1/chat/completions";
-            _modelName = modelName;
+            _modelName = Assistant.Instance.Settings.UsingLLMModel;
             string path = Path.Combine(Application.streamingAssetsPath, "T2GSystemPrompt.txt");
             _systemPrompt = systemPrompt ?? (File.Exists(path) ? File.ReadAllText(path) : null);
         }
@@ -61,10 +61,18 @@ namespace T2G.Assistant
         // For chat UI, call TranslateWithDialogueAsync instead.
         public override async Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string text)
         {
-            TranslationResponse response = await TranslateWithDialogueAsync(text);
-            return response.HasInstructions
-                ? (true, response.Instructions)
-                : (false, (List<InstructionBase>)null);
+            TranslationResponse response;
+            if (Assistant.Instance.Settings.EnableGameDesc)
+            {
+                string gameDescJson = JsonConvert.SerializeObject(GameDescManager.Instance.CurrentGameDesc, Formatting.None);
+                response = await TranslateWithDialogueAsync(text, gameDescJson);
+            }
+            else
+            {
+                response = await TranslateWithDialogueAsync(text);
+            }
+            
+            return response.HasInstructions ? (true, response.Instructions) : (false, (List<InstructionBase>)null);
         }
 
         public async Task<TranslationResponse> TranslateWithDialogueAsync(

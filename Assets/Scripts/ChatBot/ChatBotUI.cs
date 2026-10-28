@@ -215,32 +215,6 @@ namespace T2G.Assistant
             GUI.Box(new Rect(windowX, inputY, windowWidth, inputFieldHeight), "");
             GUI.backgroundColor = Color.white;
 
-            //Rect comboRect = new Rect(windowX + 10, inputY + 10, windowWidth - 100, inputFieldHeight - 20);
-
-            //if (frequentIntents.Count > 0)
-            //{
-            //    string[] intentDisplay = new string[frequentIntents.Count + 1];
-            //    intentDisplay[0] = "Recent Inputs";
-
-            //    for (int i = 0; i < frequentIntents.Count; i++)
-            //    {
-            //        string intent = frequentIntents[i];
-            //        int displayLength = Mathf.Min(intent.Length, 20);
-            //        intentDisplay[i + 1] = intent.Substring(0, displayLength) + (intent.Length > 20 ? "..." : "");
-            //    }
-
-            //    _frequentUsedCommandsComboBox.Draw(comboRect, intentDisplay, "Recents");
-
-            //    int selectedIndex = 1;
-            //    if (selectedIndex > 0)
-            //    {
-            //        currentInput = frequentIntents[selectedIndex - 1];
-            //        GUI.FocusControl("ChatInput");
-            //    }
-            //}
-
-            //GUI.SetNextControlName("ChatInput");
-
             float textFieldX = windowX + 10;
             float textFieldWidth = windowWidth - 190;
 
