@@ -246,6 +246,10 @@ namespace T2G.Assistant
                 value => editingSettings.EnableGameDesc = value, yPos, width);
             yPos += 36;
 
+            DrawBoolToggleField("Templates:", editingSettings.EnableGameDescTemplates,
+                value => editingSettings.EnableGameDescTemplates = value, yPos, width);
+            yPos += 36;
+
             return yPos;
         }
 

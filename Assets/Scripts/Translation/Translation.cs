@@ -63,7 +63,12 @@ namespace T2G.Assistant
                 }
                 else
                 {
-                    TranslationResponse result = await TranslateWithDialogueAsync(text);
+                    TranslationResponse result = await TranslateWithDialogueAsync(_translators[i], text);
+
+                    if (result == null)
+                    {
+                        return (TranslationResponseType.Error, null, null);
+                    }
 
                     switch (result.Type)
                     {
@@ -85,39 +90,38 @@ namespace T2G.Assistant
         }
 
         // New API for the Chat UI: supports instructions, clarification, and conversation.
-        public async Task<TranslationResponse> TranslateWithDialogueAsync(string text, string gameDescContext = null)
+        public async Task<TranslationResponse> TranslateWithDialogueAsync(TranslatorBase translator, string text, string gameDescContext = null)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return TranslationResponse.Error("Empty prompt.");
 
-            if (_llmTranslator == null)
+            if (translator == null)
                 return TranslationResponse.Error("LLMTranslator is not registered.");
 
+            var llmTranslator = translator as LLMTranslator;
+
             // A follow-up answer belongs to the pending LLM dialogue. Do not let CommandTranslator intercept it.
-            if (AwaitingClarification)
+            if (llmTranslator != null && AwaitingClarification)
             {
                 Debug.Log("[Translation] Continuing pending clarification with LLMTranslator");
-                return await _llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
+                return await llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
             }
 
-            for (int i = 0; i < _translators.Count; ++i)
+            Debug.Log($"[Translation] Using translator: {translator.GetType().Name}");
+
+            // The LLM has a richer response contract than TranslatorBase.Translate().
+            if (llmTranslator != null)
             {
-                TranslatorBase translator = _translators[i];
-                Debug.Log($"[Translation] Trying translator {i}: {translator.GetType().Name}");
-
-                // The LLM has a richer response contract than TranslatorBase.Translate().
-                if (translator == _llmTranslator)
-                {
-                    TranslationResponse response =
-                        await _llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
-                    Debug.Log($"[Translation] LLM response type: {response.Type}");
-                    return response;
-                }
-
+                TranslationResponse response = await llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
+                Debug.Log($"[Translation] LLM response type: {response.Type}");
+                return response;
+            }
+            else
+            {
                 var output = await translator.Translate(text);
                 if (output.succeeded && output.instructions != null && output.instructions.Count > 0)
                 {
-                    Debug.Log($"[Translation] Translator {i} succeeded with {output.instructions.Count} instructions");
+                    Debug.Log($"[Translation] Translator {translator.GetType().Name} succeeded with {output.instructions.Count} instructions");
                     return new TranslationResponse
                     {
                         Type = TranslationResponseType.Instruction,
@@ -125,10 +129,8 @@ namespace T2G.Assistant
                     };
                 }
 
-                Debug.Log($"[Translation] Translator {i} failed: succeeded={output.succeeded}, instructions={(output.instructions != null ? output.instructions.Count.ToString() : "null")}");
+                return TranslationResponse.Error("No translator could handle the request.");
             }
-
-            return TranslationResponse.Error("No translator could handle the request.");
         }
 
         public void CancelClarification()

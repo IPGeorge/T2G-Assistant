@@ -22,5 +22,6 @@ MonoBehaviour:
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
   DefaultUnityProject: c:\tmp\Shooting
-  UsingLLMModel: qwen3.5-9b
-  EnableGameDesc: 0
+  UsingLLMModel: gemma-3-4b-it
+  EnableGameDesc: 1
+  EnableGameDescTemplates: 0

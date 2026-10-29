@@ -27,6 +27,7 @@ namespace T2G.Assistant
         [Header("AI Settings")]
         public string UsingLLMModel;
         public bool EnableGameDesc;
+        public bool EnableGameDescTemplates;
 
         public SettingsLite CloneToSettingsLite()
         {
@@ -52,6 +53,7 @@ namespace T2G.Assistant
         public string DefaultUnityProject;
         public string UsingLLMModel;
         public bool EnableGameDesc;
+        public bool EnableGameDescTemplates;
 
         public void CopyFrom(Settings settings)
         {
@@ -73,6 +75,7 @@ namespace T2G.Assistant
             DefaultUnityProject = settings.DefaultUnityProject;
             UsingLLMModel = settings.UsingLLMModel;
             EnableGameDesc = settings.EnableGameDesc;
+            EnableGameDescTemplates = settings.EnableGameDescTemplates;
         }
 
         public void CopyTo(Settings settings)
@@ -89,6 +92,7 @@ namespace T2G.Assistant
             settings.DefaultUnityProject = DefaultUnityProject;
             settings.UsingLLMModel = UsingLLMModel;
             settings.EnableGameDesc = EnableGameDesc;
+            settings.EnableGameDescTemplates = EnableGameDescTemplates;
         }
     }
 }

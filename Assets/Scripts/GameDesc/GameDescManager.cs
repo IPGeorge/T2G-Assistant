@@ -42,10 +42,35 @@ namespace T2G.Assistant
 
         public GameDesc CurrentGameDesc { get; private set; }
 
+        public string CurrentGameDescJson
+        {
+            get
+            {
+                if (CurrentGameDesc == null)
+                {
+                    return null;
+                }
+                return JsonConvert.SerializeObject(CurrentGameDesc, Formatting.None);
+            }
+        }
+
+        public List<string> GameDescJsonTemplates = new List<string>();   
+
         // Runtime context only; not persisted in GameDesc.
         public Space CurrentSpace { get; private set; }
         public Object CurrentObject { get; private set; }
 
+        public void LoadGameDescTemplates()
+        {
+            GameDescJsonTemplates.Clear();
+            string path = Path.Combine(Assistant.Instance.Settings.AssetLibraryRootPath, "Templates");
+            List<String> templateFiles = new List<string>(Directory.EnumerateFiles(path));
+            foreach(var templateFile in templateFiles)
+            {
+                string gameDescJson = File.ReadAllText(templateFile);
+                GameDescJsonTemplates.Add(gameDescJson);
+            }
+        }
 
         public void SetGameDesc(GameDesc gameDesc)
         {

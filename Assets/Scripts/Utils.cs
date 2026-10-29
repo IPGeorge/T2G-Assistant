@@ -23,6 +23,7 @@ namespace T2G.Assistant
             destination.AssetLibraryRootPath = source.AssetLibraryRootPath;
             destination.UsingLLMModel = source.UsingLLMModel;
             destination.EnableGameDesc = source.EnableGameDesc;
+            destination.EnableGameDescTemplates = source.EnableGameDescTemplates;
         }
 
         public static string GetParamFromArguments((string name, string value)[] arguments, string paramName)
