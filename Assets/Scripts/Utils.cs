@@ -21,9 +21,10 @@ namespace T2G.Assistant
             destination.UnityEditorPath = source.UnityEditorPath;
             destination.T2G_UnityPluginPath = source.T2G_UnityPluginPath;
             destination.AssetLibraryRootPath = source.AssetLibraryRootPath;
-            destination.UsingLLMModel = source.UsingLLMModel;
+            destination.LLModel = source.LLModel;
             destination.EnableGameDesc = source.EnableGameDesc;
             destination.EnableGameDescTemplates = source.EnableGameDescTemplates;
+            destination.EnableSkills = source.EnableSkills;
         }
 
         public static string GetParamFromArguments((string name, string value)[] arguments, string paramName)

@@ -236,23 +236,26 @@ namespace T2G.Assistant
         private float DrawAISettingsSection(float yPos, float width)
         {
             DrawSectionHeader(new Rect(0, yPos, width, 36), "AI Settings");
-            yPos += 42;
-
-            ComboSelectionField.DrawComboSelectionField("Model:", editingSettings.UsingLLMModel,
-                value => editingSettings.UsingLLMModel = value, yPos, width);
             yPos += 36;
 
-            DrawBoolToggleField("GemeDesc:", editingSettings.EnableGameDesc,
+            DrawBoolToggleField("Enable GemeDesc state reference", editingSettings.EnableGameDesc,
                 value => editingSettings.EnableGameDesc = value, yPos, width);
             yPos += 36;
 
-            DrawBoolToggleField("Templates:", editingSettings.EnableGameDescTemplates,
+            DrawBoolToggleField("Enable Templates:", editingSettings.EnableGameDescTemplates,
                 value => editingSettings.EnableGameDescTemplates = value, yPos, width);
+            yPos += 36;
+
+            DrawBoolToggleField("Enable skills:", editingSettings.EnableSkills,
+                value => editingSettings.EnableSkills = value, yPos, width);
+            yPos += 42;
+
+            ComboSelectionField.DrawComboSelectionField("Model:", editingSettings.LLModel,
+                value => editingSettings.LLModel = value, yPos, width);
             yPos += 36;
 
             return yPos;
         }
-
 
         private void DrawActionButtons(float windowX, float buttonY)
         {
@@ -321,17 +324,15 @@ namespace T2G.Assistant
 
         private float DrawBoolToggleField(string label, bool currentValue, Action<bool> setter, float yPos, float width)
         {
-            GUI.Label(new Rect(0, yPos, 150, 30), label);
-
             var cbStyle = new GUIStyle(GUI.skin.toggle)
             {
-                fixedWidth = 132,
+                fixedWidth = width,
                 fixedHeight = 20,
-                alignment = TextAnchor.MiddleCenter,
+                alignment = TextAnchor.MiddleLeft,
             };
 
             float toggleY = yPos + (36f - 20f) / 2f;
-            bool newValue = GUI.Toggle(new Rect(160, toggleY, width - 160, 20), currentValue, "Enabled", cbStyle);
+            bool newValue = GUI.Toggle(new Rect(0, toggleY, width, 20), currentValue, " " + label, cbStyle);
 
             setter(newValue);
             return yPos + 36;
@@ -348,18 +349,18 @@ namespace T2G.Assistant
         // The selectable options for this specific field
         public static readonly string[] ModelOptions = new[]
         {
-        "qwen3.5-9b",
-        "llama-3.2-3b-instruct",
-        "qwen3-4B-Instruct-2507",
-        "qwen3.5-4B",
-        "gemma-3-4b-it",
-    };
+            "qwen3.5-9b",
+            "llama-3.2-3b-instruct",
+            "qwen3-4B-Instruct-2507",
+            "qwen3.5-4B",
+            "gemma-3-4b-it",
+        };
 
         private const float LabelWidth = 150f;
         private const float FieldGap = 10f;
         private const float RowHeight = 30f;
-        private const float ItemHeight = 24f;
-        private const float MaxDropdownHeight = 200f;
+        private const float ItemHeight = 60f;
+        private const float MaxDropdownHeight = 300f;
 
         // Per-field combo state. Key by a stable ID so multiple calls don't collide.
         private static readonly System.Collections.Generic.Dictionary<string, ComboState> _states

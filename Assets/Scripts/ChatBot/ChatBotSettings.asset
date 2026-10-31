@@ -21,7 +21,8 @@ MonoBehaviour:
   UnityEditorPath: C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
-  DefaultUnityProject: c:\tmp\Shooting
-  UsingLLMModel: gemma-3-4b-it
+  DefaultUnityProject: c:\tmp\Spin\Spin
   EnableGameDesc: 1
-  EnableGameDescTemplates: 0
+  EnableGameDescTemplates: 1
+  EnableSkills: 0
+  LLModel: qwen3-4B-Instruct-2507

@@ -52,7 +52,7 @@ namespace T2G.Assistant
         {
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(180) };
             _endpointUrl = baseUrl.TrimEnd('/') + "/v1/chat/completions";
-            _modelName = Assistant.Instance.Settings.UsingLLMModel;
+            _modelName = Assistant.Instance.Settings.LLModel;
             string path = Path.Combine(Application.streamingAssetsPath, "T2GSystemPrompt.txt");
             _systemPrompt = systemPrompt ?? (File.Exists(path) ? File.ReadAllText(path) : null);
         }
@@ -95,6 +95,7 @@ namespace T2G.Assistant
             }
 
             var gameDescContext = BuildGameDescContextMessage(currentGameDec, GameDescManager.Instance.GameDescJsonTemplates);
+            var skillContext = BuildSkillContent("first-person-shooter");
 
             List<object> messages = new List<object>();
             if (string.IsNullOrWhiteSpace(gameDescContext))
@@ -226,6 +227,27 @@ namespace T2G.Assistant
             sb.AppendLine("\n===== END GAMEDESC CONTEXT =====");
 
             return sb.Length > 0 ? sb.ToString() : null;
+        }
+
+
+        private string BuildSkillContent(string skillName)
+        {
+            if (!string.IsNullOrEmpty(skillName))
+            {
+                SkillManager skillManager = new SkillManager();
+                string skillText = skillManager.LoadSkill(skillName);
+
+                if (!string.IsNullOrWhiteSpace(skillText))
+                {
+                    string skillContent = "\n\n===== SELECTED SKILL =====\n" +
+                        "Use this skill as task guidance. " +
+                        "The T2G system protocol takes precedence.\n";
+                    skillContent += skillText + "\n===== END SELECTED SKILL =====";
+                    return skillContent;
+                }
+            }
+
+            return string.Empty;
         }
 
         public void ClearPendingClarification()

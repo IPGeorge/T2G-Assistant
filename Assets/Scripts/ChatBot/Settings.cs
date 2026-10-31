@@ -25,9 +25,10 @@ namespace T2G.Assistant
         public string DefaultUnityProject;
 
         [Header("AI Settings")]
-        public string UsingLLMModel;
         public bool EnableGameDesc;
         public bool EnableGameDescTemplates;
+        public bool EnableSkills;
+        public string LLModel;
 
         public SettingsLite CloneToSettingsLite()
         {
@@ -51,9 +52,10 @@ namespace T2G.Assistant
         public string T2G_UnityPluginPath;
         public string AssetLibraryRootPath;
         public string DefaultUnityProject;
-        public string UsingLLMModel;
         public bool EnableGameDesc;
         public bool EnableGameDescTemplates;
+        public string LLModel;
+        public bool EnableSkills;
 
         public void CopyFrom(Settings settings)
         {
@@ -73,9 +75,10 @@ namespace T2G.Assistant
             T2G_UnityPluginPath = settings.T2G_UnityPluginPath;
             AssetLibraryRootPath = settings.AssetLibraryRootPath;
             DefaultUnityProject = settings.DefaultUnityProject;
-            UsingLLMModel = settings.UsingLLMModel;
+            LLModel = settings.LLModel;
             EnableGameDesc = settings.EnableGameDesc;
             EnableGameDescTemplates = settings.EnableGameDescTemplates;
+            EnableSkills = settings.EnableSkills;
         }
 
         public void CopyTo(Settings settings)
@@ -90,9 +93,10 @@ namespace T2G.Assistant
             settings.T2G_UnityPluginPath = T2G_UnityPluginPath;
             settings.AssetLibraryRootPath = AssetLibraryRootPath;
             settings.DefaultUnityProject = DefaultUnityProject;
-            settings.UsingLLMModel = UsingLLMModel;
+            settings.LLModel = LLModel;
             settings.EnableGameDesc = EnableGameDesc;
             settings.EnableGameDescTemplates = EnableGameDescTemplates;
+            settings.EnableSkills = EnableSkills;
         }
     }
 }
