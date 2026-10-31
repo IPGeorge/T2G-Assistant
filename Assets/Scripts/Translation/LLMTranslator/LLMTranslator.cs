@@ -236,20 +236,16 @@ namespace T2G.Assistant
             {
                 SkillManager skillManager = new SkillManager();
 
-                //Match a skill
-                var skillDirs = skillManager.GetAvailableSkills();
                 string skillName = string.Empty;
+                var skillDirs = skillManager.GetAvailableSkills();
+                var triggeredSkills = SkillTriggerEvaluator.GetTriggeredSkills(prompt, skillDirs);
 
-                foreach(var skillDir in skillDirs)      //TODO: use a better strategy to find an appropriate skill
+                if (triggeredSkills != null && triggeredSkills.Count > 0)
                 {
-                    if(SkillTriggerEvaluator.ShouldTriggerSkill(prompt, skillDir))
-                    {
-                        skillName = skillDir;
-                        break;
-                    }
+                    skillName = triggeredSkills[UnityEngine.Random.Range(0, triggeredSkills.Count)];
                 }
 
-                if (string.IsNullOrEmpty(skillName))
+                if (!string.IsNullOrEmpty(skillName))
                 {
                     string skillText = skillManager.LoadSkill(skillName);
 
@@ -258,7 +254,8 @@ namespace T2G.Assistant
                         string skillContent = "\n\n===== SELECTED SKILL =====\n" +
                             "Use this skill as task guidance. " +
                             "The T2G system protocol takes precedence.\n";
-                        skillContent += skillText + "\n===== END SELECTED SKILL =====";
+                        skillContent += skillText;
+                        skillContent += "\n===== END SELECTED SKILL =====";
                         return skillContent;
                     }
                 }
