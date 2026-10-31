@@ -87,20 +87,24 @@ namespace T2G.Assistant
             if (string.IsNullOrWhiteSpace(_systemPrompt))
                 return TranslationResponse.Error("Missing StreamingAssets/T2GSystemPrompt.txt.");
 
-            string currentGameDec = string.IsNullOrEmpty(gameDescJson) ? gameDescJson : GameDescManager.Instance.CurrentGameDescJson; 
-            if (Assistant.Instance.Settings.EnableGameDesc &&
-                Assistant.Instance.Settings.EnableGameDescTemplates)
+            string gameDescContext = string.Empty;
+            if (Assistant.Instance.Settings.EnableGameDesc)
             {
-                GameDescManager.Instance.LoadGameDescTemplates();
+                string currentGameDec = string.IsNullOrEmpty(gameDescJson) ? gameDescJson : GameDescManager.Instance.CurrentGameDescJson;
+                if (Assistant.Instance.Settings.EnableGameDescTemplates)
+                {
+                    GameDescManager.Instance.LoadGameDescTemplates();
+                }
+
+                gameDescContext = BuildGameDescContextMessage(currentGameDec, GameDescManager.Instance.GameDescJsonTemplates);
             }
 
-            var gameDescContext = BuildGameDescContextMessage(currentGameDec, GameDescManager.Instance.GameDescJsonTemplates);
-            var skillContext = BuildSkillContent(userPrompt);
+            var skillContent = Assistant.Instance.Settings.EnableSkills ? BuildSkillContent(userPrompt) : string.Empty;
 
             List<object> messages = new List<object>();
             if (string.IsNullOrWhiteSpace(gameDescContext))
             {
-                string combinedSystemPrompt = _systemPrompt + gameDescContext;
+                string combinedSystemPrompt = _systemPrompt + gameDescContext + skillContent;
                 messages.Add(new { role = "system", content = combinedSystemPrompt });
             }
             else
