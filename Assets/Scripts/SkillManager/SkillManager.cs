@@ -34,13 +34,14 @@ namespace T2G.Assistant
             if (!Directory.Exists(_skillsPath))
                 return skills;
 
-            foreach (string directory in
-                     Directory.GetDirectories(_skillsPath))
+            foreach (string directory in Directory.GetDirectories(_skillsPath))
             {
                 string path = Path.Combine(directory, "SKILL.md");
 
                 if (File.Exists(path))
+                {
                     skills.Add(Path.GetFileName(directory));
+                }
             }
 
             return skills;

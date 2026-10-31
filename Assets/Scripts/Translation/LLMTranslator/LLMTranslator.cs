@@ -95,7 +95,7 @@ namespace T2G.Assistant
             }
 
             var gameDescContext = BuildGameDescContextMessage(currentGameDec, GameDescManager.Instance.GameDescJsonTemplates);
-            var skillContext = BuildSkillContent("first-person-shooter");
+            var skillContext = BuildSkillContent(userPrompt);
 
             List<object> messages = new List<object>();
             if (string.IsNullOrWhiteSpace(gameDescContext))
@@ -230,20 +230,37 @@ namespace T2G.Assistant
         }
 
 
-        private string BuildSkillContent(string skillName)
+        private string BuildSkillContent(string prompt)
         {
-            if (!string.IsNullOrEmpty(skillName))
+            if (!string.IsNullOrEmpty(prompt))
             {
                 SkillManager skillManager = new SkillManager();
-                string skillText = skillManager.LoadSkill(skillName);
 
-                if (!string.IsNullOrWhiteSpace(skillText))
+                //Match a skill
+                var skillDirs = skillManager.GetAvailableSkills();
+                string skillName = string.Empty;
+
+                foreach(var skillDir in skillDirs)      //TODO: use a better strategy to find an appropriate skill
                 {
-                    string skillContent = "\n\n===== SELECTED SKILL =====\n" +
-                        "Use this skill as task guidance. " +
-                        "The T2G system protocol takes precedence.\n";
-                    skillContent += skillText + "\n===== END SELECTED SKILL =====";
-                    return skillContent;
+                    if(SkillTriggerEvaluator.ShouldTriggerSkill(prompt, skillDir))
+                    {
+                        skillName = skillDir;
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(skillName))
+                {
+                    string skillText = skillManager.LoadSkill(skillName);
+
+                    if (!string.IsNullOrWhiteSpace(skillText))
+                    {
+                        string skillContent = "\n\n===== SELECTED SKILL =====\n" +
+                            "Use this skill as task guidance. " +
+                            "The T2G system protocol takes precedence.\n";
+                        skillContent += skillText + "\n===== END SELECTED SKILL =====";
+                        return skillContent;
+                    }
                 }
             }
 
