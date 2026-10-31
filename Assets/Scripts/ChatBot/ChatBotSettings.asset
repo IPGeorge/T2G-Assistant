@@ -23,6 +23,6 @@ MonoBehaviour:
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
   DefaultUnityProject: c:\tmp\Spin\Spin
   EnableGameDesc: 1
-  EnableGameDescTemplates: 1
-  EnableSkills: 0
+  EnableGameDescTemplates: 0
+  EnableSkills: 1
   LLModel: qwen3-4B-Instruct-2507

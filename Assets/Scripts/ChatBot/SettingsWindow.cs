@@ -242,11 +242,11 @@ namespace T2G.Assistant
                 value => editingSettings.EnableGameDesc = value, yPos, width);
             yPos += 36;
 
-            DrawBoolToggleField("Enable Templates:", editingSettings.EnableGameDescTemplates,
+            DrawBoolToggleField("Enable Templates", editingSettings.EnableGameDescTemplates,
                 value => editingSettings.EnableGameDescTemplates = value, yPos, width);
             yPos += 36;
 
-            DrawBoolToggleField("Enable skills:", editingSettings.EnableSkills,
+            DrawBoolToggleField("Enable skills", editingSettings.EnableSkills,
                 value => editingSettings.EnableSkills = value, yPos, width);
             yPos += 42;
 
