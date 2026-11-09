@@ -109,7 +109,7 @@ namespace T2G.Assistant
             }
             else
             {
-                messages.Add(new { role = "system", content = _systemPrompt });
+                messages.Add(new { role = "system", content = _systemPrompt + skillContent });
             }
 
             messages.AddRange(_dialogue);

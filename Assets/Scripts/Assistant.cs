@@ -2,7 +2,6 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace T2G.Assistant
@@ -251,6 +250,16 @@ namespace T2G.Assistant
                 }
                 else
                 {
+                    // Validate the instruction before execution
+                    // (moved from initial translation to avoid failing when objects haven't been created yet)
+                    var validateResult = InstructionValidator.Validate(instruction, _instructionLocalGlobalIdMap);
+                    if (!validateResult.IsValid)
+                    {
+                        _completed = false;
+                        _sb.AppendLine(string.Join("\n", validateResult.Errors));
+                        return _completed;
+                    }
+
                     if (instruction.state == InstructionState.Raw)
                     {
                         instruction = await _resolution.Resolve(instruction);  //The returned instruction must be either raw or resolved
@@ -416,16 +425,7 @@ namespace T2G.Assistant
                 translatedInstruction.id = RegisterInstructionId(translatedInstruction.id);
 
                 var normailizedInstruction = InstructionNormalizer.Normalize(translatedInstruction);
-                var result = InstructionValidator.Validate(normailizedInstruction, _instructionLocalGlobalIdMap);
-                if (result.IsValid)
-                {
-                    _instructions.Add(normailizedInstruction);
-                }
-                else
-                {
-                    _completed = false;
-                    return (_completed, string.Join("\n", result.Errors));
-                }
+                _instructions.Add(normailizedInstruction);
             }
 
             OrderPendingInstructions();
