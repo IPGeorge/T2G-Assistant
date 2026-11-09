@@ -15,14 +15,14 @@ MonoBehaviour:
   botName: Assistant
   userName: George
   userMessageColor: {r: 1, g: 1, b: 1, a: 1}
-  botMessageColor: {r: 1, g: 1, b: 1, a: 1}
+  botMessageColor: {r: 0, g: 1, b: 1, a: 1}
   autoSaveHistory: 1
   autoSaveInterval: 300
   UnityEditorPath: C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
-  DefaultUnityProject: c:\tmp\Spin\Spin
+  DefaultUnityProject: c:\tmp\demo
   EnableGameDesc: 1
   EnableGameDescTemplates: 0
   EnableSkills: 1
-  LLModel: qwen3-4B-Instruct-2507
+  LLModel: qwen3.5-9b

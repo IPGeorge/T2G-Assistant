@@ -32,9 +32,9 @@ namespace T2G.Assistant
         //  Setting Starting value
         //  Quantization    Q4_K_M
         //  Thinking mode Disabled
-        //  Temperature	0.1–0.2
-        //  Context length	4,096 – 8,192 (preferred) tokens
-        //  Max output tokens	512 – 1,024 (preferred)  tokens
+        //  Temperature	0.1ï¿½0.2
+        //  Context length	4,096 ï¿½ 8,192 (preferred) tokens
+        //  Max output tokens	512 ï¿½ 1,024 (preferred)  tokens
         //  GPU offload Maximum that fits GPU memory
         //  Response format json_schema
         //
@@ -64,7 +64,7 @@ namespace T2G.Assistant
             TranslationResponse response;
             if (Assistant.Instance.Settings.EnableGameDesc)
             {
-                string gameDescJson = JsonConvert.SerializeObject(GameDescManager.Instance.CurrentGameDesc, Formatting.None);
+                string gameDescJson = JsonConvert.SerializeObject(GameDescManager.Instance.CurrentGameDesc);
                 if (Assistant.Instance.Settings.EnableGameDescTemplates)
                 {
                     GameDescManager.Instance.LoadGameDescTemplates();

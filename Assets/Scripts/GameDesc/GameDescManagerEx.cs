@@ -18,7 +18,7 @@ namespace T2G.Assistant
             new JsonSerializerSettings
             {
                 Formatting = Formatting.Indented,
-                NullValueHandling = NullValueHandling.Include
+                NullValueHandling = NullValueHandling.Ignore
             };
 
         // ============================================================
