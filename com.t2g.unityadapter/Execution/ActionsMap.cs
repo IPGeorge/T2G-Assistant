@@ -85,7 +85,7 @@ namespace T2G
             s_actionsMap[Actions.goto_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
             s_actionsMap[Actions.save_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = null };
             s_actionsMap[Actions.rename_space] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "SpaceName" } };
-            s_actionsMap[Actions.create_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Raw, parameters = new string[] { "Position", "Name" } };
+            s_actionsMap[Actions.create_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Raw, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.select_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.delete_object] = new ActionMeta() { instructionType = InstructionType.Elemental, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };
             s_actionsMap[Actions.place_on] = new ActionMeta() { instructionType = InstructionType.Composite, instructionState = InstructionState.Resolved, parameters = new string[] { "Name" } };

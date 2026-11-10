@@ -45,7 +45,8 @@ namespace T2G.Assistant
                 _process.StartInfo.FileName = unityEditorPath;
                 _process.StartInfo.Arguments = arguments;
                 _process.Start();
-                _process.WaitForExit();
+                // Don't block the Unity main thread while Unity runs in batch mode
+                await Task.Run(() => _process.WaitForExit());
 
                 // Wait for OS to fully release file handles from the exited Unity process
                 await Task.Delay(3000);
