@@ -161,7 +161,7 @@ namespace T2G.Assistant
             Response response;
 
             do {
-                int timeoutMiniSeconds = 180000;
+                int timeoutMiniSeconds = 3080000;
                 int waitInterval = 100;
                 while (Communicator.IsReceiveBufferEmpty ||
                     Communicator.GetNextReceivedMessageType() != CommunicatorBase.eMessageType.Response)
