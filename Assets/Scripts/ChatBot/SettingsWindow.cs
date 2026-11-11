@@ -58,10 +58,15 @@ namespace T2G.Assistant
         public void HideWindow()
         {
             isWindowVisible = false;
+            ComboSelectionField.CloseAll();
         }
 
         private void DrawSettingsWindow()
         {
+            // Handle open dropdown input before any control is drawn, so the
+            // dropdown overlay always wins clicks over the settings content.
+            ComboSelectionField.HandleInput();
+
             float screenWidth = Screen.width;
             float screenHeight = Screen.height;
             float windowX = (screenWidth - windowWidth) / 2;
@@ -107,31 +112,43 @@ namespace T2G.Assistant
             yPos = DrawPathsSection(yPos, content.width);
 
             yPos += 36;
-            yPos = DrawAISettingsSection(yPos, content.width);
+            yPos = DrawAISettingsSection(yPos, content.width, viewport, scrollPosition);
 
             GUI.EndScrollView();
 
             // Action buttons
             DrawActionButtons(windowX, windowY + windowHeight - 50);
+
+            // Dropdowns are drawn as a screen-space overlay after the scroll view,
+            // otherwise they get clipped at the viewport edge.
+            ComboSelectionField.DrawOpenDropdown();
         }
 
         private float CalculateContentHeight()
         {
             float height = 0;
 
-            // Basic settings: 4 fields
-            height += 48 + (4 * 42);
+            // Basic settings: header + bot/user name fields
+            height += 42 + (2 * 36);
 
-            // Color settings: header + 2 colors
-            height += 48 + (2 * 100);
+            // Color settings: header + 2 color pickers (label row + 3 sliders each)
+            height += 42 + (2 * (36 + 60));
 
-            // Auto-save: header + toggle + slider
-            height += 48 + 42 + 42;
+            // Auto-save: header + toggle (+ interval slider when enabled)
+            height += 42 + 36;
+            if (editingSettings != null && editingSettings.autoSaveHistory)
+                height += 36;
 
-            // Add response field
-            height += 42;
+            // Paths: header + 3 path fields
+            height += 42 + (3 * 36);
 
-            return height + 60; // Extra padding
+            // Spacer before AI settings
+            height += 36;
+
+            // AI settings: header + 3 toggles + gap + model row
+            height += 36 + (3 * 36) + 42 + 30;
+
+            return height + 12; // Extra padding
         }
 
         private float DrawBasicSettingsSection(float yPos, float width)
@@ -233,7 +250,7 @@ namespace T2G.Assistant
             return yPos;
         }
 
-        private float DrawAISettingsSection(float yPos, float width)
+        private float DrawAISettingsSection(float yPos, float width, Rect scrollViewport, Vector2 scrollOffset)
         {
             DrawSectionHeader(new Rect(0, yPos, width, 36), "AI Settings");
             yPos += 36;
@@ -250,9 +267,9 @@ namespace T2G.Assistant
                 value => editingSettings.EnableSkills = value, yPos, width);
             yPos += 42;
 
-            ComboSelectionField.DrawComboSelectionField("Model:", editingSettings.LLModel,
-                value => editingSettings.LLModel = value, yPos, width);
-            yPos += 36;
+            yPos = ComboSelectionField.DrawComboSelectionField("Model:", editingSettings.LLModel,
+                value => editingSettings.LLModel = value, yPos, width,
+                scrollViewport: scrollViewport, scrollOffset: scrollOffset);
 
             return yPos;
         }
@@ -350,9 +367,8 @@ namespace T2G.Assistant
         public static readonly string[] ModelOptions = new[]
         {
             "qwen3.5-9b",
-            "llama-3.2-3b-instruct",
             "qwen3-4B-Instruct-2507",
-            "qwen3.5-4B",
+            "meta-lama3.1-8b",
             "gemma-3-4b-it",
         };
 
@@ -370,8 +386,34 @@ namespace T2G.Assistant
         {
             public bool IsOpen;
             public int OpenFrame = -1;
+            public int PressedIndex = -1;
+            public Rect ButtonScreenRect;
             public Rect DropdownRect;
             public Vector2 Scroll;
+            public string[] Options;
+            public string CurrentValue;
+            public Action<string> Setter;
+        }
+
+        /// <summary>True while any combo dropdown is expanded.</summary>
+        public static bool IsAnyOpen
+        {
+            get
+            {
+                foreach (var state in _states.Values)
+                    if (state.IsOpen) return true;
+                return false;
+            }
+        }
+
+        /// <summary>Closes every expanded dropdown (called when the window hides).</summary>
+        public static void CloseAll()
+        {
+            foreach (var state in _states.Values)
+            {
+                state.IsOpen = false;
+                state.PressedIndex = -1;
+            }
         }
 
         private static GUIStyle _buttonStyle;
@@ -409,6 +451,12 @@ namespace T2G.Assistant
         /// <param name="width">Available width for this row.</param>
         /// <param name="options">Optional override list; defaults to <see cref="ModelOptions"/>.</param>
         /// <param name="fieldKey">Unique key for state isolation; defaults to label.</param>
+        /// <param name="scrollViewport">
+        /// Screen-space viewport of the enclosing scroll view. When set, the field's
+        /// local position is converted to screen space so the dropdown can be drawn
+        /// outside the scroll view (see <see cref="DrawOpenDropdown"/>).
+        /// </param>
+        /// <param name="scrollOffset">Current scroll offset of the enclosing scroll view.</param>
         public static float DrawComboSelectionField(
             string label,
             string currentValue,
@@ -416,7 +464,9 @@ namespace T2G.Assistant
             float yPos,
             float width,
             string[] options = null,
-            string fieldKey = null)
+            string fieldKey = null,
+            Rect scrollViewport = default,
+            Vector2 scrollOffset = default)
         {
             EnsureStyles();
 
@@ -429,6 +479,10 @@ namespace T2G.Assistant
                 _states[fieldKey] = state;
             }
 
+            state.Options = options;
+            state.CurrentValue = currentValue;
+            state.Setter = setter;
+
             // --- Label ---
             GUI.Label(new Rect(0, yPos, LabelWidth, RowHeight), label);
 
@@ -437,75 +491,174 @@ namespace T2G.Assistant
             float fieldW = width - fieldX;
             Rect buttonRect = new Rect(fieldX, yPos, fieldW, RowHeight);
 
+            // GUI rects inside a scroll view live in content space. Remember the
+            // screen-space rect so the overlay dropdown can be anchored correctly.
+            state.ButtonScreenRect = scrollViewport.height > 0f
+                ? new Rect(
+                    scrollViewport.x + buttonRect.x - scrollOffset.x,
+                    scrollViewport.y + buttonRect.y - scrollOffset.y,
+                    buttonRect.width,
+                    buttonRect.height)
+                : buttonRect;
+
             string display = string.IsNullOrEmpty(currentValue) ? "(none)" : currentValue;
 
             if (GUI.Button(buttonRect, display + "  ▼", _buttonStyle))
             {
-                state.IsOpen = !state.IsOpen;
+                bool shouldOpen = !state.IsOpen;
+                CloseAll(); // only one dropdown at a time
+                state.IsOpen = shouldOpen;
                 state.OpenFrame = Time.frameCount;
-
-                // Position dropdown below button
-                float ddH = Mathf.Min(options.Length * ItemHeight + 4f, MaxDropdownHeight);
-                state.DropdownRect = new Rect(buttonRect.x, buttonRect.y + buttonRect.height, fieldW, ddH);
-
-                // If dropdown would go off bottom of screen, open upward
-                if (state.DropdownRect.yMax > Screen.height)
-                    state.DropdownRect.y = buttonRect.y - state.DropdownRect.height;
+                state.PressedIndex = -1;
+                state.Scroll = Vector2.zero;
             }
 
-            // --- Dropdown ---
             if (state.IsOpen)
+                UpdateDropdownRect(state, fieldW);
+
+            return yPos + RowHeight;
+        }
+
+        /// <summary>
+        /// Consumes mouse events belonging to an open dropdown. Call before drawing
+        /// any other control so the dropdown takes priority over the settings UI.
+        /// </summary>
+        public static void HandleInput()
+        {
+            var e = Event.current;
+            if (e == null) return;
+
+            foreach (var state in _states.Values)
             {
-                // Register a GUI group so clicks inside are captured
-                GUI.Box(state.DropdownRect, GUIContent.none, _dropdownBg);
+                if (!state.IsOpen || state.Options == null) continue;
 
-                Rect innerViewport = new Rect(
-                    state.DropdownRect.x + 1,
-                    state.DropdownRect.y + 1,
-                    state.DropdownRect.width - 2,
-                    state.DropdownRect.height - 2);
+                Rect dropdown = state.DropdownRect;
+                Vector2 mouse = e.mousePosition;
 
-                Rect content = new Rect(
-                    0, 0,
-                    innerViewport.width - (options.Length * ItemHeight + 4f > MaxDropdownHeight ? 16f : 0f),
-                    options.Length * ItemHeight);
-
-                state.Scroll = GUI.BeginScrollView(innerViewport, state.Scroll, content);
-
-                for (int i = 0; i < options.Length; i++)
+                if (e.type == EventType.MouseDown)
                 {
-                    Rect itemRect = new Rect(0, i * ItemHeight, content.width, ItemHeight);
-                    bool isCurrent = options[i] == currentValue;
-
-                    // Highlight current item
-                    var prevBg = GUI.backgroundColor;
-                    if (isCurrent) GUI.backgroundColor = new Color(0.3f, 0.5f, 0.8f);
-
-                    if (GUI.Button(itemRect, options[i], _itemStyle))
+                    if (dropdown.Contains(mouse))
                     {
-                        if (options[i] != currentValue)
-                            setter?.Invoke(options[i]);
+                        state.PressedIndex = GetItemIndexAt(state, mouse);
+                        e.Use();
+                    }
+                    else if (Time.frameCount != state.OpenFrame && !state.ButtonScreenRect.Contains(mouse))
+                    {
+                        // Click outside closes the dropdown without letting the
+                        // click reach the control underneath.
+                        state.IsOpen = false;
+                        state.PressedIndex = -1;
+                        e.Use();
+                    }
+                }
+                else if (e.type == EventType.MouseUp)
+                {
+                    if (state.PressedIndex >= 0)
+                    {
+                        int pressed = state.PressedIndex;
+                        state.PressedIndex = -1;
+
+                        if (GetItemIndexAt(state, mouse) == pressed)
+                        {
+                            string selected = state.Options[pressed];
+                            if (selected != state.CurrentValue)
+                            {
+                                state.CurrentValue = selected;
+                                state.Setter?.Invoke(selected);
+                            }
+                        }
 
                         state.IsOpen = false;
+                        e.Use();
                     }
+                }
+                else if (e.type == EventType.ScrollWheel && dropdown.Contains(mouse))
+                {
+                    float viewportHeight = dropdown.height - 2f;
+                    float contentHeight = state.Options.Length * ItemHeight;
+                    float maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
+                    state.Scroll.y = Mathf.Clamp(state.Scroll.y + e.delta.y * 20f, 0f, maxScroll);
+                    e.Use();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws expanded dropdowns in screen space. Call after the settings window
+        /// (and its scroll view) has been drawn so the list is not clipped.
+        /// </summary>
+        public static void DrawOpenDropdown()
+        {
+            EnsureStyles();
+
+            foreach (var state in _states.Values)
+            {
+                if (!state.IsOpen || state.Options == null) continue;
+
+                Rect dropdown = state.DropdownRect;
+                GUI.Box(dropdown, GUIContent.none, _dropdownBg);
+
+                // Clip the list to the dropdown box. Input inside this area is
+                // handled by HandleInput, so items are drawn without controls.
+                Rect listViewport = new Rect(
+                    dropdown.x + 1f,
+                    dropdown.y + 1f,
+                    dropdown.width - 2f,
+                    dropdown.height - 2f);
+
+                GUI.BeginGroup(listViewport);
+
+                for (int i = 0; i < state.Options.Length; i++)
+                {
+                    float itemY = i * ItemHeight - state.Scroll.y;
+                    if (itemY > listViewport.height || itemY + ItemHeight < 0f)
+                        continue;
+
+                    Rect itemRect = new Rect(0f, itemY, listViewport.width, ItemHeight);
+                    bool isCurrent = state.Options[i] == state.CurrentValue;
+                    bool isPressed = state.PressedIndex == i;
+
+                    var prevBg = GUI.backgroundColor;
+                    if (isPressed) GUI.backgroundColor = new Color(0.15f, 0.3f, 0.55f);
+                    else if (isCurrent) GUI.backgroundColor = new Color(0.3f, 0.5f, 0.8f);
+
+                    GUI.Box(itemRect, state.Options[i], _itemStyle);
 
                     GUI.backgroundColor = prevBg;
                 }
 
-                GUI.EndScrollView();
-
-                // Close on outside click (but not on the frame it was opened)
-                if (Time.frameCount != state.OpenFrame &&
-                    Event.current.type == EventType.MouseDown &&
-                    !state.DropdownRect.Contains(Event.current.mousePosition) &&
-                    !buttonRect.Contains(Event.current.mousePosition))
-                {
-                    state.IsOpen = false;
-                    Event.current.Use();
-                }
+                GUI.EndGroup();
             }
+        }
 
-            return yPos + RowHeight;
+        private static void UpdateDropdownRect(ComboState state, float width)
+        {
+            float ddH = Mathf.Min(state.Options.Length * ItemHeight + 4f, MaxDropdownHeight);
+            float ddY = state.ButtonScreenRect.y + state.ButtonScreenRect.height;
+
+            // If the list would run off the bottom of the screen, open upward.
+            if (ddY + ddH > Screen.height)
+                ddY = state.ButtonScreenRect.y - ddH;
+
+            ddY = Mathf.Clamp(ddY, 2f, Mathf.Max(2f, Screen.height - ddH - 2f));
+
+            state.DropdownRect = new Rect(state.ButtonScreenRect.x, ddY, width, ddH);
+        }
+
+        private static int GetItemIndexAt(ComboState state, Vector2 mousePosition)
+        {
+            Rect listViewport = new Rect(
+                state.DropdownRect.x + 1f,
+                state.DropdownRect.y + 1f,
+                state.DropdownRect.width - 2f,
+                state.DropdownRect.height - 2f);
+
+            if (!listViewport.Contains(mousePosition)) return -1;
+
+            float localY = mousePosition.y - listViewport.y + state.Scroll.y;
+            int index = Mathf.FloorToInt(localY / ItemHeight);
+
+            return index >= 0 && index < state.Options.Length ? index : -1;
         }
     }
 }

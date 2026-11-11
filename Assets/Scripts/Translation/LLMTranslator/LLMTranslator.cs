@@ -17,7 +17,6 @@ namespace T2G.Assistant
     {
         private readonly HttpClient _httpClient;
         private readonly string _endpointUrl;
-        private readonly string _modelName;
         private readonly string _systemPrompt;
         private readonly List<object> _dialogue = new List<object>();
         private bool _awaitingClarification;
@@ -47,12 +46,10 @@ namespace T2G.Assistant
         //  Record response time, valid JSON rate, correct response classification, and instruction accuracy.
         //  A smaller model is only a practical improvement if it remains reliable.
 
-        //public LLMTranslator(string baseUrl = "http://localhost:1234", string modelName = "qwen3-4B-Instruct-2507", string systemPrompt = null)
         public LLMTranslator(string baseUrl = "http://localhost:1234", string systemPrompt = null)
         {
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(180) };
             _endpointUrl = baseUrl.TrimEnd('/') + "/v1/chat/completions";
-            _modelName = Assistant.Instance.Settings.LLModel;
             string path = Path.Combine(Application.streamingAssetsPath, "T2GSystemPrompt.txt");
             _systemPrompt = systemPrompt ?? (File.Exists(path) ? File.ReadAllText(path) : null);
         }
@@ -119,7 +116,7 @@ namespace T2G.Assistant
             // Use json_schema to constrain the response envelope; validate instruction content locally.
             var payload = new
             {
-                model = _modelName,
+                model = Assistant.Instance.Settings.LLModel,
                 messages,
                 temperature = 0.0,
                 response_format = new
