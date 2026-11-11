@@ -32,6 +32,8 @@ namespace T2G.Assistant
                 if (string.Equals(asset.desc.Substring(instruction.desc.Length - 1), "}", System.StringComparison.OrdinalIgnoreCase))
                 {
                     asset.type = AssetType.Script;
+                    asset.source = asset.desc;
+                    asset.desc = T2G.Utils.GetMonoBehaviourClassName(asset.source);
                 }
                 else
                 {

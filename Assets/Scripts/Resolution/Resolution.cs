@@ -298,11 +298,29 @@ namespace T2G.Assistant
             return true;
         }
 
-        private bool ResolveScript(
-            Instruction.Asset asset)
+        private bool ResolveScript(Instruction.Asset asset)
         {
-            asset.source = asset.desc;
-            return true;
+            if(string.IsNullOrEmpty(asset.source))
+            {
+                string className = T2G.Utils.GetMonoBehaviourClassName(asset.desc);
+                if (!string.IsNullOrEmpty(asset.desc) && !string.IsNullOrEmpty(className))
+                {
+                    asset.source = asset.desc;
+                    asset.desc = className;
+                    return true;
+                }
+            }
+            else
+            {
+                string className = T2G.Utils.GetMonoBehaviourClassName(asset.source);
+                if(!string.IsNullOrEmpty(className))
+                {
+                    asset.desc = className;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
