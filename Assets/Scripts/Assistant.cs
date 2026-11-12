@@ -216,19 +216,28 @@ namespace T2G.Assistant
             {
                 InstructionSequence instructionSequence = instructionBase as InstructionSequence;
                 ExponentialBackoffFocusRestorer.NeedFocus = true;
-                _sb.AppendLine($"Start batching {instructionSequence.instructions.Count} instructions.");
+                _sb.AppendLine($"Enqueuing {instructionSequence.instructions.Count} instructions.");
 
                 List<Instruction> instructions = new List<Instruction>();
+                int cnt = 0;
                 foreach(var instruction in instructionSequence.instructions)
                 {
                     var inst = instruction as Instruction;
+                    ++cnt;
                     if(inst != null)    //TODO: currently doesn't support sub-sequence. Can consider improve it later.
                     {
                         instructions.Add(inst);
+                        _sb.AppendLine($"  {cnt} - {instruction.desc}.");
+                    }
+                    else
+                    {
+                        _sb.AppendLine($"  {cnt} - null.");
                     }
                 }
 
                 InsertAdditionalInstructions(i, PrepareAdditionalInstructions(instructions));
+                _sb.AppendLine($" Total queued instructions: {_instructions.Count - 1}");
+
                 _completed = true;
             }
             else
@@ -442,6 +451,7 @@ namespace T2G.Assistant
 
             for (int i = 0; i < _instructions.Count && _completed; ++i)
             {
+                Debug.Log($"Processing instruction {i}: {_instructions[i].desc} ...");
                 _completed &= await ProcessInstruction(i);
                 _chatBot?.UpdateLastBotMessage(_sb.ToString());
                 await Task.Delay(100);
