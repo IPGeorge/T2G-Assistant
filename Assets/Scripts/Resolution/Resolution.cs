@@ -372,7 +372,9 @@ namespace T2G.Assistant
                 return false;
             }
 
-            string source = response.assetPaths[0];
+            string source = (response.assetPaths.Length == 1) ? 
+                response.assetPaths[0] :
+                response.assetPaths[UnityEngine.Random.Range(0, response.assetPaths.Length)];
 
             if (string.IsNullOrWhiteSpace(source))
             {
