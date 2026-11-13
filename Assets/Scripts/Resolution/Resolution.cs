@@ -362,19 +362,24 @@ namespace T2G.Assistant
                 return true;
             }
 
+            string noFoundMessage = $"[AssetResolver] No asset was found for '{asset.desc}'.";
             var response = await AssetSearchClient.SearchAssets(asset.desc);
-
-            if (!response.succeeded ||
-                response.assetPaths == null ||
-                response.assetPaths.Length == 0)
+            if (!response.succeeded || response.assetPaths == null)
             {
-                Debug.LogWarning($"[AssetResolver] No asset found for '{asset.desc}'.");
+                Debug.LogWarning(noFoundMessage);
                 return false;
             }
 
-            string source = (response.assetPaths.Length == 1) ? 
-                response.assetPaths[0] :
-                response.assetPaths[UnityEngine.Random.Range(0, response.assetPaths.Length)];
+            var matchedAssetPaths = ValidateNoMatches(response.assetPaths);
+            if (matchedAssetPaths.Length == 0)
+            {
+                Debug.LogWarning(noFoundMessage);
+                return false;
+            }
+
+            string source = (matchedAssetPaths.Length == 1) ?
+                matchedAssetPaths[0] :
+                matchedAssetPaths[UnityEngine.Random.Range(0, matchedAssetPaths.Length)];
 
             if (string.IsNullOrWhiteSpace(source))
             {
@@ -389,6 +394,47 @@ namespace T2G.Assistant
 
             Debug.Log($"[AssetResolver] Resolved '{asset.desc}' -> '{asset.source}'.");
             return true;
+        }
+
+        private string[] ValidateNoMatches(string[] foundAssetPaths)
+        {
+            List<string> matched = new List<string>();
+            string loadName = null;
+            for (int i = 0; i < foundAssetPaths.Length; ++i)
+            {
+                if(string.IsNullOrEmpty(foundAssetPaths[i]))
+                {
+                    continue;
+                }
+
+                string[] splitedPath = foundAssetPaths[i].Split(",");
+                if (string.IsNullOrEmpty(loadName))
+                {
+                    matched.Add(foundAssetPaths[i]);
+                    if (splitedPath.Length < 2)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        loadName = Path.GetFileName(splitedPath[1]);
+                    }
+                }
+                else
+                {
+                    var loadName2 = Path.GetFileName(splitedPath[1]);
+                    if (splitedPath.Length >= 2 && string.Equals(loadName, loadName2, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matched.Add(foundAssetPaths[i]);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+            }
+            return matched.ToArray();
         }
     }
 }

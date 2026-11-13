@@ -49,6 +49,15 @@ namespace T2G.Assistant
 
                 if (i == 0)
                 {
+                    if(string.Equals(text.Substring(0, 1), ">") || string.Equals(text.Substring(0, 1), "#"))
+                    {
+                        text = text.Substring(1);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
                     output = await _translators[i].Translate(text);
 
                     if (output.succeeded && output.instructions != null)

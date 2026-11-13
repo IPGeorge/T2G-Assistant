@@ -207,10 +207,10 @@ namespace T2G
         
         public static bool IsOrthographicsCameraDesc(string desc)
         {
-
-            return (desc.IndexOf("parallel", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               desc.IndexOf("orthographic", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               desc.IndexOf("orthogonal", StringComparison.OrdinalIgnoreCase) >= 0);
+            return IsCameraDesc(desc) &&
+                (desc.IndexOf("parallel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                desc.IndexOf("orthographic", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                desc.IndexOf("orthogonal", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         public static bool IsLightDesc(string desc)
@@ -224,18 +224,22 @@ namespace T2G
 
         public static LightType GetLightTypeFromDesc(string desc)
         {
-            if (desc.IndexOf("spot", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (IsLightDesc(desc))
             {
-                return LightType.Spot;
+                if (desc.IndexOf("spot", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return LightType.Spot;
+                }
+                else if (desc.IndexOf("point", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return LightType.Point;
+                }
+                else // "directional" by default
+                {
+                    return LightType.Directional;
+                }
             }
-            else if (desc.IndexOf("point", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return LightType.Point;
-            }
-            else // "directional" by default
-            {
-                return LightType.Directional;
-            }
+            return LightType.Point;
         }
 
         public static bool IsNodeObjectDesc(string desc)
@@ -247,6 +251,21 @@ namespace T2G
             return (desc.IndexOf("node object", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
+        public static bool IsScript(string text)
+        {
+            if(string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+            
+            var normalizedText = text.Trim();
+            if(string.Equals(normalizedText.Substring(normalizedText.Length - 1), "}"))   //TODO: need to be improved to a professional solution.
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         public static void PlaceOnGround(GameObject obj, float groundHeight = 0.0f)
         {

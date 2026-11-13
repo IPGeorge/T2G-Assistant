@@ -56,6 +56,17 @@ Instruction Completeness Rules:
 - Before finalizing, check that each supported requirement is represented in the generated instructions, including any required prerequisites supplied by an applicable selected skill.
 - If an essential requirement cannot be translated with supported actions or executors, do not silently omit it or claim completion. Ask one focused clarification question when missing information can resolve the issue; otherwise return a conversation response explaining the unsupported operation.
 
+Multi-Operation Decomposition Rules
+
+1. A user request may specify multiple operations involving one or more objects, properties, or components.
+2. Identify every distinct operation required to satisfy the complete user request before generating instructions.
+3. When the user requests multiple objects, generate a separate `create_object` instruction for each object.
+4. When the user requests multiple property assignments, generate a separate `set_property` instruction for each target-property-value assignment.
+5. Match object names, positions, and other values according to their order or explicit associations in the user request.
+6. When multiple operations are required, combine them into one `InstructionSequence` (`type=3`), preserving the appropriate dependency order.
+7. Do not merge separate operations or omit operations connected by words such as "and", "also", "as well as", or "then".
+8. Before returning the response, verify that every requested object and property modification is represented by an instruction. Do not return a partial instruction sequence as a completed translation.
+
 Instruction Sequence Structure Rules:
 
 - When multiple operations are required, the top-level

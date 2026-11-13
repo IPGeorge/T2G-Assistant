@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -299,12 +300,41 @@ namespace T2G.Assistant
                     continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(asset.desc) &&
-                    string.IsNullOrWhiteSpace(asset.source))
+                if (string.IsNullOrWhiteSpace(asset.desc) && string.IsNullOrWhiteSpace(asset.source))
                 {
                     result.AddError(
                         $"Instruction {instruction.id}: asset must " +
                         $"contain either desc or source.");
+                }
+
+                //Validate asset type
+                asset.type = AssetType.SourceAsset;  //Needed  to be resolved  
+                if (!string.IsNullOrWhiteSpace(asset.desc))
+                {
+                    if (T2G.Utils.IsNodeObjectDesc(asset.desc))
+                    {
+                        asset.type = AssetType.Node;
+                        asset.source = asset.desc;
+                    }
+                    else if (T2G.Utils.IsCameraDesc(asset.desc) ||
+                        T2G.Utils.IsLightDesc(asset.desc) ||
+                        T2G.Utils.IsPrimitiveDesc(asset.desc, out var primitiveType) ||
+                        T2G.Utils.IsValidComponentName(asset.desc))
+                    {
+                        asset.type = AssetType.Identifier;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(asset.source))
+                    {
+                        if(T2G.Utils.IsScript(asset.source))
+                        {
+                            asset.type = AssetType.Script;
+                        }
+                        else if(File.Exists(asset.source))
+                        {
+                            asset.type = AssetType.ScriptFile;
+                        }
+                    }
                 }
             }
         }
