@@ -22,7 +22,7 @@ MonoBehaviour:
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
   DefaultUnityProject: c:\tmp\demo
-  EnableGameDesc: 1
+  EnableGameDesc: 0
   EnableGameDescTemplates: 0
   EnableSkills: 1
   LLModel: qwen3.5-9b

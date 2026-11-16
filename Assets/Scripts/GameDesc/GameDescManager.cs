@@ -54,6 +54,24 @@ namespace T2G.Assistant
             }
         }
 
+        public string CurrentGameDescWithoutHistoryJson
+        {
+            get
+            {
+                if (CurrentGameDesc == null)
+                {
+                    return null;
+                }
+
+                var remHistory = CurrentGameDesc.InstructionHistory;
+                CurrentGameDesc.InstructionHistory = new List<InstructionRecord>();
+                string json = JsonConvert.SerializeObject(CurrentGameDesc, Formatting.Indented);
+                CurrentGameDesc.InstructionHistory = remHistory;
+                return json;
+            }
+        }
+
+
         public List<string> GameDescJsonTemplates = new List<string>();   
 
         // Runtime context only; not persisted in GameDesc.

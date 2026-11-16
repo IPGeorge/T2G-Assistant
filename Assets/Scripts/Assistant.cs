@@ -452,7 +452,12 @@ namespace T2G.Assistant
             for (int i = 0; i < _instructions.Count && _completed; ++i)
             {
                 Debug.Log($"Processing instruction {i}: {_instructions[i].desc} ...");
-                _completed &= await ProcessInstruction(i);
+                _completed = await ProcessInstruction(i);
+                if(!_completed)
+                {
+                    _sb.AppendLine($"Processing instruction {_instructions[i].desc}");
+                    break;
+                }
                 _chatBot?.UpdateLastBotMessage(_sb.ToString());
                 await Task.Delay(100);
             }
