@@ -190,9 +190,9 @@ namespace T2G.Assistant
 
             if (instruction.state == InstructionState.Resolved)
             {
-                result.AddError(
-                    $"Instruction {instruction.id}: translated instruction " +
-                    $"cannot already be Resolved.");
+                //result.AddError(
+                //    $"Instruction {instruction.id}: translated instruction " +
+                //    $"is already be Resolved.");
             }
         }
 
