@@ -237,6 +237,7 @@ namespace T2G.Assistant
 
                 InsertAdditionalInstructions(i, PrepareAdditionalInstructions(instructions));
                 _sb.AppendLine($" Total queued instructions: {_instructions.Count - 1}");
+                await Task.Delay(100);
 
                 _completed = true;
             }
@@ -287,7 +288,7 @@ namespace T2G.Assistant
 
                         GameDescManager.Apply(instruction, response);
 
-                        _completed &= response.Succeeded;
+                        _completed = response.Succeeded;
                         _sb.AppendLine(response.Message);
                     }
                     else
@@ -453,11 +454,6 @@ namespace T2G.Assistant
             {
                 Debug.Log($"Processing instruction {i}: {_instructions[i].desc} ...");
                 _completed = await ProcessInstruction(i);
-                if(!_completed)
-                {
-                    _sb.AppendLine($"Processing instruction {_instructions[i].desc}");
-                    break;
-                }
                 _chatBot?.UpdateLastBotMessage(_sb.ToString());
                 await Task.Delay(100);
             }

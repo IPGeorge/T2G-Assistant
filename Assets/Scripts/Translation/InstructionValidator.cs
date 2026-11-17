@@ -59,6 +59,38 @@ namespace T2G.Assistant
 
         private static readonly HashSet<string> KnownActions = BuildKnownActionSet();
 
+        // Actions whose "Name" parameter refers to an object in the current space.
+        // create_object is excluded because it defines a new object.
+        private static readonly HashSet<string> ObjectNameActions =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                T2G.Actions.select_object,
+                T2G.Actions.delete_object,
+                T2G.Actions.place_on,
+                T2G.Actions.detach_from,
+                T2G.Actions.set_property,
+                T2G.Actions.add_component,
+                T2G.Actions.remove_component,
+                T2G.Actions.call_method
+            };
+
+        // Actions whose "Source" and "Target" parameters both refer to objects.
+        private static readonly HashSet<string> SourceTargetActions =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                T2G.Actions.attach_to,
+                T2G.Actions.set_relationship
+            };
+
+        // Actions that accept the current space's name in addition to object names.
+        private static readonly HashSet<string> SpaceNameActions =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                T2G.Actions.set_property,
+                T2G.Actions.add_component,
+                T2G.Actions.remove_component
+            };
+
         public static InstructionValidationResult Validate(
             InstructionBase instructionBase, 
             Dictionary<string, string> localToGlobalIdsMap)
@@ -218,34 +250,98 @@ namespace T2G.Assistant
                 return;
             }
 
-            foreach (string param in actionMeta.parameters)
+            if (actionMeta != null && actionMeta.parameters != null)
             {
-                string foundParameter = null;
-                foreach (var parameter in instruction.parameters)
+                foreach (string param in actionMeta.parameters)
                 {
-                    if(string.Compare(instruction.action, Actions.create_object) != 0 && 
-                        string.Compare(parameter.name, "Name", true) == 0 &&
-                        parameter.value.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                    if (string.IsNullOrWhiteSpace(GetParameterValue(instruction, param)))
                     {
-                        string objName = parameter.value.ToObject<string>();
-                        if (GameDescManager.Instance.FindObjectByName(objName) == null)
-                        {
-                            result.AddError($"Instruction {instruction.id}: " + $"Missing target object {objName}");
-                            return;
-                        }
-                    }
-
-                    if(string.Compare(parameter.name, param) == 0)
-                    {
-                        foundParameter = param;
-                        break;
+                        result.AddError($"Instruction {instruction.id}: " + $"Missing required parameter {param}");
                     }
                 }
+            }
 
-                if(string.IsNullOrEmpty(foundParameter))
+            if (!result.IsValid)
+                return;
+
+            ValidateObjectReferences(instruction, result);
+        }
+
+        /// <summary>
+        /// Checks that every parameter that names an object (Name, Source,
+        /// Target) refers to an object that already exists in the current
+        /// space. Validation happens right before execution, so the target
+        /// must exist at this point.
+        /// </summary>
+        private static void ValidateObjectReferences(
+            Instruction instruction,
+            InstructionValidationResult result)
+        {
+            string action = instruction.action ?? string.Empty;
+            List<string> references = new List<string>();
+
+            if (SourceTargetActions.Contains(action))
+            {
+                AddObjectReference(instruction, "Source", references);
+                AddObjectReference(instruction, "Target", references);
+            }
+            else if (ObjectNameActions.Contains(action))
+            {
+                AddObjectReference(instruction, "Name", references);
+            }
+            else
+            {
+                return;
+            }
+
+            if (references.Count == 0)
+                return;
+
+            GameDescManager manager = GameDescManager.Instance;
+            Space currentSpace = manager.CurrentSpace;
+            bool allowSpaceName = SpaceNameActions.Contains(action);
+
+            foreach (string objectName in references)
+            {
+                if (manager.FindObjectByName(objectName) != null)
+                    continue;
+
+                if (allowSpaceName &&
+                    currentSpace != null &&
+                    string.Equals(
+                        currentSpace.Name,
+                        objectName,
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    result.AddError($"Instruction {instruction.id}: " + $"Missing required parameter {param}");
+                    continue;
                 }
+
+                if (currentSpace == null)
+                {
+                    result.AddError(
+                        $"Instruction {instruction.id}: cannot resolve " +
+                        $"'{objectName}' because there is no current space.");
+                }
+                else
+                {
+                    result.AddError(
+                        $"Instruction {instruction.id}: referenced object " +
+                        $"'{objectName}' does not exist in space '{currentSpace.Name}'.");
+                }
+            }
+        }
+
+        private static void AddObjectReference(
+            Instruction instruction,
+            string parameterName,
+            List<string> references)
+        {
+            string value = GetParameterValue(instruction, parameterName);
+
+            if (!string.IsNullOrWhiteSpace(value) &&
+                !references.Exists(r => string.Equals(r, value, StringComparison.OrdinalIgnoreCase)))
+            {
+                references.Add(value);
             }
         }
 

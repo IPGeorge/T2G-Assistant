@@ -1258,6 +1258,13 @@ namespace T2G.Assistant
             }
         }
 
+        /// <summary>
+        /// Returns the GameAsset already representing this instruction asset, or
+        /// creates one when it does not exist yet.
+        ///
+        /// Identity is Name + ImportPath: re-adding the same asset must reuse the
+        /// established id instead of appending a duplicate entry to the Assets list.
+        /// </summary>
         private GameAsset GetOrCreateGameAsset(
             Instruction.Asset asset,
             Response response)
@@ -1265,34 +1272,88 @@ namespace T2G.Assistant
             if (asset == null || string.IsNullOrWhiteSpace(asset.source))
                 return null;
 
-            GameAsset gameAsset = FindGameAssetBySource(asset.source);
+            string name = asset.desc ?? string.Empty;
+            string importPath = ResolveAssetImportPath(asset, response);
+
+            GameAsset gameAsset = FindGameAsset(name, importPath);
+
+            // Legacy GameDescs stored the transient source as the import path,
+            // which is incorrect for script assets. Reuse such records instead
+            // of creating a duplicate; their ImportPath is repaired below.
+            if (gameAsset == null)
+                gameAsset = FindGameAssetBySource(asset.source);
 
             if (gameAsset == null)
             {
                 gameAsset = new GameAsset
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Name = asset.desc ?? string.Empty,
+                    Name = name,
                     Source = asset.source,
                     Type = asset.type.ToString(),
-                    ImportPath = asset.source,
+                    ImportPath = importPath,
                     LoadPath = string.Empty
                 };
 
                 CurrentSpace.Assets[gameAsset.Id] = gameAsset;
             }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(importPath))
+                    gameAsset.ImportPath = importPath;
+
+                if (string.IsNullOrWhiteSpace(gameAsset.Source))
+                    gameAsset.Source = asset.source;
+            }
 
             // For single-asset operations, the Executor may return authoritative
             // import/load paths. Multi-asset response conventions can be added later.
-            string importPath = response.GetValue<string>("ImportPath", string.Empty);
             string loadPath = response.GetValue<string>("LoadPath", string.Empty);
 
-            if (!string.IsNullOrWhiteSpace(importPath))
-                gameAsset.ImportPath = importPath;
             if (!string.IsNullOrWhiteSpace(loadPath))
                 gameAsset.LoadPath = loadPath;
 
             return gameAsset;
+        }
+
+        /// <summary>
+        /// Finds an asset whose Name and project-relative ImportPath both match.
+        /// Path comparison is case-insensitive and treats '\' and '/' as equal.
+        /// </summary>
+        private GameAsset FindGameAsset(string name, string importPath)
+        {
+            if (CurrentSpace == null ||
+                CurrentSpace.Assets == null)
+                return null;
+
+            string normalizedName = (name ?? string.Empty).Trim();
+            string normalizedImportPath = NormalizeAssetPath(importPath);
+
+            // Without either identity component there is nothing reliable to
+            // compare; the caller falls back to matching by Source.
+            if (string.IsNullOrWhiteSpace(normalizedName) &&
+                string.IsNullOrWhiteSpace(normalizedImportPath))
+                return null;
+
+            foreach (GameAsset asset in CurrentSpace.Assets.Values)
+            {
+                if (asset == null)
+                    continue;
+
+                if (!string.Equals(
+                        (asset.Name ?? string.Empty).Trim(),
+                        normalizedName,
+                        StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (string.Equals(
+                        NormalizeAssetPath(asset.ImportPath),
+                        normalizedImportPath,
+                        StringComparison.OrdinalIgnoreCase))
+                    return asset;
+            }
+
+            return null;
         }
 
         private GameAsset FindGameAssetBySource(string source)
@@ -1310,6 +1371,76 @@ namespace T2G.Assistant
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Computes the Assets-relative path where the asset is imported.
+        /// Script/ScriptFile sources carry either script code or a local file
+        /// path, so they cannot be used directly as the import path.
+        /// </summary>
+        private static string ResolveAssetImportPath(
+            Instruction.Asset asset,
+            Response response)
+        {
+            if (asset == null)
+                return string.Empty;
+
+            // Prefer an authoritative path reported by the Executor.
+            string reportedImportPath = response.GetValue<string>("ImportPath", string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(reportedImportPath))
+                return NormalizeAssetPath(reportedImportPath);
+
+            switch (asset.type)
+            {
+                case AssetType.Script:
+                    {
+                        // Executor_AddComponent writes script code to
+                        // Assets/Scripts/<ComponentType>.cs.
+                        string className = response.GetValue<string>("ComponentType", string.Empty);
+
+                        if (string.IsNullOrWhiteSpace(className))
+                            className = T2G.Utils.GetMonoBehaviourClassName(asset.source);
+
+                        if (string.IsNullOrWhiteSpace(className))
+                            className = asset.desc;
+
+                        if (string.IsNullOrWhiteSpace(className))
+                            return string.Empty;
+
+                        return "Scripts/" + className.Trim() + ".cs";
+                    }
+
+                case AssetType.ScriptFile:
+                    {
+                        // Executor_AddComponent copies the local file to
+                        // Assets/Scripts/<FileName>.
+                        string fileName = Path.GetFileName(asset.source);
+
+                        return string.IsNullOrWhiteSpace(fileName)
+                            ? string.Empty
+                            : "Scripts/" + fileName;
+                    }
+
+                case AssetType.SourceAsset:
+                    {
+                        // Asset import preserves the library-relative path(s);
+                        // Executor_CreateFrom also relies on this value for
+                        // regeneration, so it must remain the transient source.
+                        return NormalizeAssetPath(asset.source);
+                    }
+
+                default:
+                    // Identifier/Unknown/Node assets are not imported files.
+                    return string.Empty;
+            }
+        }
+
+        private static string NormalizeAssetPath(string path)
+        {
+            return string.IsNullOrWhiteSpace(path)
+                ? string.Empty
+                : path.Trim().Replace('\\', '/');
         }
 
         private static bool HasAssetRef(List<AssetRef> references, string assetId)
