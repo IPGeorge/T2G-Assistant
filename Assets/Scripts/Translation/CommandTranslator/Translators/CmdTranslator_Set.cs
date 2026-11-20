@@ -15,7 +15,7 @@ namespace T2G.Assistant
             string propertyName = Utils.GetParamFromArguments(args, "property").Trim();
             string valueString = Utils.GetParamFromArguments(args, "value").Trim();
 
-            if(string.IsNullOrEmpty(objName) || string.IsNullOrEmpty(propertyName))
+            if (string.IsNullOrEmpty(objName) || string.IsNullOrEmpty(propertyName))
             {
                 return (false, null);
             }
@@ -23,7 +23,7 @@ namespace T2G.Assistant
             instruction.parameters.Add(new Instruction.Parameter("Name", objName));
             instruction.parameters.Add(new Instruction.Parameter("Property", propertyName));
             instruction.parameters.Add(new Instruction.Parameter("Value", valueString));
-            
+
             return (true, instruction);
         }
     }

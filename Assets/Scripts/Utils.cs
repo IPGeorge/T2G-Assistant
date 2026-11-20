@@ -24,6 +24,7 @@ namespace T2G.Assistant
             destination.LLModel = source.LLModel;
             destination.EnableGameDesc = source.EnableGameDesc;
             destination.EnableGameDescTemplates = source.EnableGameDescTemplates;
+            destination.OpenAIAPIKey = source.OpenAIAPIKey;
             destination.EnableSkills = source.EnableSkills;
         }
 

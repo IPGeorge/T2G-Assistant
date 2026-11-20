@@ -24,7 +24,9 @@ namespace T2G.Assistant
         List<TranslatorBase> _translators = new List<TranslatorBase>();
         
         private LLMTranslator _llmTranslator;
-        public bool AwaitingClarification => _llmTranslator != null && _llmTranslator.AwaitingClarification;
+        private OpenAITranslator _openAITranslator;
+        public bool AwaitingClarification => (_llmTranslator != null && _llmTranslator.AwaitingClarification) ||
+                                             (_openAITranslator != null && _openAITranslator.AwaitingClarification);
 
 
         public Translation()
@@ -36,8 +38,17 @@ namespace T2G.Assistant
         {
             _translators.Clear();
             _translators.Add(new CommandTranslator());
-            _llmTranslator = new LLMTranslator();
-            _translators.Add(_llmTranslator);
+            if(string.IsNullOrWhiteSpace(Assistant.Instance.Settings.OpenAIAPIKey))
+            {
+                _llmTranslator = new LLMTranslator();
+                _translators.Add(_llmTranslator);
+            }
+            else
+            {
+                _openAITranslator = new OpenAITranslator();
+                _translators.Add(_openAITranslator);
+            }
+
         }
 
         public async Awaitable<(TranslationResponseType responsType, List<InstructionBase> instructions, string message)> Translate(string text)
@@ -145,6 +156,7 @@ namespace T2G.Assistant
         public void CancelClarification()
         {
             _llmTranslator?.ClearPendingClarification();
+            _openAITranslator?.ClearPendingClarification();
         }
     }
 }

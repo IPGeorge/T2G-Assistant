@@ -265,9 +265,13 @@ namespace T2G.Assistant
 
             DrawBoolToggleField("Enable skills", editingSettings.EnableSkills,
                 value => editingSettings.EnableSkills = value, yPos, width);
+            yPos += 36;
+
+            DrawLabeledTextField("OpenAI ApiKey:", editingSettings.OpenAIAPIKey,
+                value => editingSettings.OpenAIAPIKey = value, yPos, width);
             yPos += 42;
 
-            yPos = ComboSelectionField.DrawComboSelectionField("Model:", editingSettings.LLModel,
+            yPos = ComboSelectionField.DrawComboSelectionField("Local Model:", editingSettings.LLModel,
                 value => editingSettings.LLModel = value, yPos, width,
                 scrollViewport: scrollViewport, scrollOffset: scrollOffset);
 

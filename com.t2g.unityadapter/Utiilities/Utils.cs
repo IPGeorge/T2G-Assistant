@@ -470,5 +470,14 @@ namespace T2G
 
             return cnt;
         }
+
+        public static (bool isRoles, bool isTags) IsRolesOrTagsProperty(string propertyName)
+        {
+            bool result1 = string.Equals(propertyName, "role", System.StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(propertyName, "roles", System.StringComparison.OrdinalIgnoreCase);
+            bool result2 = string.Equals(propertyName, "tag", System.StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(propertyName, "tags", System.StringComparison.OrdinalIgnoreCase);
+            return (result1, result2);
+        }
     }
 }

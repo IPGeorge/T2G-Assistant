@@ -30,6 +30,9 @@ namespace T2G.Assistant
         public bool EnableSkills;
         public string LLModel;
 
+        [Header("OpenAI Settings")]
+        public string OpenAIAPIKey;
+
         public SettingsLite CloneToSettingsLite()
         {
             SettingsLite settingsLite = new SettingsLite();
@@ -55,6 +58,7 @@ namespace T2G.Assistant
         public bool EnableGameDesc;
         public bool EnableGameDescTemplates;
         public string LLModel;
+        public string OpenAIAPIKey;
         public bool EnableSkills;
 
         public void CopyFrom(Settings settings)
@@ -78,6 +82,7 @@ namespace T2G.Assistant
             LLModel = settings.LLModel;
             EnableGameDesc = settings.EnableGameDesc;
             EnableGameDescTemplates = settings.EnableGameDescTemplates;
+            OpenAIAPIKey = settings.OpenAIAPIKey;
             EnableSkills = settings.EnableSkills;
         }
 
@@ -96,6 +101,7 @@ namespace T2G.Assistant
             settings.LLModel = LLModel;
             settings.EnableGameDesc = EnableGameDesc;
             settings.EnableGameDescTemplates = EnableGameDescTemplates;
+            settings.OpenAIAPIKey = OpenAIAPIKey;
             settings.EnableSkills = EnableSkills;
         }
     }

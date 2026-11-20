@@ -812,8 +812,7 @@ namespace T2G.Assistant
             // properties without changing the elemental set_property schema.
             string componentType;
             string componentProperty;
-            bool isComponentProperty = TrySplitComponentProperty(
-                propertyName, out componentType, out componentProperty);
+            bool isComponentProperty = TrySplitComponentProperty(propertyName, out componentType, out componentProperty);
 
             if (string.Equals(CurrentSpace.Name, ownerName, StringComparison.OrdinalIgnoreCase))
             {
@@ -837,10 +836,37 @@ namespace T2G.Assistant
 
             Object obj = FindObjectByName(ownerName);
             if (obj == null)
-                throw new InvalidOperationException(
-                    "Property owner '" + ownerName + "' could not be resolved.");
+                throw new InvalidOperationException("Property owner '" + ownerName + "' could not be resolved.");
 
-            if (isComponentProperty)
+            var isRolesOrTags = T2G.Utils.IsRolesOrTagsProperty(propertyName);
+            if (isRolesOrTags.isRoles || isRolesOrTags.isTags)
+            {
+                // Roles and Tags live in dedicated lists rather than in Properties.
+                // Only the list implied by the property name is touched.
+                string rawValue = actualValue == null
+                    ? string.Empty
+                    : actualValue.Type == JTokenType.String
+                        ? actualValue.Value<string>()
+                        : actualValue.ToString();
+
+                // Split on ',' and trim each entry, which also covers the ", "
+                // delimiter produced by string.Join(", ", ...) callers.
+                string[] values = rawValue.Split(
+                    new[] { ',' },
+                    StringSplitOptions.RemoveEmptyEntries);
+
+                if (isRolesOrTags.isRoles)
+                {
+                    obj.Roles = obj.Roles ?? new List<string>();
+                    AddDistinctValues(obj.Roles, values);
+                }
+                else
+                {
+                    obj.Tags = obj.Tags ?? new List<string>();
+                    AddDistinctValues(obj.Tags, values);
+                }
+            }
+            else if (isComponentProperty)
             {
                 Component component = FindComponentByType(obj.Components, componentType);
                 if (component == null)
@@ -1515,6 +1541,41 @@ namespace T2G.Assistant
                     result.Add(item);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Appends trimmed, non-empty values to <paramref name="target"/> without
+        /// creating duplicates (case-insensitive, matching the rest of GameDesc).
+        /// </summary>
+        private static void AddDistinctValues(
+            List<string> target,
+            string[] values)
+        {
+            if (target == null || values == null)
+                return;
+
+            foreach (string value in values)
+            {
+                if (value == null)
+                    continue;
+
+                string item = value.Trim();
+                if (string.IsNullOrWhiteSpace(item))
+                    continue;
+
+                bool exists = false;
+                foreach (string existing in target)
+                {
+                    if (string.Equals(existing, item, StringComparison.OrdinalIgnoreCase))
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (!exists)
+                    target.Add(item);
+            }
         }
 
         private void EnsureGameDesc()

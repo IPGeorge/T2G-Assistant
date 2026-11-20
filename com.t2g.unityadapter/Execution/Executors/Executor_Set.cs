@@ -27,6 +27,17 @@ namespace T2G
             string propertyName = instruction.parameters.GetString("Property");
             string value = instruction.parameters.GetString("Value");
 
+            if(string.IsNullOrWhiteSpace(propertyName) || string.IsNullOrWhiteSpace(value))
+            {
+                return (false, $"Invalid property name {propertyName} for setting the value {value}!", null, null);
+            }
+
+            var isRolesOrTAgs = T2G.Utils.IsRolesOrTagsProperty(propertyName);
+            if (isRolesOrTAgs.isRoles ||  isRolesOrTAgs.isTags)
+            {
+                return (true, $"{objName}'s {propertyName} was set to {value}.", null, null);
+            }
+
             bool succeeded = GameObjectPropertySetter.SetProperty(obj, propertyName, value, out var resultMessage);
             if (succeeded)
             {
