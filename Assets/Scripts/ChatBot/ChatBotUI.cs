@@ -250,6 +250,7 @@ namespace T2G.Assistant
                  GUI.GetNameOfFocusedControl() == "ChatInput"))
             {
                 SendMessage();
+                currentEvent.Use();
                 GUI.FocusControl("ChatInput");
             }
         }

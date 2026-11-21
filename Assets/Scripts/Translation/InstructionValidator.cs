@@ -420,11 +420,12 @@ namespace T2G.Assistant
                         asset.type = AssetType.Identifier;
                     }
 
-                    if (!string.IsNullOrWhiteSpace(asset.source))
+                    if (!string.IsNullOrWhiteSpace(asset.source))       //TODO: move to the Normalizer later
                     {
                         if(T2G.Utils.IsScript(asset.source))
                         {
                             asset.type = AssetType.Script;
+                            asset.source = asset.source.Replace("\\r\\n", "\n").Replace("\\n", "\n").Replace("\\t", "\t");
                         }
                         else if(File.Exists(asset.source))
                         {
