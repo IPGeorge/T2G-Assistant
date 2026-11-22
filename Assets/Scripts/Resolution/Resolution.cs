@@ -422,7 +422,7 @@ namespace T2G.Assistant
                 }
                 else
                 {
-                    var loadName2 = Path.GetFileName(splitedPath[1]);
+                    var loadName2 = Path.GetFileName(splitedPath.Length > 1 ? splitedPath[1] : splitedPath[0]);
                     if (splitedPath.Length >= 2 && string.Equals(loadName, loadName2, StringComparison.OrdinalIgnoreCase))
                     {
                         matched.Add(foundAssetPaths[i]);
