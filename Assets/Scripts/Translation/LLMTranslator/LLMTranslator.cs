@@ -58,22 +58,18 @@ namespace T2G.Assistant
         // For chat UI, call TranslateWithDialogueAsync instead.
         public override async Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string text)
         {
-            TranslationResponse response;
-            if (Assistant.Instance.Settings.EnableGameDesc)
+            TranslationResponse response = await TranslateWithDialogueAsync(text);
+            if (response.HasInstructions)
             {
-                string gameDescJson = GameDescManager.Instance.CurrentGameDescWithoutHistoryJson;
-                if (Assistant.Instance.Settings.EnableGameDescTemplates)
-                {
-                    GameDescManager.Instance.LoadGameDescTemplates();
-                }
-                var gameDescContext = BuildGameDescContextMessage(gameDescJson, GameDescManager.Instance.CurrentSpace.Name, GameDescManager.Instance.GameDescJsonTemplates);
-                response = await TranslateWithDialogueAsync(text, gameDescContext);
+                return (true, response.Instructions);
             }
             else
             {
-                response = await TranslateWithDialogueAsync(text);
+                if (!string.IsNullOrEmpty(response.Message))
+                {
+                    return (true, (List<InstructionBase>)null);
+                }
             }
-            
             return response.HasInstructions ? (true, response.Instructions) : (false, (List<InstructionBase>)null);
         }
 

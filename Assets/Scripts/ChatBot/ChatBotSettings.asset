@@ -21,7 +21,7 @@ MonoBehaviour:
   UnityEditorPath: C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe
   T2G_UnityPluginPath: C:\MyStuffs\BU\Projects\T2G Assistant\com.t2g.unityadapter
   AssetLibraryRootPath: C:\MyStuffs\BU\Projects\AssetLibrary
-  DefaultUnityProject: c:\tmp\demo
+  DefaultUnityProject: C:\tmp\T2G_Exp\T2G_Exp
   EnableGameDesc: 1
   EnableGameDescTemplates: 0
   EnableSkills: 1

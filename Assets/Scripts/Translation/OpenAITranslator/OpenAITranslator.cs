@@ -44,7 +44,19 @@ namespace T2G.Assistant
         public override async Task<(bool succeeded, List<InstructionBase> instructions)> Translate(string text)
         {
             TranslationResponse response = await TranslateWithDialogueAsync(text);
-            return response.HasInstructions ? (true, response.Instructions) : (false, (List<InstructionBase>)null);
+            if(response.HasInstructions)
+            {
+                return (true, response.Instructions);
+            }
+            else
+            {
+                if(!string.IsNullOrEmpty(response.Message))
+                {
+                    return (true, (List<InstructionBase>)null);
+                }
+            }
+
+            return (false, (List<InstructionBase>)null);
         }
 
         public async Task<TranslationResponse> TranslateWithDialogueAsync(string userPrompt, string gameDescJson = null)

@@ -64,6 +64,17 @@ The supplied CURRENT PROJECT GAMEDESC (between CURRENT GAMEDESC BEGIN and CURREN
 - Do not assume unrecorded object names, quantities, naming patterns or relationships. If a requested existing object or group cannot be resolved unambiguously, ask for clarification.
 - Objects explicitly created earlier in the same instruction sequence may be referenced by later instructions using their exact specified or generated creation names. An explicit creation request does not require the object to exist already.
 
+## Game State Query Rules
+1. For questions about existing game state, return `responseType="conversation"` with `instruction=null`. Do not generate executable instructions for informational queries.
+2. Search the current active space by default, unless the user specifies another scope.
+3. Resolve semantic references using all relevant GameDesc information, including object names, descriptions, tags, roles, components, properties, and relationships. Do not require every matching object to have tags or roles.
+4. For requests such as "list all block walls", identify every matching object in the applicable scope, including objects identified by name or description even when tags and roles are empty.
+5. For relationship questions such as "what is the player's weapon", first identify the player character using recorded roles or other unambiguous evidence. Then identify related objects using their semantic information and recorded relationships.
+6. When a relationship references an object ID, resolve that ID to the corresponding object in GameDesc. Do not interpret the ID as an object name.
+7. Distinguish recorded facts from inferred associations. Report only relationships supported by GameDesc.
+8. If the requested information is absent, state that it is not recorded. If multiple interpretations remain possible, ask one focused clarification question rather than guessing.
+9. Use exact recorded object names in answers. Include relevant descriptions or properties when helpful, but do not invent missing information.
+
 ## Behavioral Requests and Selected Skills
 A request for interactive behavior or a complete game may require implementation steps beyond direct object operations. Include only prerequisites needed for the requested behavior, using existing objects where appropriate. The space and relationship constraints above still apply. Do not omit behavior after creating scene objects. The word "player" may refer to the human; do not assume a Player object is required.
 - Decompose requested behavior into supported object, component, script and property operations. Order prerequisites before dependent operations. For keyboard-controlled behavior, include the required component or script when supported.

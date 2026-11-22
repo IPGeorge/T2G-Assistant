@@ -127,6 +127,14 @@ namespace T2G.Assistant
                 return await llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
             }
 
+            var openAITranslator = translator as OpenAITranslator;
+            // A follow-up answer belongs to the pending LLM dialogue. Do not let CommandTranslator intercept it.
+            if (openAITranslator != null && AwaitingClarification)
+            {
+                Debug.Log("[Translation] Continuing pending clarification with OpenAITranslator");
+                return await openAITranslator.TranslateWithDialogueAsync(text, gameDescContext);
+            }
+
             Debug.Log($"[Translation] Using translator: {translator.GetType().Name}");
 
             // The LLM has a richer response contract than TranslatorBase.Translate().
@@ -134,6 +142,12 @@ namespace T2G.Assistant
             {
                 TranslationResponse response = await llmTranslator.TranslateWithDialogueAsync(text, gameDescContext);
                 Debug.Log($"[Translation] LLM response type: {response.Type}");
+                return response;
+            }
+            else if(openAITranslator != null)
+            {
+                TranslationResponse response = await openAITranslator.TranslateWithDialogueAsync(text, gameDescContext);
+                Debug.Log($"[Translation] OpenAITranslator response type: {response.Type}");
                 return response;
             }
             else
